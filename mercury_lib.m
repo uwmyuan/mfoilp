@@ -9,10 +9,13 @@
 %-----------------------------------------------------------------------------%
 
 :- import_module io.
+:- import_module int.
+:- import_module list.
+:- import_module float.
 
 :- type atom_store.
 
-:- pred makevars(atom_store::out) is det.
+:- pred makevars(atom_store::out,list(int)::out,list(float)::out) is det.
 :- pred usevars(atom_store::in,io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
@@ -21,8 +24,6 @@
 :- implementation.
 
 :- import_module map.
-:- import_module int.
-:- import_module list.
 :- import_module solutions.
 
 :- type person ---> alice; bob; charlie; dean; ed.
@@ -56,19 +57,23 @@ person(charlie).
 person(dean).
 person(ed).
 
-:- pragma foreign_export("C", makevars(out), "makevars").
+:- pred objective(atom::in,float::out) is det.
+objective(_,0.5).
 
-makevars(AtomStore) :-
+:- pragma foreign_export("C", makevars(out,out,out), "makevars").
+
+makevars(AtomStore,Keys,Objs) :-
 	solutions(atom,AllAtoms),
 	map.init(AS0),
-	store_atoms(AllAtoms,0,AS0,AtomStore).
+	store_atoms(AllAtoms,Keys,Objs,0,AS0,AtomStore).
 
-:- pred store_atoms(list(atom)::in,int::in,atom_store::in,atom_store::out) is det.
+:- pred store_atoms(list(atom)::in,list(int)::out,list(float)::out,int::in,atom_store::in,atom_store::out) is det.
 
-store_atoms([],_,!AS).
-store_atoms([H|T],N,!AS) :-
+store_atoms([],[],[],_,!AS).
+store_atoms([H|T],[N|NT],[X|XT],N,!AS) :-
 	map.det_insert(N,H,!AS),
-	store_atoms(T,N+1,!AS).
+	objective(H,X),
+	store_atoms(T,NT,XT,N+1,!AS).
 
 
 :- pragma foreign_export("C", usevars(in,di,uo), "usevars").

@@ -20,6 +20,11 @@
 #include "mercury_lib.mh"
 
 typedef MR_Word MR_AtomStore;
+typedef MR_Word MR_IntList;
+typedef MR_Word MR_FloatList;
+
+static void print_ints(MR_IntList);
+static void print_floats(MR_FloatList);
 
 int
 main(int argc, char **argv)
@@ -27,6 +32,8 @@ main(int argc, char **argv)
     void *stack_bottom;
 
     MR_AtomStore atomstore;
+    MR_IntList keys;
+    MR_FloatList objs;
 
 
     /* Before calling any Mercury procedures we must first initialise
@@ -52,7 +59,10 @@ main(int argc, char **argv)
     ** Here is a call to an exported Mercury procedure that does some I/O.
     */
 
-    makevars(&atomstore);
+    makevars(&atomstore,&keys,&objs);
+
+    print_ints(keys);
+    print_floats(objs);
 
     usevars(atomstore);
 
@@ -67,4 +77,34 @@ main(int argc, char **argv)
     ** we are using.
     */
     return mercury_terminate();
+}
+
+static void print_ints(MR_IntList list) {
+	if (MR_list_is_empty(list)) {
+		printf("[]");
+	} else {
+		printf("[");
+		printf("%d", MR_list_head(list));
+		list = MR_list_tail(list);
+		while (!MR_list_is_empty(list)) {
+			printf(", %d",  MR_list_head(list));
+			list = MR_list_tail(list);
+		}
+		printf("]");
+	}
+}
+
+static void print_floats(MR_FloatList list) {
+	if (MR_list_is_empty(list)) {
+		printf("[]");
+	} else {
+		printf("[");
+		printf("%f", MR_word_to_float(MR_list_head(list)));
+		list = MR_list_tail(list);
+		while (!MR_list_is_empty(list)) {
+			printf(", %f",  MR_list_head(list));
+			list = MR_list_tail(list);
+		}
+		printf("]");
+	}
 }
