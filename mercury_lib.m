@@ -5,114 +5,86 @@
 :- module mercury_lib.
 :- interface.
 
-:- import_module io.
-:- import_module int.
-:- import_module list.
+
 %-----------------------------------------------------------------------------%
 
+:- import_module io.
 
+:- type atom_store.
 
-%:- type atom == int.
-:- type intlist.
-
-:- pragma foreign_type("C", intlist, "int*").
-
-:- type atom ---> bob ; jane.
-
-    % Write "Hello World" to the current Mercury text output stream.
-    %
-:- pred write_hello(int::in, int::out, io::di, io::uo) is det.
-
-    % Write the current value of the mutable `global' to the current
-    % Mercury text output stream.
-    %
-:- pred write_global_value(io::di, io::uo) is det.
-:- impure pred makevars(io::di, io::uo) is det.
-
-:- pred get_atom(atom::out) is det.
-:- pred write_atom(atom::in, io::di, io::uo) is det.
-
-:- pred foo(intlist::in,int::in,int::out) is det.
-
-:- pred all_foos(list(atom)::out) is det.
+:- pred makevars(atom_store::out) is det.
+:- pred usevars(atom_store::in,io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
 :- implementation.
 
+:- import_module map.
+:- import_module int.
+:- import_module list.
+:- import_module solutions.
 
-:- import_module string.
-:- import_module array.
+:- type person ---> alice; bob; charlie; dean; ed.
+
+:- type atom --->
+	friends(person,person)
+	; smokes(person)
+	; cancer(person)
+	; cb1(int,person)
+	; cb2(int,person,person).
+
+:- type atom_store == map(int,atom).
 
 
 %-----------------------------------------------------------------------------%
 
-:- mutable(global, int, 561, ground, [untrailed,
-    foreign_name("C", "GLOBAL"), attach_to_io_state]).
+
+:- pred atom(atom::out) is multi.
+
+atom(friends(X,Y)) :- person(X), person(Y), not X = Y.
+atom(smokes(X)) :- person(X).
+atom(cancer(X)) :- person(X).
+atom(cb1(1,X)) :- person(X).
+atom(cb1(2,X)) :- person(X).
+
+:- pred person(person::out) is multi.
+
+person(alice).
+person(bob).
+person(charlie).
+person(dean).
+person(ed).
+
+:- pragma foreign_export("C", makevars(out), "makevars").
+
+makevars(AtomStore) :-
+	solutions(atom,AllAtoms),
+	map.init(AS0),
+	store_atoms(AllAtoms,0,AS0,AtomStore).
+
+:- pred store_atoms(list(atom)::in,int::in,atom_store::in,atom_store::out) is det.
+
+store_atoms([],_,!AS).
+store_atoms([H|T],N,!AS) :-
+	map.det_insert(N,H,!AS),
+	store_atoms(T,N+1,!AS).
 
 
-:- mutable(atomarray, array(int), array.make_empty_array, ground, [untrailed]).
+:- pragma foreign_export("C", usevars(in,di,uo), "usevars").
 
-:- mutable(atomlist, list(atom), [], ground, [untrailed, attach_to_io_state]). 
+usevars(AtomStore,!IO) :-
+	map.keys_and_values(AtomStore, Keys, Values),
+	write_all(Keys,!IO),
+	write_all(Values,!IO).
 
-%-----------------------------------------------------------------------------%
+:- pred write_all(list(T)::in,io::di,io::uo) is det.
 
-:- pragma foreign_export("C", all_foos(out), "foo_list").
-
-all_foos([bob,jane,bob]).
-
-/* this has to call some foreign_proc to get hold of the intlist */
-:- pragma foreign_export("C", foo(in,in,out),
-			 "foo").
-foo(X,Y,Z) :- loku(X,Y,Z).
-
-:- pred loku(intlist::in,int::in,int::out) is det.
-
-:- pragma foreign_proc("C",
-    loku(List::in, Index::in, Val::out),
-    [will_not_call_mercury, promise_pure],
-"
-Val = List[Index];		    
-"
-		   ). 
-:- pragma foreign_export("C", makevars(di,uo),
-    "makevars").
-
-makevars(!IO) :-
-	semipure get_atomlist(L),
-	list.append(L,[bob,jane],L1),
-	impure set_atomlist(L1),
-	io.write(L1,!IO).
+write_all([],!IO).
+write_all([H|T],!IO) :-
+	write(H,!IO),nl(!IO),
+	write_all(T,!IO).
 	
-
-:- pragma foreign_export("C", write_hello(in, out, di, uo),
-    "write_hello").
-
-write_hello(X,Y,!IO) :-
-    io.write_int(X, !IO),
-    Y = X+1,
-    io.write_string(" Hello World\n", !IO).
-
-:- pragma foreign_export("C", write_global_value(di, uo),
-    "write_global_value").
-
-write_global_value(!IO) :-
-    get_global(Value, !IO),
-    io.format("The new value of global is %d.\n", [i(Value)], !IO).
-
- :- pragma foreign_export("C", get_atom(out),
-     "get_atom").
-
-get_atom(bob).
-
-:- pragma foreign_export("C", write_atom(in, di, uo),
-    "write_atom").
-
-write_atom(X,!IO) :-
-	io.write(X,!IO),	io.write(X,!IO),
-	io.nl(!IO).
-
 
 
 %-----------------------------------------------------------------------------%

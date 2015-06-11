@@ -19,22 +19,15 @@
 */
 #include "mercury_lib.mh"
 
-typedef MR_Word MercuryList;
+typedef MR_Word MR_AtomStore;
 
 int
 main(int argc, char **argv)
 {
     void *stack_bottom;
-    MR_Integer x;
-    
-    MR_Word fo;
-   
-    int* y;
-    MR_Integer z;
 
-    MercuryList list;
+    MR_AtomStore atomstore;
 
-    y = (int *) malloc(3*sizeof(int)); 
 
     /* Before calling any Mercury procedures we must first initialise
     ** the Mercury runtime, standard library and any other Mercury libraries
@@ -58,46 +51,10 @@ main(int argc, char **argv)
     /*
     ** Here is a call to an exported Mercury procedure that does some I/O.
     */
-    /*printf("%d\n",write_hello(22));*/
-    write_hello(22,&x);
-    printf("%d\n",x);
 
-    get_atom(&fo);
+    makevars(&atomstore);
 
-    write_atom(fo);
-
-    y[2] = 3;
-    foo(y,2,&z);
-
-    printf("should be 3 is %d\n", (int) z);
-
-    makevars();
-
-    makevars();
-
-    foo_list(&list);
-
-    /*
-    ** Lookup the current value of the Mercury mutable 'global' and print it
-    ** out.  In C code we can refer to `global' by it's "foreign" name, the
-    ** name given by mutable's foreign_name attribute.
-    **
-    ** WARNING: in grades that support multithreading access to Mercury
-    ** mutables from C is *not* (currently) thread safe.
-    */
-    printf("The current value of global is %" MR_INTEGER_LENGTH_MODIFIER "d.\n",
-        GLOBAL);
-
-    /*
-    ** Change the value of the Mercury mutable `global'.
-    */
-    GLOBAL = 42;
-
-    /*
-    ** Call a Mercury procedure that prints out the current value of
-    ** the mutable `global'.
-    */
-    write_global_value();
+    usevars(atomstore);
 
     /*
     ** Once we have finished calling Mercury procedures then we shut
