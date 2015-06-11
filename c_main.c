@@ -2,6 +2,7 @@
 ** vim: ts=4 sw=4 et
 */
 #include <stdio.h>
+#include <stdlib.h>
 
 /*
 ** This header file is part of the stand-alone interface.
@@ -18,7 +19,7 @@
 */
 #include "mercury_lib.mh"
 
-typedef MR_Word MR_Atom;
+typedef MR_Word MercuryList;
 
 int
 main(int argc, char **argv)
@@ -26,8 +27,15 @@ main(int argc, char **argv)
     void *stack_bottom;
     MR_Integer x;
     
-    MR_Integer foo;
+    MR_Word fo;
    
+    int* y;
+    MR_Integer z;
+
+    MercuryList list;
+
+    y = (int *) malloc(3*sizeof(int)); 
+
     /* Before calling any Mercury procedures we must first initialise
     ** the Mercury runtime, standard library and any other Mercury libraries
     ** that we will be using.  The function mercury_init() is used to do
@@ -54,7 +62,20 @@ main(int argc, char **argv)
     write_hello(22,&x);
     printf("%d\n",x);
 
-    get_atom(&foo);
+    get_atom(&fo);
+
+    write_atom(fo);
+
+    y[2] = 3;
+    foo(y,2,&z);
+
+    printf("should be 3 is %d\n", (int) z);
+
+    makevars();
+
+    makevars();
+
+    foo_list(&list);
 
     /*
     ** Lookup the current value of the Mercury mutable 'global' and print it
