@@ -1,6 +1,4 @@
 %-----------------------------------------------------------------------------%
-% vim: ft=mercury ts=4 sw=4 et
-%-----------------------------------------------------------------------------%
 
 :- module mercury_lib.
 :- interface.
@@ -29,10 +27,10 @@
 
 :- pred makelincons(atom_store::in,
 		    list(float)::out,
-		    list(lexp_int)::out,
+		    list(list(float))::out,
+		    list(list(int))::out,
 		    list(float)::out) is det.
 		    
-
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
@@ -106,11 +104,13 @@ name(Atom) = Name :-
 	stream.string_writer.write(string.builder.handle,Atom,State0,State),
 	Name = string.builder.to_string(State).
 
-makelincons(AtomStore,Lbs,Lexp_Int,Ubs) :-
+:- pragma foreign_export("C", makelincons(in,out,out,out,out), "makelincons").
+
+makelincons(AtomStore,Lbs,Coeffss,Varss,Ubs) :-
 	solutions(lincons,AllLinCons),
-	Convert = (pred(lincons(Lb,LinExpr,Ub)::in,Lb::out,LinExpr_I::out,Ub::out) is det :-
-	    LinExpr_I = list.map((func(F*Atom) = F * bimap.reverse_lookup(AtomStore,Atom)),LinExpr)),
-	list.map3(Convert,AllLinCons,Lbs,Lexp_Int,Ubs).
+	Convert = (pred(lincons(Lb,LinExpr,Ub)::in,Lb::out,Coeffs::out,Vars::out,Ub::out) is det :-
+		  list.map2((pred(F*Atom::in,F::out,I::out) is det :- I = bimap.reverse_lookup(AtomStore,Atom)),LinExpr,Coeffs,Vars)),
+	list.map4(Convert,AllLinCons,Lbs,Coeffss,Varss,Ubs).
 
 :- pragma foreign_export("C", makevars(out,out,out,out,out,out,out), "makevars").
 

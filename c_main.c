@@ -23,6 +23,8 @@ typedef MR_Word MR_AtomStore;
 typedef MR_Word MR_IntList;
 typedef MR_Word MR_FloatList;
 typedef MR_Word MR_StringList;
+typedef MR_Word MR_FloatListList;
+typedef MR_Word MR_IntListList;
 
 static void print_ints(MR_IntList);
 static void print_floats(MR_FloatList);
@@ -41,6 +43,8 @@ main(int argc, char **argv)
     MR_IntList vartypes;
     MR_FloatList objs;
 
+    MR_FloatListList coeffss;
+    MR_IntListList varss;
 
     /* Before calling any Mercury procedures we must first initialise
     ** the Mercury runtime, standard library and any other Mercury libraries
@@ -72,6 +76,8 @@ main(int argc, char **argv)
        &objs);              /* objective coeff for each variable to be created */
 
     print_vars(idents,names,lbs,ubs,vartypes,objs);
+
+    makelincons(atomstore,&lbs,&coeffss,&varss,&ubs);
 
     /* print_ints(keys); */
     /* print_floats(objs); */
