@@ -22,9 +22,11 @@
 typedef MR_Word MR_AtomStore;
 typedef MR_Word MR_IntList;
 typedef MR_Word MR_FloatList;
+typedef MR_Word MR_StringList;
 
 static void print_ints(MR_IntList);
 static void print_floats(MR_FloatList);
+static void print_vars(MR_IntList,MR_StringList,MR_FloatList,MR_FloatList,MR_IntList,MR_FloatList);
 
 int
 main(int argc, char **argv)
@@ -32,7 +34,11 @@ main(int argc, char **argv)
     void *stack_bottom;
 
     MR_AtomStore atomstore;
-    MR_IntList keys;
+    MR_IntList idents;
+    MR_StringList names;
+    MR_FloatList lbs;
+    MR_FloatList ubs;
+    MR_IntList vartypes;
     MR_FloatList objs;
 
 
@@ -55,14 +61,20 @@ main(int argc, char **argv)
     */
     mercury_init(argc, argv, &stack_bottom);
 
-    /*
-    ** Here is a call to an exported Mercury procedure that does some I/O.
-    */
 
-    makevars(&atomstore,&keys,&objs);
+    makevars(&atomstore,    /* don't need this to make variables
+                               but needed for bookkeeping */
+       &idents,             /* index for each variable to be created */
+       &names,              /* name for each variable to be created */
+       &lbs,                /* lower bound for each variable to be created */
+       &ubs,                /* upper bound for each variable to be created */
+       &vartypes,           /* variable type for each variable to be created */
+       &objs);              /* objective coeff for each variable to be created */
 
-    print_ints(keys);
-    print_floats(objs);
+    print_vars(idents,names,lbs,ubs,vartypes,objs);
+
+    /* print_ints(keys); */
+    /* print_floats(objs); */
 
     usevars(atomstore);
 
@@ -78,6 +90,36 @@ main(int argc, char **argv)
     */
     return mercury_terminate();
 }
+
+
+static void print_vars(
+   MR_IntList idents,
+   MR_StringList names,
+   MR_FloatList lbs,
+   MR_FloatList ubs,
+   MR_IntList vartypes,
+   MR_FloatList objs
+   ) 
+{
+   while ( !MR_list_is_empty(idents) ) 
+   {
+      printf("%d %s %f %f %d %f\n", 
+         MR_list_head(idents),
+         MR_list_head(names),
+         MR_word_to_float(MR_list_head(lbs)),
+         MR_word_to_float(MR_list_head(ubs)),
+         MR_list_head(vartypes),
+         MR_word_to_float(MR_list_head(objs))
+         );
+      idents = MR_list_tail(idents);
+      names = MR_list_tail(names);
+      lbs = MR_list_tail(lbs);
+      ubs = MR_list_tail(ubs);
+      vartypes = MR_list_tail(vartypes);
+      objs = MR_list_tail(objs);
+   }
+}
+
 
 static void print_ints(MR_IntList list) {
 	if (MR_list_is_empty(list)) {

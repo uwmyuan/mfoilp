@@ -12,10 +12,17 @@
 :- import_module int.
 :- import_module list.
 :- import_module float.
+:- import_module string.
 
 :- type atom_store.
 
-:- pred makevars(atom_store::out,list(int)::out,list(float)::out) is det.
+:- pred makevars(atom_store::out,
+		 list(int)::out,
+		 list(string)::out,
+		 list(float)::out,
+		 list(float)::out,
+		 list(int)::out,
+		 list(float)::out) is det.
 :- pred usevars(atom_store::in,io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
@@ -57,23 +64,43 @@ person(charlie).
 person(dean).
 person(ed).
 
-:- pred objective(atom::in,float::out) is det.
-objective(_,0.5).
+:- func objective(atom) = float.
+objective(_) = 0.5.
 
-:- pragma foreign_export("C", makevars(out,out,out), "makevars").
+:- func lb(atom) = float.
+lb(_) = 0.0.
 
-makevars(AtomStore,Keys,Objs) :-
+:- func ub(atom) = float.
+ub(_) = 1.0.
+
+:- func vartype(atom) = int.
+vartype(_) = 1.
+
+:- func name(atom) = string.
+name(_) = "todo".
+%name(Atom) = Name :- Name = "", io.write(Atom,Name,!IO).
+
+:- pragma foreign_export("C", makevars(out,out,out,out,out,out,out), "makevars").
+
+makevars(AtomStore,Idents,Names,Lbs,Ubs,VarTypes,Objs) :-
 	solutions(atom,AllAtoms),
 	map.init(AS0),
-	store_atoms(AllAtoms,Keys,Objs,0,AS0,AtomStore).
+	store_atoms(AllAtoms,Idents,Names,Lbs,Ubs,VarTypes,Objs,0,AS0,AtomStore).
 
-:- pred store_atoms(list(atom)::in,list(int)::out,list(float)::out,int::in,atom_store::in,atom_store::out) is det.
+:- pred store_atoms(list(atom)::in,
+		    list(int)::out,
+		    list(string)::out,
+		    list(float)::out,
+		    list(float)::out,
+		    list(int)::out,
+		    list(float)::out,
+		    int::in,atom_store::in,atom_store::out) is det.
 
-store_atoms([],[],[],_,!AS).
-store_atoms([H|T],[N|NT],[X|XT],N,!AS) :-
-	map.det_insert(N,H,!AS),
-	objective(H,X),
-	store_atoms(T,NT,XT,N+1,!AS).
+store_atoms([],[],[],[],[],[],[],_,!AS).
+store_atoms([H|T],[I|IT],[name(H)|NT],[lb(H)|LT],[ub(H)|UT],
+	    [vartype(H)|VT],[objective(H)|OT],I,!AS) :-
+	map.det_insert(I,H,!AS),
+	store_atoms(T,IT,NT,LT,UT,VT,OT,I+1,!AS).
 
 
 :- pragma foreign_export("C", usevars(in,di,uo), "usevars").
