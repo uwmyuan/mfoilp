@@ -40,6 +40,8 @@
 
 :- import_module bimap.
 :- import_module solutions.
+:- import_module string.builder.
+:- import_module stream.string_writer.
 
 :- type person ---> alice; bob; charlie; dean; ed.
 
@@ -99,27 +101,16 @@ ub(_) = 1.0.
 vartype(_) = 1.
 
 :- func name(atom) = string.
-name(_) = "todo".
-%name(Atom) = Name :- Name = "", io.write(Atom,Name,!IO).
+name(Atom) = Name :-
+	State0 = string.builder.init,
+	stream.string_writer.write(string.builder.handle,Atom,State0,State),
+	Name = string.builder.to_string(State).
 
 makelincons(AtomStore,Lbs,Lexp_Int,Ubs) :-
 	solutions(lincons,AllLinCons),
-	convert_lc(AtomStore,AllLinCons,Lbs,Lexp_Int,Ubs).
-
-:- pred convert_lc(atom_store::in,list(lincons)::in,list(float)::out,list(lexp_int)::out,list(float)::out) is det.
-
-convert_lc(_AtomStore,[],[],[],[]).
-convert_lc(AtomStore,[lincons(Lb,LinExpr,Ub)|T],[Lb|LbT],[LinExpr_I|LET],[Ub|UbT]) :-
-	convert_le(AtomStore,LinExpr,LinExpr_I),
-	convert_lc(AtomStore,T,LbT,LET,UbT).
-
-:- pred convert_le(atom_store::in,lexp::in,lexp_int::out) is det.
-
-convert_le(_AtomStore,[],[]).
-convert_le(AtomStore,[F * Atom|T],[F * I|T2]) :-
-	I = bimap.reverse_lookup(AtomStore,Atom),
-	convert_le(AtomStore,T,T2).
-
+	Convert = (pred(lincons(Lb,LinExpr,Ub)::in,Lb::out,LinExpr_I::out,Ub::out) is det :-
+	    LinExpr_I = list.map((func(F*Atom) = F * bimap.reverse_lookup(AtomStore,Atom)),LinExpr)),
+	list.map3(Convert,AllLinCons,Lbs,Lexp_Int,Ubs).
 
 :- pragma foreign_export("C", makevars(out,out,out,out,out,out,out), "makevars").
 
