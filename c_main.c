@@ -29,6 +29,7 @@ typedef MR_Word MR_IntListList;
 static void print_ints(MR_IntList);
 static void print_floats(MR_FloatList);
 static void print_vars(MR_IntList,MR_StringList,MR_FloatList,MR_FloatList,MR_IntList,MR_FloatList);
+static void print_cons(MR_FloatList,MR_FloatListList,MR_IntListList,MR_FloatList);
 
 int
 main(int argc, char **argv)
@@ -79,6 +80,8 @@ main(int argc, char **argv)
 
     makelincons(atomstore,&lbs,&coeffss,&varss,&ubs);
 
+    print_cons(lbs,coeffss,varss,ubs);
+
     /* print_ints(keys); */
     /* print_floats(objs); */
 
@@ -97,6 +100,35 @@ main(int argc, char **argv)
     return mercury_terminate();
 }
 
+static void print_cons(
+   MR_FloatList lbs,
+   MR_FloatListList coeffss,
+   MR_IntListList varss,
+   MR_FloatList ubs
+   ) 
+{
+
+   MR_FloatList coeffs;
+   MR_IntList vars;
+
+   while ( !MR_list_is_empty(lbs) )
+   { 
+      coeffs = MR_list_head(coeffss);
+      vars = MR_list_head(varss);
+      printf("%f =< ", MR_word_to_float(MR_list_head(lbs)));
+      while ( !MR_list_is_empty(coeffs) )
+      {
+         printf("+ %f * %d ", MR_word_to_float(MR_list_head(coeffs)), MR_list_head(vars));
+         coeffs = MR_list_tail(coeffs);
+         vars = MR_list_tail(vars);
+      }
+      printf("=< %f\n", MR_word_to_float(MR_list_head(ubs)));
+      lbs = MR_list_tail(lbs);
+      coeffss = MR_list_tail(coeffss);
+      varss = MR_list_tail(varss);
+      ubs = MR_list_tail(ubs);
+   }
+}
 
 static void print_vars(
    MR_IntList idents,
