@@ -61,13 +61,24 @@
 :- type lincons ---> lincons(float,lexp,float).
 :- type lincons_int ---> lincons(float,lexp_int,float).
 
+:- type vartype ---> binary ; integer ; implint ; continuous.
 
 %-----------------------------------------------------------------------------%
 
-:- pred lincons(lincons::out) is multi.
+:- func scip_vartype(vartype) = int.
+scip_vartype(binary) = 0.
+scip_vartype(integer) = 1.
+scip_vartype(implint) = 2.
+scip_vartype(continuous) = 3.
 
-lincons(lincons(-100.0,[-1.0 * cb1(1,X), 1.0 * smokes(X), -1.0 * cancer(X)],0.0))  :-
-	person(X).
+
+:- pred lincons(lincons::out) is nondet.
+
+%lincons(lincons(-100.0,[-1.0 * cb1(1,X), 1.0 * smokes(X), -1.0 * cancer(X)],0.0))  :-
+%	person(X).
+
+lincons(lincons(0.0,[1.0 * friends(X,Y), 1.0 * friends(X,Z)],1.0))  :-
+	person(X), person(Y), not X=Y, person(Z), not X=Z, not Y=Z.
 
 
 :- pred atom(atom::out) is multi.
@@ -87,7 +98,7 @@ person(dean).
 person(ed).
 
 :- func objective(atom) = float.
-objective(_) = 0.5.
+objective(_) = 50.5.
 
 :- func lb(atom) = float.
 lb(_) = 0.0.
@@ -95,8 +106,8 @@ lb(_) = 0.0.
 :- func ub(atom) = float.
 ub(_) = 1.0.
 
-:- func vartype(atom) = int.
-vartype(_) = 1.
+:- func vartype(atom) = vartype.
+vartype(_) = binary.
 
 :- func name(atom) = string.
 name(Atom) = Name :-
@@ -130,7 +141,7 @@ makevars(AtomStore,Idents,Names,Lbs,Ubs,VarTypes,Objs) :-
 
 store_atoms([],[],[],[],[],[],[],_,!AS).
 store_atoms([H|T],[I|IT],[name(H)|NT],[lb(H)|LT],[ub(H)|UT],
-	    [vartype(H)|VT],[objective(H)|OT],I,!AS) :-
+	    [scip_vartype(vartype(H))|VT],[objective(H)|OT],I,!AS) :-
 	bimap.det_insert(I,H,!AS),
 	store_atoms(T,IT,NT,LT,UT,VT,OT,I+1,!AS).
 
@@ -161,9 +172,11 @@ write_all([H|T],!IO) :-
 
 :- pred initialiser(io::di, io::uo) is det.
 
-initialiser(!IO) :-
-    io.write_string("mercury_lib: the initialiser has now been invoked.\n",
-        !IO).
+initialiser(!IO).
+
+% initialiser(!IO) :-
+%     io.write_string("mercury_lib: the initialiser has now been invoked.\n",
+%         !IO).
 
 %-----------------------------------------------------------------------------%
 %
@@ -173,10 +186,10 @@ initialiser(!IO) :-
 :- finalise finaliser/2.
 
 :- pred finaliser(io::di, io::uo) is det.
-
-finaliser(!IO) :-
-    io.write_string("mercury_lib: the finaliser has now been invoked.\n",
-        !IO).
+finaliser(!IO).
+% finaliser(!IO) :-
+%     io.write_string("mercury_lib: the finaliser has now been invoked.\n",
+%         !IO).
 
 %-----------------------------------------------------------------------------%
 :- end_module mercury_lib.
