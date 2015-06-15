@@ -68,15 +68,6 @@ int main(
    SCIP_Real coeff;   
 
    mercury_init(argc, argv, &stack_bottom);
-   
-   makevars(&atomstore,    /* don't need this to make variables
-                               but needed for bookkeeping */
-      &idents,             /* index for each variable to be created */
-      &names,              /* name for each variable to be created */
-      &lbs,                /* lower bound for each variable to be created */
-      &ubs,                /* upper bound for each variable to be created */
-      &vartypes,           /* variable type for each variable to be created */
-      &objs);              /* objective coeff for each variable to be created */
 
    /* initialize SCIP */
    SCIP_CALL( SCIPcreate(&scip) );
@@ -88,7 +79,19 @@ int main(
 
    SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MAXIMIZE) );
 
-   /* add Mercury variables */
+   /* Call Mercury to create variables */
+
+   makevars(&atomstore,    /* don't need this to make variables
+                               but needed for bookkeeping */
+      &idents,             /* index for each variable to be created */
+      &names,              /* name for each variable to be created */
+      &lbs,                /* lower bound for each variable to be created */
+      &ubs,                /* upper bound for each variable to be created */
+      &vartypes,           /* variable type for each variable to be created */
+      &objs);              /* objective coeff for each variable to be created */
+
+
+   /* add Mercury variables to SCIP instance */
    while ( !MR_list_is_empty(idents) ) 
    {
       ident =   MR_list_head(idents);
@@ -110,18 +113,20 @@ int main(
       vartypes = MR_list_tail(vartypes);
    }
 
-   
-   makelincons(atomstore,&lbs,&coeffss,&varss,&ubs);
+   /* Call Mercury to create coonstraints */   
+
+   makelincons(atomstore,&names,&lbs,&coeffss,&varss,&ubs);
 
    while ( !MR_list_is_empty(lbs) )
    { 
       coeffs = MR_list_head(coeffss);
       vars = MR_list_head(varss);
+      name = (MR_String)  MR_list_head(names);
       lb =      MR_word_to_float(MR_list_head(lbs));
       ub =      MR_word_to_float(MR_list_head(ubs));
 
       /* add a constraint */
-      SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, "todo", 0, NULL, NULL, lb, ub) );
+      SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, name, 0, NULL, NULL, lb, ub) );
       while ( !MR_list_is_empty(coeffs) )
       {
          coeff = MR_word_to_float(MR_list_head(coeffs));
@@ -137,6 +142,7 @@ int main(
 
       coeffss = MR_list_tail(coeffss);
       varss = MR_list_tail(varss);
+      names = MR_list_tail(names);
       lbs = MR_list_tail(lbs);
       ubs = MR_list_tail(ubs);
    }
@@ -154,5 +160,4 @@ int main(
 
    return mercury_terminate();
 
-   return 0;
-}   
+}

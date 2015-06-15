@@ -104,6 +104,10 @@ ifneq ($(OBJDIR),)
 endif
 		@-rm -f $(MAINFILE) $(MAINLINK) $(MAINSHORTLINK)
 		@echo "-> remove binary"
+		@-$(MMC) --make mercury_lib.realclean
+		@/bin/rm -f mercury_lib_int.[cho] c_main.o c_main Deep.data
+		@/bin/rm -rf Mercury
+
 
 .PHONY: test
 test:           $(MAINFILE)
@@ -130,6 +134,9 @@ depend:		$(SCIPDIR)
 
 -include	$(MAINDEP)
 
+.PHONY: solution
+solution:	$(MAINSHORTLINK)
+		mfoilp
 
 # main target
 $(MAINFILE):	$(BINDIR) $(OBJDIR) $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINOBJFILES) mercury_lib_int.o mercury_lib.init
