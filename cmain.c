@@ -31,6 +31,15 @@ typedef MR_Word MR_StringList;
 typedef MR_Word MR_FloatListList;
 typedef MR_Word MR_IntListList;
 
+#define VAR_BLOCKSIZE 10;
+
+struct SCIP_ProbData
+{
+   int          nvars;         /**< number of variables in the problem */
+   SCIP_VAR**   vars;          /**< variables in the problem */
+   int          vars_len;      /**< length of vars array */
+   MR_AtomStore atom_store;    /**< Mercury bimap between atoms and their indices */
+};
 
 /** main function (just for testing at present ) */
 int main(
@@ -58,8 +67,6 @@ int main(
    SCIP_CONS* cons;
    SCIP_VAR* var;
 
-   SCIP_VAR* mercury_vars[2000];
-
    int ident;
    MR_String name;
    SCIP_Real lb;
@@ -68,6 +75,8 @@ int main(
    int vartype;
 
    SCIP_Real coeff;   
+
+   SCIP_PROBDATA*  probdata;
 
    mercury_init(argc, argv, &stack_bottom);
 
@@ -78,6 +87,9 @@ int main(
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
    SCIP_CALL( SCIPcreateProbBasic(scip, "folilp") );
+
+   /* allocate memory */
+   SCIP_CALL( SCIPallocMemory(scip, &probdata) );
 
    SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MAXIMIZE) );
 
@@ -94,6 +106,11 @@ int main(
 
 
    /* add Mercury variables to SCIP instance */
+   probdata->atom_store = atomstore;
+   probdata->nvars = 0;
+   probdata->vars_len = VAR_BLOCKSIZE;
+   SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
+
    while ( !MR_list_is_empty(idents) ) 
    {
       ident =   MR_list_head(idents);
@@ -103,9 +120,21 @@ int main(
       obj =     MR_word_to_float(MR_list_head(objs));
       vartype = MR_list_head(vartypes);
 
+      /* throw error if idents are not listed as 0,1,...n */
+      if( ident != probdata->nvars )
+      {
+         SCIPerrorMessage("Mercury did not return list of variable indices  correctly.\n");
+         exit(1);
+      }
+
       SCIP_CALL( SCIPcreateVarBasic(scip, &var, name, lb, ub, obj, vartype) );
       SCIP_CALL( SCIPaddVar(scip, var) );
-      mercury_vars[ident] = var;
+      if( !(ident < probdata->vars_len) )
+      {
+         probdata->vars_len += VAR_BLOCKSIZE;
+         SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
+      }
+      probdata->vars[probdata->nvars++] = var;
 
       idents = MR_list_tail(idents);
       names = MR_list_tail(names);
@@ -115,7 +144,7 @@ int main(
       vartypes = MR_list_tail(vartypes);
    }
 
-   /* Call Mercury to create coonstraints */   
+   /* Call Mercury to create constraints */   
 
 
    /* include first-order linear constraint handler */
@@ -137,7 +166,7 @@ int main(
       while ( !MR_list_is_empty(coeffs) )
       {
          coeff = MR_word_to_float(MR_list_head(coeffs));
-         var = mercury_vars[MR_list_head(vars)];
+         var = probdata->vars[MR_list_head(vars)];
          SCIP_CALL( SCIPaddCoefLinear(scip, cons, var, coeff) );
          coeffs = MR_list_tail(coeffs);
          vars = MR_list_tail(vars);
