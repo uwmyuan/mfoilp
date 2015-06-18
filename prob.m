@@ -26,7 +26,7 @@
 
 % define atom type
 
-:- type person ---> alice; bob; charlie; dean; ed.
+:- type person ---> alice; bob; charlie; dean; ed; fre.
 
 :- type atom --->
 	friends(person,person)
@@ -50,6 +50,7 @@ person(bob).
 person(charlie).
 person(dean).
 person(ed).
+person(fre).
 
 % provide properties for each atom-variable
 

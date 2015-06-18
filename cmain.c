@@ -86,10 +86,13 @@ int main(
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
-   SCIP_CALL( SCIPcreateProbBasic(scip, "folilp") );
-
    /* allocate memory */
    SCIP_CALL( SCIPallocMemory(scip, &probdata) );
+
+
+   SCIP_CALL( SCIPcreateProb(scip, "folilp", NULL, NULL, NULL,
+         NULL, NULL, NULL, probdata) );
+
 
    SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MAXIMIZE) );
 

@@ -32,6 +32,17 @@ MAINFILE	=	$(BINDIR)/$(MAIN)
 MAINSHORTLINK	=	$(BINDIR)/$(MAINNAME)
 MAINOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINOBJ))
 
+
+# suppress warning produced by Mercury generated C code
+
+GCCWARN		=	-Wno-long-long -Wall -W -Wpointer-arith -Wcast-align -Wwrite-strings -Wshadow \
+			-Wno-unknown-pragmas -Wno-unused-parameter \
+			-Wdisabled-optimization \
+			-Wsign-compare -Wstrict-prototypes \
+			-Wmissing-declarations -Wmissing-prototypes -Wdeclaration-after-statement
+
+
+
 # Mercury stuff
 
 MMC = mmc
@@ -158,7 +169,7 @@ else
 endif
 
 mercury_lib.init: mercury_lib.m
-	$(MMC) $(GRADEOPT) --make libmercury_lib
+	$(MMC) $(GRADEOPT) --make  libmercury_lib
 
 # The following rule creates the stand-alone interface to the mercury_lib
 # library, Mercury standard library and Mercury runtime.  Since we haven't
@@ -167,7 +178,7 @@ mercury_lib.init: mercury_lib.m
 # `--mld' option to specify its location.
 #
 mercury_lib_int.o: mercury_lib.init
-	$(MMC) $(GRADEOPT) --ml mercury_lib \
+	$(MMC) $(GRADEOPT) --ml  mercury_lib \
 		--generate-standalone-interface mercury_lib_int
 
 # c_main.o: c_main.c mercury_lib.init mercury_lib_int.o
