@@ -21,6 +21,7 @@
 :- type lincons ---> lincons(lb,lexp,ub).
 :- type vartype ---> binary ; integer ; implint ; continuous.
 
+
 :- pred makevars(atom_store::out,
 		 list(int)::out,
 		 list(string)::out,
@@ -46,6 +47,7 @@
 
 :- import_module bimap.
 :- import_module map.
+:- import_module bool.
 :- import_module solutions.
 :- import_module io.
 :- import_module string.builder.
@@ -57,6 +59,8 @@
 :- type lincons_int ---> lincons(float,lexp_int,float).
 
 :- type sol == map(atom,float).
+:- type locktype ---> neither ; down_only ; up_only ; both.
+:- type lockinfo ---> lockinfo(lb,float,ub).
 
 %-----------------------------------------------------------------------------%
 
@@ -65,6 +69,74 @@ scip_vartype(binary) = 0.
 scip_vartype(integer) = 1.
 scip_vartype(implint) = 2.
 scip_vartype(continuous) = 3.
+
+:- pred locks(atom_store::in,int::in,locktype::out) is cc_multi.
+
+locks(AtomStore,Index,Locks) :-
+	bimap.lookup(AtomStore,Index,Atom),
+	Call = (
+		 pred(Out::out) is nondet :- prob.lincons(Cons),
+		 Cons = lincons(Lb,LExp,Ub),
+		 list.member(F*Atom,LExp),
+		 Out = lockinfo(Lb,F,Ub)
+	       ),
+	do_while(Call,filter,neither,Locks).
+
+:- pred filter(lockinfo::in,bool::out,locktype::in,locktype::out) is det.
+
+filter(_Lockinfo,no,both,both).
+filter(Lockinfo,More,neither,Out) :-
+	(
+	  up_lock(Lockinfo) ->
+	  (
+	    down_lock(Lockinfo) ->
+	    More = no,
+	    Out = both;
+	    More = yes,
+	    Out = up_only
+	  )
+	;
+	  More = yes,
+	  (
+	    down_lock(Lockinfo) ->
+	    Out = down_only;
+	    Out = neither
+	  )
+	).
+filter(Lockinfo,More,down_only,Out) :-
+	(
+	  up_lock(Lockinfo) ->
+	  More = no,
+	  Out = both;
+	  More = yes,
+	  Out = down_only
+	).
+filter(Lockinfo,More,up_only,Out) :-
+	(
+	  down_lock(Lockinfo) ->
+	  More = no,
+	  Out = both;
+	  More = yes,
+	  Out = up_only
+	).
+	  
+:- pred up_lock(lockinfo::in) is semidet.
+
+up_lock(lockinfo(Lb,F,Ub)) :-
+	(
+	  F > 0.0 ->
+	  not Ub = posinf;
+	  not Lb = neginf
+	).
+
+:- pred down_lock(lockinfo::in) is semidet.
+
+down_lock(lockinfo(Lb,F,Ub)) :-
+	(
+	  F > 0.0 ->
+	  not Lb = neginf;
+	  not Ub = posinf
+	).
 
 :- pragma foreign_export("C", conscheck(in,in,in), "mconscheck").
 
