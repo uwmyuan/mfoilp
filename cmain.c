@@ -6,6 +6,8 @@
 #include <scip/scip.h>
 #include <scip/scipdefplugins.h>
 
+/*#include "cons_folinear.h"*/
+
 
 /*
 ** This header file is part of the stand-alone interface.
@@ -114,6 +116,11 @@ int main(
    }
 
    /* Call Mercury to create coonstraints */   
+
+
+   /* include first-order linear constraint handler */
+   /*SCIP_CALL( SCIPincludeConshdlrFOLinear(scip) );*/
+
 
    makelincons(atomstore,&names,&lbs,&coeffss,&varss,&ubs);
 

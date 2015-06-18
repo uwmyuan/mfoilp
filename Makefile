@@ -4,7 +4,7 @@
 # paths
 #-----------------------------------------------------------------------------
 
-SCIPDIR         =       /home/jc/local/src/scipoptsuite-3.1.1/scip-3.1.1
+SCIPDIR         =       scip
 
 #-----------------------------------------------------------------------------
 # include default project Makefile from SCIP

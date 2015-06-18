@@ -1,0 +1,87 @@
+We want an initial executable that:
+
+creates all SCIP variables via a call to Mercury
+creates all SCIP constraints via a call to Mercury
+
+start by creating executable where variables and constraints are
+generated and then just printed out.
+
+Fri Jun 12 16:23:09 CEST 2015
+
+understanding SCIP makefile
+
+first (non-phony) target is $(MAINSHORTLINK), this depends on
+$(MAINFILE) and is created via symbolic linking
+
+Main dependency for $(MAINFILE) is MAINOBJFILES which is just MAINOBJ
+in the appropriate directory.
+
+In Mercury makefile, final step is to link c_main.o and
+mercury_lib_int.o with MERCURY_LIB_LDFLAGS
+
+mercury_lib.init dependency is just so that stuff is recompiled if a
+.m file changes
+
+bascially we make mercury_lib_init.o by compiling mercury_lib
+with mmc appropriately, and make c_main.o using gcc
+
+presumably should override $(OBJDIR)/%.o:	$(SRCDIR)/%.c
+so that object files are created in the right way.
+
+Sun Jun 14 20:44:56 CEST 2015
+
+SCIPMakefile.orig compiles SCIP executable
+MercuryMakefile.orig complies Mercury-linked executable
+
+Mon Jun 15 16:55:09 CEST 2015
+
+Have interface working where all variables and constraints are created
+at the beginning.
+
+Plan: get cutting plane approach working first. This requires writing
+a constraint handler. Will assume that only implicit linear
+constraints will be handled by cons_folinear.c (Initial constraints
+are dealt with already). What to do about variables?
+
+separator should just take current solution and atom_store and ask
+mercury for a violating constraint. perhaps Mercury should provide
+the lock information.
+
+Thu Jun 18 08:40:34 BST 2015
+
+Division of labour:
+
+cons_folinear:
+
+consdata is
+(1) the current atom_store
+(2) an array of variables indicating variables "in the constraint",
+indexes of variables correpsond to those in atom_store, each variable
+knows its index, since this will be stored in its VARDATA.
+
+
+CONSCHECK:
+Given a solution, does it satisfy the constraint?
+calls a Mercury function with these inputs:
+(1) the atom_store (from consdata)
+(2) a list of ints (for each non-zero variable in solution)
+(3) a list of floats (the non-zero values of the variables in that
+solution)
+Mercury function returns true or false.
+
+CONSENFOLP:
+for the time being just call CONSCHECK
+
+CONSENFOPS:
+for the time being just call CONSCHECK
+
+CONSLOCK:
+for each variable "in the constraint" we call a Mercury function with
+these inputs:
+(1) the atom_store
+(2) the variable's index
+Mercury returns an encoding of up, down or both
+
+CONSSEPALP:
+Given a solution (represented as for CONSCHECK), we return cuts
+using the same approach as for the current makelincons
