@@ -53,7 +53,9 @@ int main(
    MR_IntList idents;
    MR_StringList names;
    MR_FloatList lbs;
+   MR_IntList finlbs;
    MR_FloatList ubs;
+   MR_IntList finubs;
    MR_IntList vartypes;
    MR_FloatList objs;
    
@@ -70,7 +72,9 @@ int main(
    int ident;
    MR_String name;
    SCIP_Real lb;
-   SCIP_Real ub;   
+   int finlb;
+   SCIP_Real ub;
+   int finub;   
    SCIP_Real obj;
    int vartype;
 
@@ -154,15 +158,25 @@ int main(
    /*SCIP_CALL( SCIPincludeConshdlrFOLinear(scip) );*/
 
 
-   makelincons(atomstore,&names,&lbs,&coeffss,&varss,&ubs);
+   makelincons(atomstore,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs);
 
    while ( !MR_list_is_empty(lbs) )
    { 
       coeffs = MR_list_head(coeffss);
       vars = MR_list_head(varss);
       name = (MR_String)  MR_list_head(names);
-      lb =      MR_word_to_float(MR_list_head(lbs));
-      ub =      MR_word_to_float(MR_list_head(ubs));
+
+      finlb = MR_list_head(finlbs);
+      if( finlb )
+         lb = MR_word_to_float(MR_list_head(lbs));
+      else
+         lb = -SCIPinfinity(scip);
+
+      finub = MR_list_head(finubs);
+      if( finub )
+         ub = MR_word_to_float(MR_list_head(ubs));
+      else
+         ub = SCIPinfinity(scip);
 
       /* add a constraint */
       SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, name, 0, NULL, NULL, lb, ub) );
@@ -183,7 +197,9 @@ int main(
       varss = MR_list_tail(varss);
       names = MR_list_tail(names);
       lbs = MR_list_tail(lbs);
+      finlbs = MR_list_tail(finlbs);
       ubs = MR_list_tail(ubs);
+      finubs = MR_list_tail(finubs);
    }
 
    /* solve the model */

@@ -6,7 +6,6 @@
 
 
 :- import_module mercury_lib.
-:- import_module float.
 
 :- type atom.
 
@@ -61,7 +60,7 @@ vartype(_Atom) = binary.
 
 % constraints
 
-lincons(lincons(0.0,[1.0 * friends(X,Y), 1.0 * friends(X,Z)],1.0))  :-
+lincons(lincons(neginf,[1.0 * friends(X,Y), 1.0 * friends(X,Z)],finite(1.0)))  :-
 	atom(friends(X,Y)), atom(friends(X,Z)), not Y=Z. 
 
 
