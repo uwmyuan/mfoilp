@@ -1,33 +1,18 @@
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-/*                                                                           */
-/*                  This file is part of the program and library             */
-/*         SCIP --- Solving Constraint Integer Programs                      */
-/*                                                                           */
-/*    Copyright (C) 2002-2014 Konrad-Zuse-Zentrum                            */
-/*                            fuer Informationstechnik Berlin                */
-/*                                                                           */
-/*  SCIP is distributed under the terms of the ZIB Academic License.         */
-/*                                                                           */
-/*  You should have received a copy of the ZIB Academic License              */
-/*  along with SCIP; see the file COPYING. If not email to scip@zib.de.      */
-/*                                                                           */
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
 /**@file   cons_folinear.c
  * @brief  constraint handler for folinear constraints
- * @author Tobias Achterberg
+ * @author James Cussens
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
 #include <assert.h>
 
-#include "scip/cons_folinear.h"
+#include <cons_folinear.h>
 
 
 /* fundamental constraint handler properties */
 #define CONSHDLR_NAME          "folinear"
-#define CONSHDLR_DESC          "constraint handler template"
+#define CONSHDLR_DESC          "first order linear constraint handler"
 #define CONSHDLR_ENFOPRIORITY         0 /**< priority of the constraint handler for constraint enforcing */
 #define CONSHDLR_CHECKPRIORITY        0 /**< priority of the constraint handler for checking feasibility */
 #define CONSHDLR_EAGERFREQ          100 /**< frequency for using all instead of only the useful constraints in separation,
@@ -67,12 +52,15 @@
 /** constraint data for folinear constraints */
 struct SCIP_ConsData
 {
+   MR_Word atom_store;
+   SCIP_VAR** vars;
+   SCIP_Real nvars;
 };
 
 /** constraint handler data */
-struct SCIP_ConshdlrData
-{
-};
+/* struct SCIP_ConshdlrData */
+/* { */
+/* }; */
 
 
 /*
@@ -321,9 +309,8 @@ SCIP_DECL_CONSSEPASOL(consSepasolFolinear)
 static
 SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 {  /*lint --e{715}*/
-   SCIPerrorMessage("method of folinear constraint handler not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
 
+   *result = SCIP_FEASIBLE;
    return SCIP_OKAY;
 }
 
@@ -332,9 +319,8 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 static
 SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
 {  /*lint --e{715}*/
-   SCIPerrorMessage("method of folinear constraint handler not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
 
+   *result = SCIP_FEASIBLE;
    return SCIP_OKAY;
 }
 
@@ -343,9 +329,61 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
 static
 SCIP_DECL_CONSCHECK(consCheckFolinear)
 {  /*lint --e{715}*/
-   SCIPerrorMessage("method of folinear constraint handler not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
 
+   int c;
+
+   SCIP_CONSDATA* consdata;
+   SCIP_CONS* cons;
+   SCIP_VAR* var; 
+   int i;
+   /* int j; */
+   /* int k; */
+   /* int n; */
+
+   /* where to put these typedefs? */
+   /* typedef MR_Word MR_IntList; */
+   /* typedef MR_Word MR_FloatList; */
+
+   MR_IntList indices = MR_list_empty();
+   MR_FloatList values = MR_list_empty();
+
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
+   assert( conss != NULL );
+   assert( result != NULL );
+
+   /* loop through all constraints */
+   for (c = 0; c < nconss; ++c)
+   {
+      cons = conss[c];
+      assert( cons != NULL );
+      SCIPdebugMessage("checking linear ordering constraint <%s>.\n", SCIPconsGetName(cons));
+
+      consdata = SCIPconsGetData(cons);
+      assert( consdata != NULL );
+      assert( consdata->atom_store != NULL );
+      assert( consdata->vars != NULL );
+      
+      for( i = 0; i < consdata->nvars; ++i )
+      {
+         var = consdata->vars[i];
+         val = SCIPgetSolVal(scip, sol, var);
+         if( !SCIPisZero(scip, val))
+         {
+            indices = MR_list_cons( i, args);
+            values = MR_list_cons( MR_float_to_word(val), values);
+         }
+      }
+
+      if( !conscheck(consdata->atom_store,indices,values) )
+      {
+         *result = SCIP_INFEASIBLE;
+         return SCIP_OKAY;
+      }
+   }
+   
+   *result = SCIP_FEASIBLE;
    return SCIP_OKAY;
 }
 
@@ -399,9 +437,8 @@ SCIP_DECL_CONSRESPROP(consRespropFolinear)
 static
 SCIP_DECL_CONSLOCK(consLockFolinear)
 {  /*lint --e{715}*/
-   SCIPerrorMessage("method of folinear constraint handler not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
 
+   /* todo: add locks ! */
    return SCIP_OKAY;
 }
 
@@ -563,80 +600,48 @@ SCIP_RETCODE SCIPincludeConshdlrFolinear(
    SCIP*                 scip                /**< SCIP data structure */
    )
 {
-   SCIP_CONSHDLRDATA* conshdlrdata;
-   SCIP_CONSHDLR* conshdlr;
 
-   /* create folinear constraint handler data */
-   conshdlrdata = NULL;
-   /* TODO: (optional) create constraint handler specific data here */
+   SCIP_CONSHDLR* conshdlr;
 
    conshdlr = NULL;
 
    /* include constraint handler */
-#if 0
-   /* use SCIPincludeConshdlr() if you want to set all callbacks explicitly and realize (by getting compiler errors) when
-    * new callbacks are added in future SCIP versions
-    */
-   SCIP_CALL( SCIPincludeConshdlr(scip, CONSHDLR_NAME, CONSHDLR_DESC,
-         CONSHDLR_SEPAPRIORITY, CONSHDLR_ENFOPRIORITY, CONSHDLR_CHECKPRIORITY,
-         CONSHDLR_SEPAFREQ, CONSHDLR_PROPFREQ, CONSHDLR_EAGERFREQ, CONSHDLR_MAXPREROUNDS,
-         CONSHDLR_DELAYSEPA, CONSHDLR_DELAYPROP, CONSHDLR_DELAYPRESOL, CONSHDLR_NEEDSCONS,
-         CONSHDLR_PROP_TIMING,
-         conshdlrCopyFolinear,
-         consFreeFolinear, consInitFolinear, consExitFolinear,
-         consInitpreFolinear, consExitpreFolinear, consInitsolFolinear, consExitsolFolinear,
-         consDeleteFolinear, consTransFolinear, consInitlpFolinear,
-         consSepalpFolinear, consSepasolFolinear, consEnfolpFolinear, consEnfopsFolinear, consCheckFolinear,
-         consPropFolinear, consPresolFolinear, consRespropFolinear, consLockFolinear,
-         consActiveFolinear, consDeactiveFolinear,
-         consEnableFolinear, consDisableFolinear, consDelvarsFolinear,
-         consPrintFolinear, consCopyFolinear, consParseFolinear,
-         consGetVarsFolinear, consGetNVarsFolinear, conshdlrdata) );
-#else
+
    /* use SCIPincludeConshdlrBasic() plus setter functions if you want to set callbacks one-by-one and your code should
     * compile independent of new callbacks being added in future SCIP versions
     */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLR_NAME, CONSHDLR_DESC,
          CONSHDLR_ENFOPRIORITY, CONSHDLR_CHECKPRIORITY, CONSHDLR_EAGERFREQ, CONSHDLR_NEEDSCONS,
          consEnfolpFolinear, consEnfopsFolinear, consCheckFolinear, consLockFolinear,
-         conshdlrdata) );
+         NULL) );
    assert(conshdlr != NULL);
 
    /* set non-fundamental callbacks via specific setter functions */
-   SCIP_CALL( SCIPsetConshdlrActive(scip, conshdlr, consActiveFolinear) );
-   SCIP_CALL( SCIPsetConshdlrCopy(scip, conshdlr, conshdlrCopyFolinear, consCopyFolinear) );
-   SCIP_CALL( SCIPsetConshdlrDeactive(scip, conshdlr, consDeactiveFolinear) );
-   SCIP_CALL( SCIPsetConshdlrDelete(scip, conshdlr, consDeleteFolinear) );
-   SCIP_CALL( SCIPsetConshdlrDelvars(scip, conshdlr, consDelvarsFolinear) );
-   SCIP_CALL( SCIPsetConshdlrDisable(scip, conshdlr, consDisableFolinear) );
-   SCIP_CALL( SCIPsetConshdlrEnable(scip, conshdlr, consEnableFolinear) );
-   SCIP_CALL( SCIPsetConshdlrExit(scip, conshdlr, consExitFolinear) );
-   SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreFolinear) );
-   SCIP_CALL( SCIPsetConshdlrExitsol(scip, conshdlr, consExitsolFolinear) );
-   SCIP_CALL( SCIPsetConshdlrFree(scip, conshdlr, consFreeFolinear) );
-   SCIP_CALL( SCIPsetConshdlrGetVars(scip, conshdlr, consGetVarsFolinear) );
-   SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsFolinear) );
-   SCIP_CALL( SCIPsetConshdlrInit(scip, conshdlr, consInitFolinear) );
-   SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr, consInitpreFolinear) );
-   SCIP_CALL( SCIPsetConshdlrInitsol(scip, conshdlr, consInitsolFolinear) );
-   SCIP_CALL( SCIPsetConshdlrInitlp(scip, conshdlr, consInitlpFolinear) );
-   SCIP_CALL( SCIPsetConshdlrParse(scip, conshdlr, consParseFolinear) );
-   SCIP_CALL( SCIPsetConshdlrPresol(scip, conshdlr, consPresolFolinear, CONSHDLR_MAXPREROUNDS, CONSHDLR_DELAYPRESOL) );
-   SCIP_CALL( SCIPsetConshdlrPrint(scip, conshdlr, consPrintFolinear) );
-   SCIP_CALL( SCIPsetConshdlrProp(scip, conshdlr, consPropFolinear, CONSHDLR_PROPFREQ, CONSHDLR_DELAYPROP,
-         CONSHDLR_PROP_TIMING) );
-   SCIP_CALL( SCIPsetConshdlrResprop(scip, conshdlr, consRespropFolinear) );
-   SCIP_CALL( SCIPsetConshdlrSepa(scip, conshdlr, consSepalpFolinear, consSepasolFolinear, CONSHDLR_SEPAFREQ, CONSHDLR_SEPAPRIORITY, CONSHDLR_DELAYSEPA) );
-   SCIP_CALL( SCIPsetConshdlrTrans(scip, conshdlr, consTransFolinear) );
-#endif
-
-#ifdef LINCONSUPGD_PRIORITY
-   if( SCIPfindConshdlr(scip,"linear") != NULL )
-   {
-      /* include the linear constraint upgrade in the linear constraint handler */
-      SCIP_CALL( SCIPincludeLinconsUpgrade(scip, linconsUpgdFolinear, LINCONSUPGD_PRIORITY, CONSHDLR_NAME) );
-   }
-#endif
+   /* SCIP_CALL( SCIPsetConshdlrActive(scip, conshdlr, consActiveFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrCopy(scip, conshdlr, conshdlrCopyFolinear, consCopyFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrDeactive(scip, conshdlr, consDeactiveFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrDelete(scip, conshdlr, consDeleteFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrDelvars(scip, conshdlr, consDelvarsFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrDisable(scip, conshdlr, consDisableFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrEnable(scip, conshdlr, consEnableFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrExit(scip, conshdlr, consExitFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrExitsol(scip, conshdlr, consExitsolFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrFree(scip, conshdlr, consFreeFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrGetVars(scip, conshdlr, consGetVarsFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrInit(scip, conshdlr, consInitFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr, consInitpreFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrInitsol(scip, conshdlr, consInitsolFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrInitlp(scip, conshdlr, consInitlpFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrParse(scip, conshdlr, consParseFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrPresol(scip, conshdlr, consPresolFolinear, CONSHDLR_MAXPREROUNDS, CONSHDLR_DELAYPRESOL) ); */
+   /* SCIP_CALL( SCIPsetConshdlrPrint(scip, conshdlr, consPrintFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrProp(scip, conshdlr, consPropFolinear, CONSHDLR_PROPFREQ, CONSHDLR_DELAYPROP, */
+   /*       CONSHDLR_PROP_TIMING) ); */
+   /* SCIP_CALL( SCIPsetConshdlrResprop(scip, conshdlr, consRespropFolinear) ); */
+   /* SCIP_CALL( SCIPsetConshdlrSepa(scip, conshdlr, consSepalpFolinear, consSepasolFolinear, CONSHDLR_SEPAFREQ, CONSHDLR_SEPAPRIORITY, CONSHDLR_DELAYSEPA) ); */
+   /* SCIP_CALL( SCIPsetConshdlrTrans(scip, conshdlr, consTransFolinear) ); */
 
    /* add folinear constraint handler parameters */
    /* TODO: (optional) add constraint handler specific parameters with SCIPaddTypeParam() here */
@@ -654,9 +659,7 @@ SCIP_RETCODE SCIPcreateConsFolinear(
    const char*           name,               /**< name of constraint */
    int                   nvars,              /**< number of variables in the constraint */
    SCIP_VAR**            vars,               /**< array with variables of constraint entries */
-   SCIP_Real*            coefs,              /**< array with coefficients of constraint entries */
-   SCIP_Real             lhs,                /**< left hand side of constraint */
-   SCIP_Real             rhs,                /**< right hand side of constraint */
+   MR_Word               atom_store,         /**< map from indices to logical atoms (to pass to Mercury) */
    SCIP_Bool             initial,            /**< should the LP relaxation of constraint be in the initial LP?
                                               *   Usually set to TRUE. Set to FALSE for 'lazy constraints'. */
    SCIP_Bool             separate,           /**< should the constraint be separated during LP processing?
@@ -682,13 +685,9 @@ SCIP_RETCODE SCIPcreateConsFolinear(
                                               *   Usually set to FALSE. Set to TRUE to for constraints that represent node data. */
    )
 {
-   /* TODO: (optional) modify the definition of the SCIPcreateConsFolinear() call, if you don't need all the information */
 
    SCIP_CONSHDLR* conshdlr;
    SCIP_CONSDATA* consdata;
-
-   SCIPerrorMessage("method of folinear constraint handler not implemented yet\n");
-   SCIPABORT(); /*lint --e{527} --e{715}*/
 
    /* find the folinear constraint handler */
    conshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
@@ -699,8 +698,10 @@ SCIP_RETCODE SCIPcreateConsFolinear(
    }
 
    /* create constraint data */
-   consdata = NULL;
-   /* TODO: create and store constraint specific data here */
+   SCIP_CALL( SCIPallocBlockMemory(scip, &consdata) );
+   consdata->nvars = nvars;
+   consdata->vars = vars;
+   consdata->atom_store = atom_store;
 
    /* create constraint */
    SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, initial, separate, enforce, check, propagate,
@@ -720,9 +721,7 @@ SCIP_RETCODE SCIPcreateConsBasicFolinear(
    const char*           name,               /**< name of constraint */
    int                   nvars,              /**< number of variables in the constraint */
    SCIP_VAR**            vars,               /**< array with variables of constraint entries */
-   SCIP_Real*            coefs,              /**< array with coefficients of constraint entries */
-   SCIP_Real             lhs,                /**< left hand side of constraint */
-   SCIP_Real             rhs                 /**< right hand side of constraint */
+   MR_Word               atom_store          /**< map from indices to logical atoms (to pass to Mercury) */
    )
 {
    SCIP_CALL( SCIPcreateConsFolinear(scip, cons, name, nvars, vars, coefs, lhs, rhs,

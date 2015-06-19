@@ -6,7 +6,7 @@
 #include <scip/scip.h>
 #include <scip/scipdefplugins.h>
 
-/*#include "cons_folinear.h"*/
+#include "cons_folinear.h"
 
 
 /*
@@ -155,8 +155,7 @@ int main(
 
 
    /* include first-order linear constraint handler */
-   /*SCIP_CALL( SCIPincludeConshdlrFOLinear(scip) );*/
-
+   SCIP_CALL( SCIPincludeConshdlrFOLinear(scip) );
 
    makelincons(atomstore,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs);
 

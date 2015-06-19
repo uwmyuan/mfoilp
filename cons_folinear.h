@@ -1,28 +1,12 @@
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-/*                                                                           */
-/*                  This file is part of the program and library             */
-/*         SCIP --- Solving Constraint Integer Programs                      */
-/*                                                                           */
-/*    Copyright (C) 2002-2014 Konrad-Zuse-Zentrum                            */
-/*                            fuer Informationstechnik Berlin                */
-/*                                                                           */
-/*  SCIP is distributed under the terms of the ZIB Academic License.         */
-/*                                                                           */
-/*  You should have received a copy of the ZIB Academic License              */
-/*  along with SCIP; see the file COPYING. If not email to scip@zib.de.      */
-/*                                                                           */
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-/**@file   cons_xyz.h
- * @ingroup CONSHDLRS
- * @brief  constraint handler for xyz constraints
- * @author Tobias Achterberg
+/**@file   cons_folinear.h
+ * @brief  constraint handler for folinear constraints
+ * @author James Cussens
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#ifndef __SCIP_CONS_XYZ_H__
-#define __SCIP_CONS_XYZ_H__
+#ifndef __SCIP_CONS_FOLINEAR_H__
+#define __SCIP_CONS_FOLINEAR_H__
 
 
 #include "scip/scip.h"
@@ -31,26 +15,24 @@
 extern "C" {
 #endif
 
-/** creates the handler for xyz constraints and includes it in SCIP */
+/** creates the handler for folinear constraints and includes it in SCIP */
 EXTERN
-SCIP_RETCODE SCIPincludeConshdlrXyz(
+SCIP_RETCODE SCIPincludeConshdlrFolinear(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
-/** creates and captures a xyz constraint
+/** creates and captures a folinear constraint
  *
  *  @note the constraint gets captured, hence at one point you have to release it using the method SCIPreleaseCons()
  */
 EXTERN
-SCIP_RETCODE SCIPcreateConsXyz(
+SCIP_RETCODE SCIPcreateConsFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
    int                   nvars,              /**< number of variables in the constraint */
    SCIP_VAR**            vars,               /**< array with variables of constraint entries */
-   SCIP_Real*            coefs,              /**< array with coefficients of constraint entries */
-   SCIP_Real             lhs,                /**< left hand side of constraint */
-   SCIP_Real             rhs,                /**< right hand side of constraint */
+   MR_Word               atom_store,         /**< map from indices to logical atoms (to pass to Mercury) */
    SCIP_Bool             initial,            /**< should the LP relaxation of constraint be in the initial LP?
                                               *   Usually set to TRUE. Set to FALSE for 'lazy constraints'. */
    SCIP_Bool             separate,           /**< should the constraint be separated during LP processing?
@@ -76,21 +58,19 @@ SCIP_RETCODE SCIPcreateConsXyz(
                                               *   Usually set to FALSE. Set to TRUE to for constraints that represent node data. */
    );
 
-/** creates and captures a xyz constraint with all its constraint flags set to their
+/** creates and captures a folinear constraint with all its constraint flags set to their
  *  default values
  *
  *  @note the constraint gets captured, hence at one point you have to release it using the method SCIPreleaseCons()
  */
 EXTERN
-SCIP_RETCODE SCIPcreateConsBasicXyz(
+SCIP_RETCODE SCIPcreateConsBasicFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
    int                   nvars,              /**< number of variables in the constraint */
    SCIP_VAR**            vars,               /**< array with variables of constraint entries */
-   SCIP_Real*            coefs,              /**< array with coefficients of constraint entries */
-   SCIP_Real             lhs,                /**< left hand side of constraint */
-   SCIP_Real             rhs                 /**< right hand side of constraint */
+   MR_Word               atom_store          /**< map from indices to logical atoms (to pass to Mercury) */
    );
 
 #ifdef __cplusplus
