@@ -41,7 +41,7 @@
 
 :- pred conscheck(atom_store::in,list(int)::in,list(float)::in) is semidet.
 
-:- pred locks(atom_store::in,int::in,int::out) is cc_multi.
+:- pred locks(atom_store::in,int::in,int::out,int::out) is cc_multi.
 
 %-----------------------------------------------------------------------------%
 
@@ -72,9 +72,9 @@ scip_vartype(integer) = 1.
 scip_vartype(implint) = 2.
 scip_vartype(continuous) = 3.
 
-:- pragma foreign_export("C", locks(in,in,out), "MR_locks").
+:- pragma foreign_export("C", locks(in,in,out,out), "MR_consLock").
 
-locks(AtomStore,Index,locknum(Locks)) :-
+locks(AtomStore,Index,Up,Down) :-
 	bimap.lookup(AtomStore,Index,Atom),
 	Call = (
 		 pred(Out::out) is nondet :- prob.lincons(Cons),
@@ -82,13 +82,14 @@ locks(AtomStore,Index,locknum(Locks)) :-
 		 list.member(F*Atom,LExp),
 		 Out = lockinfo(Lb,F,Ub)
 	       ),
-	do_while(Call,filter,neither,Locks).
+	do_while(Call,filter,neither,Locks),
+	locknum(Locks,Up,Down).
 
-:- func locknum(locktype) = int.
-locknum(neither) = 0.
-locknum(down_only) = 1.
-locknum(up_only) = 2.
-locknum(both) = 3.
+:- pred locknum(locktype::in,int::out,int::out) is det.
+locknum(neither,0,0).
+locknum(down_only,0,1).
+locknum(up_only,1,0).
+locknum(both,1,1).
 
 
 :- pred filter(lockinfo::in,bool::out,locktype::in,locktype::out) is det.
@@ -147,7 +148,7 @@ down_lock(lockinfo(Lb,F,Ub)) :-
 	  not Ub = posinf
 	).
 
-:- pragma foreign_export("C", conscheck(in,in,in), "mconscheck").
+:- pragma foreign_export("C", conscheck(in,in,in), "MR_consCheck").
 
 conscheck(AtomStore,Indices,Values) :-
 	map.init(Sol0),
@@ -183,7 +184,7 @@ value([Coeff * Atom|T],Sol,In,Out) :-
 	).
 
 
-:- pragma foreign_export("C", makevars(out,out,out,out,out,out,out), "makevars").
+:- pragma foreign_export("C", makevars(out,out,out,out,out,out,out), "MR_initial_variables").
 
 makevars(AtomStore,Idents,Names,Lbs,Ubs,VarTypes,Objs) :-
 	solutions(prob.atom,AllAtoms),
@@ -206,7 +207,7 @@ store_atoms([H|T],[I|IT],[name(H)|NT],[prob.lb(H)|LT],[prob.ub(H)|UT],
 	store_atoms(T,IT,NT,LT,UT,VT,OT,I+1,!AS).
 
 
-:- pragma foreign_export("C", makelincons(in,out,out,out,out,out,out,out), "makelincons").
+:- pragma foreign_export("C", makelincons(in,out,out,out,out,out,out,out), "MR_initial_constraints").
 
 makelincons(AtomStore,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs) :-
 	solutions(prob.lincons,AllLinCons),

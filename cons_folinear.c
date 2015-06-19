@@ -359,7 +359,7 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
    {
       cons = conss[c];
       assert( cons != NULL );
-      SCIPdebugMessage("checking linear ordering constraint <%s>.\n", SCIPconsGetName(cons));
+      SCIPdebugMessage("checking first order linear constraint <%s>.\n", SCIPconsGetName(cons));
 
       consdata = SCIPconsGetData(cons);
       assert( consdata != NULL );
@@ -377,7 +377,7 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
          }
       }
 
-      if( !mconscheck(consdata->atom_store,indices,values) )
+      if( !MR_consCheck(consdata->atom_store,indices,values) )
       {
          *result = SCIP_INFEASIBLE;
          return SCIP_OKAY;
@@ -439,11 +439,11 @@ static
 SCIP_DECL_CONSLOCK(consLockFolinear)
 {  /*lint --e{715}*/
 
-   MR_Integer locknum;
+   MR_Integer up;
+   MR_Integer down;
    int i;
    SCIP_VAR* var;
    SCIP_CONSDATA* consdata;
-
 
    assert( scip != NULL );
    assert( conshdlr != NULL );
@@ -461,26 +461,19 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
    for( i = 0; i < consdata->nvars; ++i )
    {
       var = consdata->vars[i];
-      MR_locks(consdata->atom_store,i,&locknum);
+      MR_consLock(consdata->atom_store,(MR_Integer) i,&up,&down);
 
-      switch( locknum )
+      if( up )
       {
-      case 0 :       /* neither up or down locked */
-         break;
-      case 1 :       /* down locked only */
-         SCIPaddVarLocks(scip, var, nlockspos, nlocksneg);
-         break;
-      case 2 :       /* up locked only */
-         SCIPaddVarLocks(scip, var, nlocksneg, nlockspos);
-         break;
-      case 3 :       /* up locked and down locked */
-         SCIPaddVarLocks(scip, var, nlockspos + nlocksneg, nlockspos + nlocksneg);
-         break;
-      default :
-         SCIPerrorMessage("Mercury returned an invalid code for locking\n");
-         SCIPABORT(); 
+         if( down )
+            SCIPaddVarLocks(scip, var, nlockspos + nlocksneg, nlockspos + nlocksneg);            
+         else
+            SCIPaddVarLocks(scip, var, nlocksneg, nlockspos);
       }
+      else if( down )
+         SCIPaddVarLocks(scip, var, nlockspos, nlocksneg);
    }
+   
    return SCIP_OKAY;
 }
 

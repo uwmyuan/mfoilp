@@ -89,7 +89,7 @@ int main(
 
    /* Call Mercury to create variables */
 
-   makevars(&atomstore,    /* don't need this to make variables
+   MR_initial_variables(&atomstore,    /* don't need this to make variables
                                but needed for bookkeeping */
       &idents,             /* index for each variable to be created */
       &names,              /* name for each variable to be created */
@@ -151,49 +151,49 @@ int main(
    SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
 
-   /* makelincons(atomstore,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs); */
+   MR_initial_constraints(atomstore,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs);
 
-   /* while ( !MR_list_is_empty(lbs) ) */
-   /* {  */
-   /*    coeffs = MR_list_head(coeffss); */
-   /*    vars = MR_list_head(varss); */
-   /*    name = (MR_String)  MR_list_head(names); */
+   while ( !MR_list_is_empty(lbs) )
+   {
+      coeffs = MR_list_head(coeffss);
+      vars = MR_list_head(varss);
+      name = (MR_String)  MR_list_head(names);
 
-   /*    finlb = MR_list_head(finlbs); */
-   /*    if( finlb ) */
-   /*       lb = MR_word_to_float(MR_list_head(lbs)); */
-   /*    else */
-   /*       lb = -SCIPinfinity(scip); */
+      finlb = MR_list_head(finlbs);
+      if( finlb )
+         lb = MR_word_to_float(MR_list_head(lbs));
+      else
+         lb = -SCIPinfinity(scip);
 
-   /*    finub = MR_list_head(finubs); */
-   /*    if( finub ) */
-   /*       ub = MR_word_to_float(MR_list_head(ubs)); */
-   /*    else */
-   /*       ub = SCIPinfinity(scip); */
+      finub = MR_list_head(finubs);
+      if( finub )
+         ub = MR_word_to_float(MR_list_head(ubs));
+      else
+         ub = SCIPinfinity(scip);
 
-   /*    /\* add a constraint *\/ */
-   /*    SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, name, 0, NULL, NULL, lb, ub) ); */
-   /*    while ( !MR_list_is_empty(coeffs) ) */
-   /*    { */
-   /*       coeff = MR_word_to_float(MR_list_head(coeffs)); */
-   /*       var = probdata->vars[MR_list_head(vars)]; */
-   /*       SCIP_CALL( SCIPaddCoefLinear(scip, cons, var, coeff) ); */
-   /*       coeffs = MR_list_tail(coeffs); */
-   /*       vars = MR_list_tail(vars); */
+      /* add a constraint */
+      SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, name, 0, NULL, NULL, lb, ub) );
+      while ( !MR_list_is_empty(coeffs) )
+      {
+         coeff = MR_word_to_float(MR_list_head(coeffs));
+         var = probdata->vars[MR_list_head(vars)];
+         SCIP_CALL( SCIPaddCoefLinear(scip, cons, var, coeff) );
+         coeffs = MR_list_tail(coeffs);
+         vars = MR_list_tail(vars);
 
-   /*    } */
-   /*    SCIP_CALL( SCIPaddCons(scip, cons) ); */
-   /*    SCIP_CALL(  SCIPprintCons(scip, cons, NULL)  ); */
-   /*    SCIP_CALL( SCIPreleaseCons(scip, &cons) ); */
+      }
+      SCIP_CALL( SCIPaddCons(scip, cons) );
+      /* SCIP_CALL(  SCIPprintCons(scip, cons, NULL)  ); */
+      SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
-   /*    coeffss = MR_list_tail(coeffss); */
-   /*    varss = MR_list_tail(varss); */
-   /*    names = MR_list_tail(names); */
-   /*    lbs = MR_list_tail(lbs); */
-   /*    finlbs = MR_list_tail(finlbs); */
-   /*    ubs = MR_list_tail(ubs); */
-   /*    finubs = MR_list_tail(finubs); */
-   /* } */
+      coeffss = MR_list_tail(coeffss);
+      varss = MR_list_tail(varss);
+      names = MR_list_tail(names);
+      lbs = MR_list_tail(lbs);
+      finlbs = MR_list_tail(finlbs);
+      ubs = MR_list_tail(ubs);
+      finubs = MR_list_tail(finubs);
+   }
 
    /* solve the model */
    SCIP_CALL( SCIPsolve(scip) );
