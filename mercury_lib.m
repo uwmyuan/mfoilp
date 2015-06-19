@@ -41,6 +41,8 @@
 
 :- pred conscheck(atom_store::in,list(int)::in,list(float)::in) is semidet.
 
+:- pred locks(atom_store::in,int::in,int::out) is cc_multi.
+
 %-----------------------------------------------------------------------------%
 
 :- implementation.
@@ -70,9 +72,9 @@ scip_vartype(integer) = 1.
 scip_vartype(implint) = 2.
 scip_vartype(continuous) = 3.
 
-:- pred locks(atom_store::in,int::in,locktype::out) is cc_multi.
+:- pragma foreign_export("C", locks(in,in,out), "MR_locks").
 
-locks(AtomStore,Index,Locks) :-
+locks(AtomStore,Index,locknum(Locks)) :-
 	bimap.lookup(AtomStore,Index,Atom),
 	Call = (
 		 pred(Out::out) is nondet :- prob.lincons(Cons),
@@ -81,6 +83,13 @@ locks(AtomStore,Index,Locks) :-
 		 Out = lockinfo(Lb,F,Ub)
 	       ),
 	do_while(Call,filter,neither,Locks).
+
+:- func locknum(locktype) = int.
+locknum(neither) = 0.
+locknum(down_only) = 1.
+locknum(up_only) = 2.
+locknum(both) = 3.
+
 
 :- pred filter(lockinfo::in,bool::out,locktype::in,locktype::out) is det.
 

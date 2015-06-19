@@ -439,7 +439,48 @@ static
 SCIP_DECL_CONSLOCK(consLockFolinear)
 {  /*lint --e{715}*/
 
-   /* todo: add locks ! */
+   MR_Integer locknum;
+   int i;
+   SCIP_VAR* var;
+   SCIP_CONSDATA* consdata;
+
+
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
+   assert( cons != NULL );
+
+   SCIPdebugMessage("Locking first order linear constraint <%s>.\n", SCIPconsGetName(cons));
+
+   /* get data of constraint */
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL);
+   assert( consdata->vars != NULL );
+   assert( consdata->atom_store != NULL );
+
+   for( i = 0; i < consdata->nvars; ++i )
+   {
+      var = consdata->vars[i];
+      MR_locks(consdata->atom_store,i,&locknum);
+
+      switch( locknum )
+      {
+      case 0 :       /* neither up or down locked */
+         break;
+      case 1 :       /* down locked only */
+         SCIPaddVarLocks(scip, var, nlockspos, nlocksneg);
+         break;
+      case 2 :       /* up locked only */
+         SCIPaddVarLocks(scip, var, nlocksneg, nlockspos);
+         break;
+      case 3 :       /* up locked and down locked */
+         SCIPaddVarLocks(scip, var, nlockspos + nlocksneg, nlockspos + nlocksneg);
+         break;
+      default :
+         SCIPerrorMessage("Mercury returned an invalid code for locking\n");
+         SCIPABORT(); 
+      }
+   }
    return SCIP_OKAY;
 }
 
