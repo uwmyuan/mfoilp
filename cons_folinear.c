@@ -335,6 +335,7 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
    SCIP_CONSDATA* consdata;
    SCIP_CONS* cons;
    SCIP_VAR* var; 
+   SCIP_Real val;
    int i;
    /* int j; */
    /* int k; */
@@ -371,12 +372,12 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
          val = SCIPgetSolVal(scip, sol, var);
          if( !SCIPisZero(scip, val))
          {
-            indices = MR_list_cons( i, args);
+            indices = MR_list_cons( i, indices);
             values = MR_list_cons( MR_float_to_word(val), values);
          }
       }
 
-      if( !conscheck(consdata->atom_store,indices,values) )
+      if( !mconscheck(consdata->atom_store,indices,values) )
       {
          *result = SCIP_INFEASIBLE;
          return SCIP_OKAY;
@@ -724,7 +725,7 @@ SCIP_RETCODE SCIPcreateConsBasicFolinear(
    MR_Word               atom_store          /**< map from indices to logical atoms (to pass to Mercury) */
    )
 {
-   SCIP_CALL( SCIPcreateConsFolinear(scip, cons, name, nvars, vars, coefs, lhs, rhs,
+   SCIP_CALL( SCIPcreateConsFolinear(scip, cons, name, nvars, vars, atom_store,
          TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
    return SCIP_OKAY;
