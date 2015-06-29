@@ -85,3 +85,18 @@ Mercury returns an encoding of up, down or both
 CONSSEPALP:
 Given a solution (represented as for CONSCHECK), we return cuts
 using the same approach as for the current makelincons
+
+Mon Jun 29 20:32:09 CEST 2015
+
+When a variable is created we need to declare how the constraint locks
+it. How to do this without grounding out all variables? Could demand
+that user declares this information.
+Given a variable (ground atom), need to find ground instances of
+linear constraints containing it.
+Need to get the list of variables first, (attempt to ) unify with
+relevant variable, and then check any further conditions.
+
+instead of ic(lincons(0.2,[1.0 * f(X,Y)],3.0) :- conds(X,Y).
+and then see if f(a,b) in the list
+
+want ic(lincons(0.2,[1.0 * f(X,Y)],3.0) :- f(X,Y) = f(a,b), conds(X,Y).

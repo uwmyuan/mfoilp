@@ -1,0 +1,80 @@
+\documentclass{article}
+
+\title{mfoilp developer manual}
+\author{James Cussens}
+
+\begin{document}
+
+\maketitle
+
+\section{Mercury interface}
+\label{sec:mercuryinterface}
+
+
+
+The Mercury interface (currently implemented in \verb+mercury_lib.m+)
+has to provide the following C functions:
+
+\begin{description}
+\item[MR\_consCheck]
+  \verb+MR_consCheck(MR_AtomStore,MR_IntList,MR_FloatList)+.
+  Checks that a solution satisfies the constraint. If called as 
+\begin{verbatim}
+MR_consCheck(atom_store,indices,values)
+\end{verbatim}
+then \verb+atom_store+
+is the bimap between variable indices and atoms (treated as an
+abstract data type by C), \texttt{indices} is a Mercury list of
+integers which are indices of the non-zero variables in the solution,
+\texttt{values} is the corresponding list of floats giving these
+non-zero values. Returns true if the solution does satisfy the
+constraint and false otherwise.
+\item[MR\_consLock]   \verb+MR_consLock(MR_AtomStore,MR_Integer,&MR_Integer,&MR_Integer)+.
+Computes the locks on a variable. If called as
+\begin{verbatim}
+MR_consLock(atom_store,(MR_integer) i,&up,&down)
+\end{verbatim}
+then \verb+atom_store+ is as above, \texttt{i} is the variable index
+and \texttt{up} and \texttt{down} indicates whether the variable is up
+and down locked, respectively.
+\item[MR\_initial\_variables] Generates initial (i.e.\ not delayed)
+  problem variables for SCIP. If called as
+\begin{verbatim}
+   MR_initial_variables(&atomstore,    /* don't need this to make variables
+                               but needed for bookkeeping */
+      &idents,             /* index for each variable to be created */
+      &names,              /* name for each variable to be created */
+      &lbs,                /* lower bound for each variable to be created */
+      &ubs,                /* upper bound for each variable to be created */
+      &vartypes,           /* variable type for each variable to be created */
+      &objs);              /* objective coeff for each variable to be created */
+\end{verbatim}
+then arguments are as described in the comments above. This is the
+function that create the \verb+atom_store+ bimap.
+\item[MR\_initial\_constraints] Creates initial (i.e.\ not cutting
+  plane) constraints. If called as:
+\begin{verbatim}
+   MR_initial_constraints(atomstore,&names,&lbs,&finlbs,
+       &coeffss,&varss,&ubs,&finubs);
+\end{verbatim}
+then atomstore is as described earlier; \texttt{names} is an
+\texttt{MR\_StringList} of constraint names, \texttt{lbs} is a
+\texttt{MR\_FloatList} of constraint lower bounds (some of which may be
+dummy values); \texttt{finlbs} is a \texttt{MR\_IntList} each of which
+is either 0 or 1, a 0 indicates that the lower bound for the SCIP
+constraint should be \texttt{-SCIPinfinity(scip)}; \texttt{coeffs} is
+a \texttt{MR\_FloatListList} each element of which is a list
+coefficients for a linear constraint; \texttt{varss} is an
+\texttt{MR\_IntListList} each element of which is a list of variable
+indices corresponding to \texttt{atomstore}; \texttt{ubs} and
+\texttt{finubs} are the upper bounds which work exactly as the lower
+bound arguments.
+\end{description}
+
+\section{FoLinear constraint handler}
+\label{sec:folincons}
+
+Currently CONSCHECK uses \verb+MR_consCheck+.
+
+
+\end{document}

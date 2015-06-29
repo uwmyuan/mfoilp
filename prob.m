@@ -10,7 +10,7 @@
 :- type atom.
 
 :- pred atom(atom::out) is multi.
-:- pred lincons(lincons::out) is nondet.
+:- pred initial_constraint(lincons::out) is nondet.
 
 :- func objective(atom) = float.
 :- func lb(atom) = float.
@@ -60,7 +60,7 @@ vartype(_Atom) = binary.
 
 % constraints
 
-lincons(lincons(neginf,[1.0 * friends(X,Y), 1.0 * friends(X,Z)],finite(1.0)))  :-
+initial_constraint(lincons(neginf,[1.0 * friends(X,Y), 1.0 * friends(X,Z)],finite(1.0)))  :-
 	atom(friends(X,Y)), atom(friends(X,Z)), not Y=Z. 
 
 

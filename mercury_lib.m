@@ -74,10 +74,12 @@ scip_vartype(continuous) = 3.
 
 :- pragma foreign_export("C", locks(in,in,out,out), "MR_consLock").
 
+% currently locks only depend on initial constraints
+% need to also determine whether locked by non-initial constraints.
 locks(AtomStore,Index,Up,Down) :-
 	bimap.lookup(AtomStore,Index,Atom),
 	Call = (
-		 pred(Out::out) is nondet :- prob.lincons(Cons),
+		 pred(Out::out) is nondet :- prob.initial_constraint(Cons),
 		 Cons = lincons(Lb,LExp,Ub),
 		 list.member(F*Atom,LExp),
 		 Out = lockinfo(Lb,F,Ub)
@@ -210,7 +212,7 @@ store_atoms([H|T],[I|IT],[name(H)|NT],[prob.lb(H)|LT],[prob.ub(H)|UT],
 :- pragma foreign_export("C", makelincons(in,out,out,out,out,out,out,out), "MR_initial_constraints").
 
 makelincons(AtomStore,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs) :-
-	solutions(prob.lincons,AllLinCons),
+	solutions(prob.initial_constraint,AllLinCons),
 	Convert = (pred(lincons(Lb,LinExpr,Ub)::in,name(LinExpr)::out,LbF::out,FinLb::out,Coeffs::out,Vars::out,UbF::out,FinUb::out) is det :-
 		  list.map2((pred(F*Atom::in,F::out,I::out) is det :- I = bimap.reverse_lookup(AtomStore,Atom)),LinExpr,Coeffs,Vars),
 		      (Lb=finite(LbFX) -> LbF=LbFX, FinLb=1; LbF=0.0, FinLb=0),
