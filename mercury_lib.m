@@ -161,12 +161,12 @@ conscheck(AtomStore,Indices,Values) :-
 
 :- pred makesol(list(int)::in,list(float)::in,atom_store::in,sol::in,sol::out) is det.
 
-makesol([],_Vals,_AtomStore,Out,Out).
-makesol([_H|_T],[],_AtomStore,Out,Out).
-makesol([H|T],[VH|VT],AtomStore,In,Out) :-
+makesol([],_Vals,_AtomStore,!Sol).
+makesol([_H|_T],[],_AtomStore,!Sol).
+makesol([H|T],[VH|VT],AtomStore,!Sol) :-
 	bimap.lookup(AtomStore,H,Atom),
-	map.det_insert(Atom,VH,In,Mid),
-	makesol(T,VT,AtomStore,Mid,Out).
+	map.det_insert(Atom,VH,!Sol),
+	makesol(T,VT,AtomStore,!Sol).
 
 
 :- pred consfail(sol::in,lincons::out) is nondet.
@@ -179,12 +179,12 @@ consfail(Sol,Cons) :-
 
 :- pred value(lexp::in,sol::in,float::in,float::out) is det.
 
-value([],_Sol,ConsVal,ConsVal).
-value([Coeff * Atom|T],Sol,In,Out) :-
+value([],_Sol,!ConsVal).
+value([Coeff * Atom|T],Sol,!ConsVal) :-
 	(
 	  map.search(Sol,Atom,Val) ->
-	  value(T,Sol,In+Coeff*Val,Out);
-	  value(T,Sol,In,Out)
+	  value(T,Sol,!.ConsVal+Coeff*Val,!:ConsVal);
+	  value(T,Sol,!ConsVal)
 	).
 
 
