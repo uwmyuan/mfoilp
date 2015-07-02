@@ -74,12 +74,14 @@ scip_vartype(continuous) = 3.
 
 :- pragma foreign_export("C", locks(in,in,out,out), "MR_consLock").
 
-% currently locks only depend on initial constraints
-% need to also determine whether locked by non-initial constraints.
+% Used by consLockFolinear
+% only need to add locks due to delayed constraints
+% since initial constraints generate SCIP linear constraints
+% which get their var locks from SCIP
 locks(AtomStore,Index,Up,Down) :-
 	bimap.lookup(AtomStore,Index,Atom),
 	Call = (
-		 pred(Out::out) is nondet :- prob.initial_constraint(Cons),
+		 pred(Out::out) is nondet :- prob.delayed_constraint(Atom,Cons),
 		 Cons = lincons(Lb,LExp,Ub),
 		 list.member(F*Atom,LExp),
 		 Out = lockinfo(Lb,F,Ub)
@@ -170,7 +172,7 @@ makesol([H|T],[VH|VT],AtomStore,In,Out) :-
 :- pred consfail(sol::in,lincons::out) is nondet.
 
 consfail(Sol,Cons) :-
-	prob.lincons(Cons),
+	prob.delayed_constraint(_,Cons),
 	Cons = lincons(Lb,LExp,Ub),
 	value(LExp,Sol,0.0,ConsVal),
 	((Ub=finite(Ubf),ConsVal > Ubf) ; (Lb=finite(Lbf),ConsVal < Lbf)).
