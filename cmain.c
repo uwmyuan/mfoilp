@@ -183,7 +183,7 @@ int main(
 
       }
       SCIP_CALL( SCIPaddCons(scip, cons) );
-      /* SCIP_CALL(  SCIPprintCons(scip, cons, NULL)  ); */
+      /*SCIP_CALL(  SCIPprintCons(scip, cons, NULL)  ); */
       SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
       coeffss = MR_list_tail(coeffss);
