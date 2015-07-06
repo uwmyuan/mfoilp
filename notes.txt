@@ -163,3 +163,19 @@ cutting plane algorithm.
 constraints and variables is useful?
 3) Writing the revised position paper.
 
+
+cutting_plane(CP,!SolVal) :-
+  protein(P1), location(L1),
+  lit(location(P1,L1),!SolVal),
+  func_id(F1),
+  lit(func_id(P1,F1),!SolVal),
+  lit(c1_broken(P1,L1,F1),!SolVal),
+  is_clause([location(P1,L1),func_id(P1,F1),c1_broken(P1,L1,F1)],CP).
+
+lit(Atom,Sol-VIn,Sol-VOut) :-
+  get_val(Sol,Atom,V),
+  VOut = VIn + V,
+  VOut < 1.
+
+
+OK, so can make it look more pretty.
