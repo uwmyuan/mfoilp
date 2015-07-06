@@ -100,3 +100,55 @@ instead of ic(lincons(0.2,[1.0 * f(X,Y)],3.0) :- conds(X,Y).
 and then see if f(a,b) in the list
 
 want ic(lincons(0.2,[1.0 * f(X,Y)],3.0) :- f(X,Y) = f(a,b), conds(X,Y).
+
+Fri Jul  3 08:52:12 CEST 2015
+
+Attempting to use simple Mercury approach to solving MLNs.
+Perhaps protein example is not good since do not appear to have data
+for it.
+
+Will use entity resolution as a target. Already have Python to convert
+MLNs (either in rockit or alchemy format) into ZIMPL.
+
+ZIMPL+SCIP cannot handle large MLNs. Here is an approach that might
+work
+put all "normal atoms" as initial variables
+all evidence as initial constraints
+clauses are delayed so will need to generate them as cutting planes
+
+for delayed constraint looks like they have to be written as:
+
+delayed_constraint(Sol::in,Cons::out) :-
+	protein(P1), location_id(L1),
+	get_val(Sol,location(P1,L1),Val),
+	Val < 1,
+	func_id(F1), get_val(Sol,function(P1,F1),Val2),
+	V = Val + Val2, V < 1,
+	get_val(Sol,c1_broken(P1,L1,F1),V3),
+	V + V3 < 1,
+	Cons = lincons(finite(1.0),[1.0 * location(P1,L1), 1.0 *
+	function(P1,F1), 1.0 * c1_broken(P1,L1,F1)],posinf).
+
+ie given a solution, we generate a constraint which violates it. the
+constraint definition is implicit in the code for generating it.
+
+
+perhaps we need automatic rewriting so that from
+
+cons(Cons), break(Sol,Cons)
+
+we get breaks(Sol,Cons) with lots of 'early' checking.
+
+Approach for MLNs:
+
+1. Take input MLN (in whatever format) and generate prob.m input. This
+will involved writing complex code for delayed_constraint/2 (and also
+for variable pricing).
+2. Branch-price-and-cut solving. Mercury supplies some initial
+variables and constraints. Also provides a pricer and cutting
+planes. The latter via the fo_linear constraint handler.
+
+% for clauses
+delayed_constraint(Sol::in,Cons::out) :-
+
+delayed_constraint(Sol,ValIn,ValOut,L

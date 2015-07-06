@@ -112,6 +112,10 @@ initial_constraint(lincons(finite(1.0),[1.0 * location(P1,L1), 1.0 * function(P1
 	protein(P1), location_id(L1), func_id(F1).
 
 
+%clause([lit(pos,location(P1,L1)), lit(pos,function(P1,F1)), lit(pos,c1_broken(P1,L1,F1))]) :- 
+%	protein(P1), location_id(L1), func_id(F1).
+
+
 % for delayed constraints an atom involved in the constraint can be
 % given as input to speed up finding constraints involving particular atoms
 

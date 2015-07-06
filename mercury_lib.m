@@ -174,17 +174,21 @@ makesol([H|T],[VH|VT],AtomStore,!Sol) :-
 consfail(Sol,Cons) :-
 	prob.delayed_constraint(_,Cons),
 	Cons = lincons(Lb,LExp,Ub),
-	value(LExp,Sol,0.0,ConsVal),
+	activity(LExp,Sol,0.0,ConsVal),
 	((Ub=finite(Ubf),ConsVal > Ubf) ; (Lb=finite(Lbf),ConsVal < Lbf)).
 
-:- pred value(lexp::in,sol::in,float::in,float::out) is det.
+% evaluate the value of linear expression in constraint for given solution Sol
+% only non-zero values recorded in Sol
 
-value([],_Sol,!ConsVal).
-value([Coeff * Atom|T],Sol,!ConsVal) :-
+:- pred activity(lexp::in,sol::in,float::in,float::out) is det.
+
+activity([],_Sol,!ConsVal).
+activity([Coeff * Atom|T],Sol,!ConsVal) :-
 	(
 	  map.search(Sol,Atom,Val) ->
-	  value(T,Sol,!.ConsVal+Coeff*Val,!:ConsVal);
-	  value(T,Sol,!ConsVal)
+	  activity(T,Sol,!.ConsVal+Coeff*Val,!:ConsVal);
+	  % Atom not found, so Val is zero
+	  activity(T,Sol,!ConsVal)
 	).
 
 
