@@ -39,10 +39,6 @@
 		    list(float)::out,
 		    list(int)::out) is det.
 
-:- pred conscheck(atom_store::in,list(int)::in,list(float)::in) is semidet.
-
-:- pred locks(atom_store::in,int::in,int::out,int::out) is cc_multi.
-
 %-----------------------------------------------------------------------------%
 
 :- implementation.
@@ -72,124 +68,6 @@ scip_vartype(integer) = 1.
 scip_vartype(implint) = 2.
 scip_vartype(continuous) = 3.
 
-:- pragma foreign_export("C", locks(in,in,out,out), "MR_consLock").
-
-% Used by consLockFolinear
-% only need to add locks due to delayed constraints
-% since initial constraints generate SCIP linear constraints
-% which get their var locks from SCIP
-locks(AtomStore,Index,Up,Down) :-
-	bimap.lookup(AtomStore,Index,Atom),
-	Call = (
-		 pred(Out::out) is nondet :- prob.delayed_constraint(Atom,Cons),
-		 Cons = lincons(Lb,LExp,Ub),
-		 list.member(F*Atom,LExp),
-		 Out = lockinfo(Lb,F,Ub)
-	       ),
-	do_while(Call,filter,neither,Locks),
-	locknum(Locks,Up,Down).
-
-:- pred locknum(locktype::in,int::out,int::out) is det.
-locknum(neither,0,0).
-locknum(down_only,0,1).
-locknum(up_only,1,0).
-locknum(both,1,1).
-
-
-:- pred filter(lockinfo::in,bool::out,locktype::in,locktype::out) is det.
-
-filter(_Lockinfo,no,both,both).
-filter(Lockinfo,More,neither,Out) :-
-	(
-	  up_lock(Lockinfo) ->
-	  (
-	    down_lock(Lockinfo) ->
-	    More = no,
-	    Out = both;
-	    More = yes,
-	    Out = up_only
-	  )
-	;
-	  More = yes,
-	  (
-	    down_lock(Lockinfo) ->
-	    Out = down_only;
-	    Out = neither
-	  )
-	).
-filter(Lockinfo,More,down_only,Out) :-
-	(
-	  up_lock(Lockinfo) ->
-	  More = no,
-	  Out = both;
-	  More = yes,
-	  Out = down_only
-	).
-filter(Lockinfo,More,up_only,Out) :-
-	(
-	  down_lock(Lockinfo) ->
-	  More = no,
-	  Out = both;
-	  More = yes,
-	  Out = up_only
-	).
-	  
-:- pred up_lock(lockinfo::in) is semidet.
-
-up_lock(lockinfo(Lb,F,Ub)) :-
-	(
-	  F > 0.0 ->
-	  not Ub = posinf;
-	  not Lb = neginf
-	).
-
-:- pred down_lock(lockinfo::in) is semidet.
-
-down_lock(lockinfo(Lb,F,Ub)) :-
-	(
-	  F > 0.0 ->
-	  not Lb = neginf;
-	  not Ub = posinf
-	).
-
-:- pragma foreign_export("C", conscheck(in,in,in), "MR_consCheck").
-
-conscheck(AtomStore,Indices,Values) :-
-	map.init(Sol0),
-	makesol(Indices,Values,AtomStore,Sol0,Sol),
-	not consfail(Sol,_Cons).
-
-:- pred makesol(list(int)::in,list(float)::in,atom_store::in,sol::in,sol::out) is det.
-
-makesol([],_Vals,_AtomStore,!Sol).
-makesol([_H|_T],[],_AtomStore,!Sol).
-makesol([H|T],[VH|VT],AtomStore,!Sol) :-
-	bimap.lookup(AtomStore,H,Atom),
-	map.det_insert(Atom,VH,!Sol),
-	makesol(T,VT,AtomStore,!Sol).
-
-
-:- pred consfail(sol::in,lincons::out) is nondet.
-
-consfail(Sol,Cons) :-
-	prob.delayed_constraint(_,Cons),
-	Cons = lincons(Lb,LExp,Ub),
-	activity(LExp,Sol,0.0,ConsVal),
-	((Ub=finite(Ubf),ConsVal > Ubf) ; (Lb=finite(Lbf),ConsVal < Lbf)).
-
-% evaluate the value of linear expression in constraint for given solution Sol
-% only non-zero values recorded in Sol
-
-:- pred activity(lexp::in,sol::in,float::in,float::out) is det.
-
-activity([],_Sol,!ConsVal).
-activity([Coeff * Atom|T],Sol,!ConsVal) :-
-	(
-	  map.search(Sol,Atom,Val) ->
-	  activity(T,Sol,!.ConsVal+Coeff*Val,!:ConsVal);
-	  % Atom not found, so Val is zero
-	  activity(T,Sol,!ConsVal)
-	).
 
 
 :- pragma foreign_export("C", makevars(out,out,out,out,out,out,out), "MR_initial_variables").

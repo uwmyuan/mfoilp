@@ -85,7 +85,7 @@ int main(
          NULL, NULL, NULL, probdata) );
 
 
-   SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MAXIMIZE) );
+   /*SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MAXIMIZE) );*/
 
    /* Call Mercury to create variables */
 
@@ -139,17 +139,6 @@ int main(
    }
 
    /* Call Mercury to create constraints */   
-
-
-   /* include first-order linear constraint handler */
-   SCIP_CALL( SCIPincludeConshdlrFolinear(scip) );
-
-   /* create first-order constraint */
-   SCIP_CALL( SCIPcreateConsBasicFolinear(scip, &cons, "todo", 
-         probdata->nvars,probdata->vars,probdata->atom_store) );
-   SCIP_CALL( SCIPaddCons(scip, cons) );
-   SCIP_CALL( SCIPreleaseCons(scip, &cons) );
-
 
    MR_initial_constraints(atomstore,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs);
 
