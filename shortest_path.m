@@ -32,21 +32,25 @@
 :- type atom == edge.
 
 
-% define atom-variable generator
+
 
 :- pred node(node::out) is multi.
 node(X) :- node_gen(1,X).
 
 :- pred node_gen(node::in,node::out) is multi.
 node_gen(X,X).
-node_gen(X,Y) :- X < 8, node_gen(X+1,Y).
+node_gen(X,Y) :- X < 6, node_gen(X+1,Y).
 
 
 :- pred edge(edge::out) is multi.
 edge(e(1,2)).
-edge(e(X,Y)) :- node(X), node(Y), not (X=1,Y=2), not X = Y.
+edge(e(1,3)).
+edge(e(1,4)).
+edge(e(2,5)).
+edge(e(2,6)).
+edge(e(5,6)).
 
-
+% define atom-variable generator
 atom(X) :- edge(X).
 
 objective(_Atom) = 1.0.
@@ -57,11 +61,11 @@ vartype(_Atom) = binary.
 % constraints
 
 :- pred source(node::out) is det.
-source(4).
+source(1).
 
 
 :- pred target(node::out) is det.
-target(8).
+target(6).
 
 initial_constraint(lincons(finite(1.0),LinExpr,finite(1.0))) :-
 	source(X),
