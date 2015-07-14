@@ -85,7 +85,7 @@ int main(
          NULL, NULL, NULL, probdata) );
 
 
-   SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MAXIMIZE) );
+   /*SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MAXIMIZE) );*/
 
    /* Call Mercury to create variables */
 

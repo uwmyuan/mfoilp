@@ -4,7 +4,7 @@
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
-
+/*#define SCIP_DEBUG*/
 #include <assert.h>
 
 #include <cons_folinear.h>
@@ -13,7 +13,7 @@
 /* fundamental constraint handler properties */
 #define CONSHDLR_NAME          "folinear"
 #define CONSHDLR_DESC          "first order linear constraint handler"
-#define CONSHDLR_ENFOPRIORITY         0 /**< priority of the constraint handler for constraint enforcing */
+#define CONSHDLR_ENFOPRIORITY         10 /**< priority of the constraint handler for constraint enforcing */
 #define CONSHDLR_CHECKPRIORITY        0 /**< priority of the constraint handler for checking feasibility */
 #define CONSHDLR_EAGERFREQ          100 /**< frequency for using all instead of only the useful constraints in separation,
                                               *   propagation and enforcement, -1 for no eager evaluations, 0 for first only */
@@ -432,6 +432,15 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
             *result = SCIP_CUTOFF;
             return SCIP_OKAY;
          }
+
+         coeffss = MR_list_tail(coeffss);
+         varss = MR_list_tail(varss);
+         names = MR_list_tail(names);
+         lbs = MR_list_tail(lbs);
+         finlbs = MR_list_tail(finlbs);
+         ubs = MR_list_tail(ubs);
+         finubs = MR_list_tail(finubs);
+
       }
       /* return as soon as we find a constraint which generated some cuts */
       if (nGen > 0)
@@ -450,8 +459,78 @@ static
 SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
 {  /*lint --e{715}*/
 
+   int c;
+
+   SCIP_CONSDATA* consdata;
+   SCIP_CONS* cons;
+   SCIP_VAR* var; 
+   SCIP_Real val;
+   int i;
+
+   MR_IntList indices = MR_list_empty();
+   MR_FloatList values = MR_list_empty();
+
+   MR_StringList names;
+   MR_FloatList lbs;
+   MR_IntList finlbs;
+   MR_FloatListList coeffss;
+   MR_IntListList varss;
+   MR_FloatList ubs;
+   MR_IntList finubs;
+
+
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
+   assert( conss != NULL );
+   assert( result != NULL );
+
+   /* loop through all constraints */
+   for (c = 0; c < nconss; ++c)
+   {
+      cons = conss[c];
+      assert( cons != NULL );
+      SCIPdebugMessage("enforcing pseudo solution for first order linear constraint <%s>.\n", SCIPconsGetName(cons));
+
+      consdata = SCIPconsGetData(cons);
+      assert( consdata != NULL );
+      assert( consdata->atom_store != NULL );
+      assert( consdata->vars != NULL );
+
+      
+      /* create Mercury-understandable version of the solution
+         only include variables (ie their indicse) with non-zero values 
+      */
+      for( i = 0; i < consdata->nvars; ++i )
+      {
+         var = consdata->vars[i];
+         val = SCIPgetSolVal(scip, NULL, var);
+         if( !SCIPisZero(scip, val))
+         {
+            indices = MR_list_cons( i, indices);
+            values = MR_list_cons( MR_float_to_word(val), values);
+         }
+      }
+
+      /* get cuts (if any ) from Mercury */
+
+      MR_cuts(consdata->atom_store,indices,values,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs);
+
+
+      /* OK if no cuts */
+
+      if ( MR_list_is_empty(lbs) )
+      {
+         SCIPdebugMessage("constraint <%s> infeasible.\n", SCIPconsGetName(cons));
+         *result = SCIP_INFEASIBLE;
+         return SCIP_OKAY;
+      }
+   }
+   SCIPdebugMessage("all first-order linear constraints are feasible.\n");
    *result = SCIP_FEASIBLE;
    return SCIP_OKAY;
+
+
 }
 
 
@@ -580,7 +659,7 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
    assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
    assert( cons != NULL );
 
-   SCIPdebugMessage("Locking first order linear constraint <%s>.\n", SCIPconsGetName(cons));
+   SCIPdebugMessage("locking first order linear constraint <%s>.\n", SCIPconsGetName(cons));
 
    /* get data of constraint */
    consdata = SCIPconsGetData(cons);
@@ -595,13 +674,22 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
 
       if( up )
       {
+
+         SCIPdebugMessage("adding up lock for variable <%s>\n", SCIPvarGetName(var));
+
          if( down )
-            SCIPaddVarLocks(scip, var, nlockspos + nlocksneg, nlockspos + nlocksneg);            
+         {
+            SCIPaddVarLocks(scip, var, nlockspos + nlocksneg, nlockspos + nlocksneg);
+            SCIPdebugMessage("adding down lock for variable <%s>\n", SCIPvarGetName(var));            
+         }
          else
             SCIPaddVarLocks(scip, var, nlocksneg, nlockspos);
       }
       else if( down )
+      {
          SCIPaddVarLocks(scip, var, nlockspos, nlocksneg);
+         SCIPdebugMessage("adding down lock for variable <%s>\n", SCIPvarGetName(var));            
+      }
    }
    
    return SCIP_OKAY;
