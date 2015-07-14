@@ -381,6 +381,10 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
          SCIP_Real ub;
          int finub;   
 
+         SCIP_ROW *row;
+         SCIP_Bool infeasible;
+         char s[SCIP_MAXSTRLEN];
+
          coeffs = MR_list_head(coeffss);
          vars = MR_list_head(varss);
          name = (MR_String)  MR_list_head(names);
@@ -399,9 +403,6 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
       
          /* make the cut */
       
-         SCIP_ROW *row;
-         SCIP_Bool infeasible;
-         char s[SCIP_MAXSTRLEN];
       
          (void) SCIPsnprintf(s, SCIP_MAXSTRLEN, "%s", name);
 
