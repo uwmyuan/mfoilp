@@ -39,7 +39,19 @@
 		    list(float)::out,
 		    list(int)::out) is det.
 
-:- pred conscheck(atom_store::in,list(int)::in,list(float)::in) is semidet.
+:- pred cuts(atom_store::in,             % mapping
+	    list(int)::in,               % solution
+	    list(float)::in,             % solution
+	    list(string)::out,           % cuts
+	    list(float)::out,            % cuts
+	    list(int)::out,              % cuts
+	    list(list(float))::out,      % cuts
+	    list(list(int))::out,        % cuts
+	    list(float)::out,            % cuts
+	    list(int)::out) is cc_multi. % cuts
+
+
+:- pred consfail(atom_store::in,list(int)::in,list(float)::in) is semidet.
 
 :- pred locks(atom_store::in,int::in,int::out,int::out) is cc_multi.
 
@@ -152,12 +164,31 @@ down_lock(lockinfo(Lb,F,Ub)) :-
 	  not Ub = posinf
 	).
 
-:- pragma foreign_export("C", conscheck(in,in,in), "MR_consCheck").
+:- pragma foreign_export("C", consfail(in,in,in), "MR_consFail").
 
-conscheck(AtomStore,Indices,Values) :-
+
+
+consfail(AtomStore,Indices,Values) :-
+	cut(AtomStore,Indices,Values,_Cons).
+
+:- pragma foreign_export("C", cuts(in,in,in,out,out,out,out,out,out,out), "MR_cuts").
+
+% just generate at most one cut for the time being
+
+cuts(AtomStore,Indices,Values,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs) :-
+	(
+	  cut(AtomStore,Indices,Values,Cons) ->
+	  lincons2scip(AtomStore,Cons,Name,LbF,FinLb,Coeffs,Vars,UbF,FinUb),
+	  Names = [Name], LbFs = [LbF], FinLbs = [FinLb], Coeffss = [Coeffs], Varss = [Vars], UbFs = [UbF], FinUbs = [FinUb];
+	  Names = [], LbFs = [], FinLbs = [], Coeffss = [], Varss = [], UbFs = [], FinUbs = []
+	).
+
+:- pred cut(atom_store::in,list(int)::in,list(float)::in,lincons::out) is nondet.
+
+cut(AtomStore,Indices,Values,Cons) :-
 	map.init(Sol0),
 	makesol(Indices,Values,AtomStore,Sol0,Sol),
-	not consfail(Sol,_Cons).
+	consfail(Sol,Cons).
 
 :- pred makesol(list(int)::in,list(float)::in,atom_store::in,sol::in,sol::out) is det.
 
@@ -172,7 +203,7 @@ makesol([H|T],[VH|VT],AtomStore,!Sol) :-
 :- pred consfail(sol::in,lincons::out) is nondet.
 
 consfail(Sol,Cons) :-
-	prob.delayed_constraint(_,Cons),
+	prob.delayed_constraint(Cons),
 	Cons = lincons(Lb,LExp,Ub),
 	activity(LExp,Sol,0.0,ConsVal),
 	((Ub=finite(Ubf),ConsVal > Ubf) ; (Lb=finite(Lbf),ConsVal < Lbf)).
@@ -219,12 +250,19 @@ store_atoms([H|T],[I|IT],[name(H)|NT],[prob.lb(H)|LT],[prob.ub(H)|UT],
 
 makelincons(AtomStore,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs) :-
 	solutions(prob.initial_constraint,AllLinCons),
-	Convert = (pred(lincons(Lb,LinExpr,Ub)::in,name(LinExpr)::out,LbF::out,FinLb::out,Coeffs::out,Vars::out,UbF::out,FinUb::out) is det :-
-		  list.map2((pred(F*Atom::in,F::out,I::out) is det :- I = bimap.reverse_lookup(AtomStore,Atom)),LinExpr,Coeffs,Vars),
-		      (Lb=finite(LbFX) -> LbF=LbFX, FinLb=1; LbF=0.0, FinLb=0),
-		      (Ub=finite(UbFX) -> UbF=UbFX, FinUb=1; UbF=0.0, FinUb=0)),
-	list.map7(Convert,AllLinCons,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs).
+	list.map7(lincons2scip(AtomStore),AllLinCons,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs).
 
+
+:- pred lincons2scip(atom_store::in,lincons::in,string::out,float::out,int::out,list(float)::out,list(int)::out,float::out,int::out) is det.
+
+lincons2scip(AtomStore,LinCons,name(LinCons),LbF,FinLb,Coeffs,Vars,UbF,FinUb) :-
+	LinCons = lincons(Lb,LinExpr,Ub),
+	GetIndicesCoeffs = (pred(F*Atom::in,F::out,I::out) is det :- I = bimap.reverse_lookup(AtomStore,Atom)), 
+	list.map2(GetIndicesCoeffs,LinExpr,Coeffs,Vars),
+	(Lb=finite(LbFX) -> LbF=LbFX, FinLb=1; LbF=0.0, FinLb=0),
+	(Ub=finite(UbFX) -> UbF=UbFX, FinUb=1; UbF=0.0, FinUb=0).
+
+	
 :- func name(T) = string.
 
 name(X) = Name :-

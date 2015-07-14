@@ -11,6 +11,7 @@
 
 :- pred atom(atom::out) is multi.
 :- pred initial_constraint(lincons::out) is nondet.
+:- pred delayed_constraint(lincons::out) is nondet.
 
 :- func objective(atom) = float.
 :- func lb(atom) = float.
@@ -63,7 +64,7 @@ initial_constraint(lincons(finite(1.0),LinExpr,finite(1.0))) :-
 	solutions(Out,LinExpr).
 
 %cluster constraints
-initial_constraint(lincons(finite(1.0),LinExpr,posinf)) :-
+delayed_constraint(lincons(finite(1.0),LinExpr,posinf)) :-
 	cluster(Cluster),
 	length(Cluster) > 1,
 	Out = (

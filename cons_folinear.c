@@ -310,10 +310,140 @@ static
 SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 {  /*lint --e{715}*/
 
+   int c;
+   int nGen = 0;
+
+   SCIP_CONSDATA* consdata;
+   SCIP_CONS* cons;
+   SCIP_VAR* var; 
+   SCIP_Real val;
+   int i;
+
+   MR_IntList indices = MR_list_empty();
+   MR_FloatList values = MR_list_empty();
+
+   MR_StringList names;
+   MR_FloatList lbs;
+   MR_IntList finlbs;
+   MR_FloatListList coeffss;
+   MR_IntListList varss;
+   MR_FloatList ubs;
+   MR_IntList finubs;
+
+
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
+   assert( conss != NULL );
+   assert( result != NULL );
+
+   /* loop through all constraints */
+   for (c = 0; c < nconss; ++c)
+   {
+      cons = conss[c];
+      assert( cons != NULL );
+      SCIPdebugMessage("enforcing lp solution for first order linear constraint <%s>.\n", SCIPconsGetName(cons));
+
+      consdata = SCIPconsGetData(cons);
+      assert( consdata != NULL );
+      assert( consdata->atom_store != NULL );
+      assert( consdata->vars != NULL );
+
+      
+      /* create Mercury-understandable version of the solution
+         only include variables (ie their indicse) with non-zero values 
+      */
+      for( i = 0; i < consdata->nvars; ++i )
+      {
+         var = consdata->vars[i];
+         val = SCIPgetSolVal(scip, NULL, var);
+         if( !SCIPisZero(scip, val))
+         {
+            indices = MR_list_cons( i, indices);
+            values = MR_list_cons( MR_float_to_word(val), values);
+         }
+      }
+
+      /* get cuts (if any ) from Mercury */
+
+      MR_cuts(consdata->atom_store,indices,values,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs);
+      
+      /* add any cuts to SCIP */
+
+      while ( !MR_list_is_empty(lbs) )
+      {
+         MR_FloatList coeffs;
+         MR_IntList vars;
+
+         MR_String name;
+         SCIP_Real lb;
+         int finlb;
+         SCIP_Real ub;
+         int finub;   
+
+         coeffs = MR_list_head(coeffss);
+         vars = MR_list_head(varss);
+         name = (MR_String)  MR_list_head(names);
+
+         finlb = MR_list_head(finlbs);
+         if( finlb )
+            lb = MR_word_to_float(MR_list_head(lbs));
+         else
+            lb = -SCIPinfinity(scip);
+
+         finub = MR_list_head(finubs);
+         if( finub )
+            ub = MR_word_to_float(MR_list_head(ubs));
+         else
+            ub = SCIPinfinity(scip);
+      
+         /* make the cut */
+      
+         SCIP_ROW *row;
+         SCIP_Bool infeasible;
+         char s[SCIP_MAXSTRLEN];
+      
+         (void) SCIPsnprintf(s, SCIP_MAXSTRLEN, "%s", name);
+
+         SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, s, lb, ub, FALSE, FALSE, TRUE) );
+         SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
+
+         while ( !MR_list_is_empty(coeffs) )
+         {
+            SCIP_Real coeff;
+            
+            coeff = MR_word_to_float(MR_list_head(coeffs));
+            var = consdata->vars[MR_list_head(vars)];
+            SCIP_CALL( SCIPaddVarToRow(scip, row, var, coeff) );
+            coeffs = MR_list_tail(coeffs);
+            vars = MR_list_tail(vars);
+         }
+         
+         SCIP_CALL( SCIPflushRowExtensions(scip, row) );
+#ifdef SCIP_DEBUG
+         SCIPdebug( SCIProwPrint(row, NULL) );
+#endif
+         SCIP_CALL( SCIPaddCut(scip, NULL, row, FALSE, &infeasible) );
+         SCIP_CALL( SCIPreleaseRow(scip, &row));
+         ++nGen;
+         
+         if ( infeasible )
+         {
+            *result = SCIP_CUTOFF;
+            return SCIP_OKAY;
+         }
+      }
+      /* return as soon as we find a constraint which generated some cuts */
+      if (nGen > 0)
+      {
+	 *result = SCIP_SEPARATED;
+	 return SCIP_OKAY;
+      }
+   }
+   SCIPdebugMessage("all first-order linear constraints are feasible.\n");
    *result = SCIP_FEASIBLE;
    return SCIP_OKAY;
 }
-
 
 /** constraint enforcing method of constraint handler for pseudo solutions */
 static
@@ -377,7 +507,7 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
          }
       }
 
-      if( !MR_consCheck(consdata->atom_store,indices,values) )
+      if( MR_consFail(consdata->atom_store,indices,values) )
       {
          *result = SCIP_INFEASIBLE;
          return SCIP_OKAY;
