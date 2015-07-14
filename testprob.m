@@ -11,9 +11,9 @@
 
 :- pred atom(atom::out) is multi.
 :- pred initial_constraint(lincons::out) is nondet.
-:- pred delayed_constraint(atom,lincons).
-:- mode delayed_constraint(in,out) is nondet.
-:- mode delayed_constraint(out,out) is nondet.
+:- pred delayed_constraint(lincons::out) is nondet.
+
+
 
 :- func objective(atom) = float.
 :- func lb(atom) = float.
@@ -69,8 +69,7 @@ initial_constraint(lincons(neginf,[1.0 * friends(X,Y), 1.0 * friends(X,Z)],finit
 % for delayed constraints an atom involved in the constraint can be
 % given as input to speed up finding constraints involving particular atoms
 
-delayed_constraint(Atom,lincons(neginf,[1.0 * friends(X,Y), 1.0 * friends(X,Z)],finite(1.0)))  :-
-	(Atom=friends(X,Y) ; Atom = friends(X,Z)),
+delayed_constraint(lincons(neginf,[1.0 * friends(X,Y), 1.0 * friends(X,Z)],finite(1.0)))  :-
 	atom(friends(X,Y)), atom(friends(X,Z)), not Y=Z. 
 
 

@@ -81,7 +81,7 @@ scip_vartype(continuous) = 3.
 locks(AtomStore,Index,Up,Down) :-
 	bimap.lookup(AtomStore,Index,Atom),
 	Call = (
-		 pred(Out::out) is nondet :- prob.delayed_constraint(Atom,Cons),
+		 pred(Out::out) is nondet :- prob.delayed_constraint(Cons),
 		 Cons = lincons(Lb,LExp,Ub),
 		 list.member(F*Atom,LExp),
 		 Out = lockinfo(Lb,F,Ub)
