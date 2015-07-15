@@ -31,6 +31,8 @@
 		 list(float)::out) is det.
 
 :- pred makelincons(atom_store::in,
+		    cons_store::out,
+		    list(int)::out,
 		    list(string)::out,
 		    list(float)::out,
 		    list(int)::out,
@@ -68,6 +70,7 @@
 :- import_module stream.string_writer.
 
 :- type atom_store == bimap(int,prob.atom).
+:- type cons_store == bimap(int,lincons).
 :- type lterm_int ---> (float * int).
 :- type lexp_int == list(lterm_int).
 :- type lincons_int ---> lincons(float,lexp_int,float).
@@ -246,12 +249,21 @@ store_atoms([H|T],[I|IT],[name(H)|NT],[prob.lb(H)|LT],[prob.ub(H)|UT],
 	store_atoms(T,IT,NT,LT,UT,VT,OT,I+1,!AS).
 
 
-:- pragma foreign_export("C", makelincons(in,out,out,out,out,out,out,out), "MR_initial_constraints").
+:- pragma foreign_export("C", makelincons(in,out,out,out,out,out,out,out,out,out), "MR_initial_constraints").
 
-makelincons(AtomStore,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs) :-
+makelincons(AtomStore,ConsStore,Idents,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs) :-
 	solutions(prob.initial_constraint,AllLinCons),
+	bimap.init(CS0),
+	makeconstore(AllLinCons,Idents,0,CS0,ConsStore),
 	list.map7(lincons2scip(AtomStore),AllLinCons,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs).
 
+
+:- pred makeconstore(list(lincons)::in,list(int)::out,int::in,cons_store::in,cons_store::out) is det.
+
+makeconstore([],[],_,!CS).
+makeconstore([H|T],[I|IT],I,!CS) :-
+	bimap.det_insert(I,H,!CS),
+	makeconstore(T,IT,I+1,!CS).
 
 :- pred lincons2scip(atom_store::in,lincons::in,string::out,float::out,int::out,list(float)::out,list(int)::out,float::out,int::out) is det.
 

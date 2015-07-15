@@ -26,6 +26,11 @@ struct SCIP_ProbData
    SCIP_VAR**   vars;          /**< variables in the problem */
    int          vars_len;      /**< length of vars array */
    MR_AtomStore atom_store;    /**< Mercury bimap between atoms and their indices */
+   int          nconss;        /**< number of constraints in the problem */
+   SCIP_CONS**  conss;         /**< constraints in the problem */
+   int          conss_len;     /**< length of conss array */
+   MR_ConsStore cons_store;    /**< Mercury bimap between constraints and their indices */
+
 };
 
 /** main function (just for testing at present ) */
@@ -37,6 +42,7 @@ int main(
    void *stack_bottom;
 
    MR_AtomStore atomstore;
+   MR_ConsStore consstore;
    MR_IntList idents;
    MR_StringList names;
    MR_FloatList lbs;
@@ -151,10 +157,26 @@ int main(
    SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
 
-   MR_initial_constraints(atomstore,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs);
+   MR_initial_constraints(atomstore,&consstore,&idents,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs);
 
-   while ( !MR_list_is_empty(lbs) )
+   /* add Mercury variables to SCIP instance */
+   probdata->cons_store = consstore;
+   probdata->nconss = 0;
+   probdata->conss_len = VAR_BLOCKSIZE;
+   SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->conss), probdata->conss_len) );
+
+   while ( !MR_list_is_empty(idents) )
    {
+      ident =   MR_list_head(idents);
+
+      /* throw error if idents are not listed as 0,1,...n */
+      if( ident != probdata->nconss )
+      {
+         SCIPerrorMessage("Mercury did not return list of constraint indices  correctly.\n");
+         exit(1);
+      }
+
+
       coeffs = MR_list_head(coeffss);
       vars = MR_list_head(varss);
       name = (MR_String)  MR_list_head(names);
@@ -186,6 +208,14 @@ int main(
       /*SCIP_CALL(  SCIPprintCons(scip, cons, NULL)  ); */
       SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
+      if( !(ident < probdata->conss_len) )
+      {
+         probdata->conss_len += VAR_BLOCKSIZE;
+         SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->conss), probdata->conss_len) );
+      }
+      probdata->conss[probdata->nconss++] = cons;
+
+      idents = MR_list_tail(idents);
       coeffss = MR_list_tail(coeffss);
       varss = MR_list_tail(varss);
       names = MR_list_tail(names);

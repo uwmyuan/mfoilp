@@ -12,3 +12,4 @@ typedef MR_Word MR_FloatList;
 typedef MR_Word MR_StringList;
 typedef MR_Word MR_FloatListList;
 typedef MR_Word MR_IntListList;
+typedef MR_Word MR_ConsStore;
