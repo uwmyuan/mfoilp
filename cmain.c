@@ -7,6 +7,7 @@
 #include <scip/scipdefplugins.h>
 
 #include "cons_folinear.h"
+/*#include "pricer_fovars.h"*/
 
 
 /*
@@ -83,12 +84,20 @@ int main(
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
+   /* include fovars pricer  */
+   /*SCIP_CALL( SCIPincludePricerFovars(scip) );*/
+
+
    /* allocate memory */
    SCIP_CALL( SCIPallocMemory(scip, &probdata) );
 
 
    SCIP_CALL( SCIPcreateProb(scip, "folilp", NULL, NULL, NULL,
          NULL, NULL, NULL, probdata) );
+
+   /* activates fovars pricer  */
+   /*SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "fovars")) );*/
+
 
 
    /*SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MAXIMIZE) );*/
@@ -204,6 +213,9 @@ int main(
          vars = MR_list_tail(vars);
 
       }
+      /* declare constraint modifiable for adding variables during pricing */
+      /*SCIP_CALL( SCIPsetConsModifiable(scip, cons, TRUE) );*/
+
       SCIP_CALL( SCIPaddCons(scip, cons) );
       /*SCIP_CALL(  SCIPprintCons(scip, cons, NULL)  ); */
       SCIP_CALL( SCIPreleaseCons(scip, &cons) );

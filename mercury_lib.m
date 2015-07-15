@@ -79,6 +79,8 @@
 :- type locktype ---> neither ; down_only ; up_only ; both.
 :- type lockinfo ---> lockinfo(lb,float,ub).
 
+% :- type dualsol == map(lincons,float).
+
 %-----------------------------------------------------------------------------%
 
 :- func scip_vartype(vartype) = int.
@@ -173,6 +175,14 @@ down_lock(lockinfo(Lb,F,Ub)) :-
 
 consfail(AtomStore,Indices,Values) :-
 	cut(AtomStore,Indices,Values,_Cons).
+
+% :- pragma foreign_export("C", price(in,in,in,in,out,out,out,out,out,out), "MR_delayed_variables").
+
+% price(AtomStore,ConsStore,Indices,Values,Idents,Names,Lbs,Ubs,VarTypes,Objs) :-
+% 	map.init(DualSol0),
+% 	makedualsol(Indices,Values,ConsStore,DualSol0,DualSol),
+% 	prob.delayed_variable(Atom),
+% 	reduced_cost(Atom,DualSol) < 0.
 
 :- pragma foreign_export("C", cuts(in,in,in,out,out,out,out,out,out,out), "MR_cuts").
 
