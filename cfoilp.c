@@ -15,7 +15,7 @@
 ** It contains declarations for mercury_init() and mercury_terminate(),
 ** which are used to respectively start and shutdown the Mercury runtime.
 */
-#include "mercury_lib_int.h"
+#include "mfoilp_int.h"
 
 #include "mercury_stuff.h"
 

@@ -23,7 +23,7 @@ OBJDIR		=	.
 BINDIR		=	.
 
 MAINNAME	=	mfoilp
-MAINOBJ		=	cmain.o cons_folinear.o
+MAINOBJ		=	cfoilp.o cons_folinear.o
 MAINSRC		=	$(addprefix $(SRCDIR)/,$(MAINOBJ:.o=.c))
 MAINDEP		=	$(SRCDIR)/depend.cmain.$(OPT)
 
@@ -48,7 +48,7 @@ GCCWARN		=	-Wno-long-long -Wall -W -Wpointer-arith -Wcast-align -Wwrite-strings 
 MMC = mmc
 GRADEOPT = 
 MERCURY_LINKAGE = --mercury-linkage static
-MERCURY_LIB_LDFLAGS = libmercury_lib.a
+MERCURY_LIB_LDFLAGS = libmfoilp.a
 # next line commented out, use default C compiler
 #CC = $(shell $(MMC) --output-cc)
 
@@ -115,8 +115,8 @@ ifneq ($(OBJDIR),)
 endif
 		@-rm -f $(MAINFILE) $(MAINLINK) $(MAINSHORTLINK)
 		@echo "-> remove binary"
-		@-$(MMC) --make mercury_lib.realclean
-		@/bin/rm -f mercury_lib_int.[cho] c_main.o c_main Deep.data
+		@-$(MMC) --make mfoilp.realclean
+		@/bin/rm -f mfoilp_int.[cho] cfoilp.o mfoilp Deep.data
 		@/bin/rm -rf Mercury
 
 
@@ -150,17 +150,17 @@ solution:	$(MAINSHORTLINK)
 		mfoilp
 
 # main target
-$(MAINFILE):	$(BINDIR) $(OBJDIR) $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINOBJFILES) mercury_lib_int.o mercury_lib.init
+$(MAINFILE):	$(BINDIR) $(OBJDIR) $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINOBJFILES) mfoilp_int.o mfoilp.init
 		@echo "-> linking $@"
 ifeq ($(VERBOSE),true)
-		$(LINKCXX) $(MAINOBJFILES) $(MERCURY_LIB_LDFLAGS) mercury_lib_int.o \
+		$(LINKCXX) $(MAINOBJFILES) $(MERCURY_LIB_LDFLAGS) mfoilp_int.o \
 		$(LIB_LDFLAGS) \
 		$(LINKCXX_L)$(SCIPDIR)/lib $(LINKCXX_l)$(SCIPLIB)$(LINKLIBSUFFIX) \
                 $(LINKCXX_l)$(OBJSCIPLIB)$(LINKLIBSUFFIX) $(LINKCXX_l)$(LPILIB)$(LINKLIBSUFFIX) $(LINKCXX_l)$(NLPILIB)$(LINKLIBSUFFIX) \
                 $(OFLAGS) $(LPSLDFLAGS) \
 		$(LDFLAGS) $(LINKCXX_o)$@
 else
-		@$(LINKCXX) $(MAINOBJFILES) $(MERCURY_LIB_LDFLAGS) mercury_lib_int.o \
+		@$(LINKCXX) $(MAINOBJFILES) $(MERCURY_LIB_LDFLAGS) mfoilp_int.o \
 		$(LIB_LDFLAGS) \
 		$(LINKCXX_L)$(SCIPDIR)/lib $(LINKCXX_l)$(SCIPLIB)$(LINKLIBSUFFIX) \
                 $(LINKCXX_l)$(OBJSCIPLIB)$(LINKLIBSUFFIX) $(LINKCXX_l)$(LPILIB)$(LINKLIBSUFFIX) $(LINKCXX_l)$(NLPILIB)$(LINKLIBSUFFIX) \
@@ -168,18 +168,18 @@ else
 		$(LDFLAGS) $(LINKCXX_o)$@
 endif
 
-mercury_lib.init: mercury_lib.m
-	$(MMC) $(GRADEOPT) --make  libmercury_lib
+mfoilp.init: mfoilp.m
+	$(MMC) $(GRADEOPT) --make  libmfoilp
 
-# The following rule creates the stand-alone interface to the mercury_lib
+# The following rule creates the stand-alone interface to the mfoilp
 # library, Mercury standard library and Mercury runtime.  Since we haven't
-# installed mercury_lib all the relevant files will have been built in
+# installed mfoilp all the relevant files will have been built in
 # this directory; with an installed library we would need to use the
 # `--mld' option to specify its location.
 #
-mercury_lib_int.o: mercury_lib.init
-	$(MMC) $(GRADEOPT) --ml  mercury_lib \
-		--generate-standalone-interface mercury_lib_int
+mfoilp_int.o: mfoilp.init
+	$(MMC) $(GRADEOPT) --ml  mfoilp \
+		--generate-standalone-interface mfoilp_int
 
 # c_main.o: c_main.c mercury_lib.init mercury_lib_int.o
 # 	$(CC) $(CFLAGS) -c c_main.c
@@ -189,7 +189,7 @@ mercury_lib_int.o: mercury_lib.init
 
 
 
-$(OBJDIR)/%.o:	$(SRCDIR)/%.c mercury_lib.init mercury_lib_int.o
+$(OBJDIR)/%.o:	$(SRCDIR)/%.c mfoilp.init mfoilp_int.o
 		@echo "-> compiling $@"
 		$(CC) $(FLAGS) $(OFLAGS) $(BINOFLAGS) $(CFLAGS) $(CMFLAGS) -c $< $(CC_o)$@
 

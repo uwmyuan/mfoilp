@@ -1,6 +1,6 @@
 %-----------------------------------------------------------------------------%
 
-:- module mercury_lib.
+:- module mfoilp.
 :- interface.
 
 
@@ -304,7 +304,7 @@ name(X) = Name :-
 initialiser(!IO).
 
 % initialiser(!IO) :-
-%     io.write_string("mercury_lib: the initialiser has now been invoked.\n",
+%     io.write_string("mfoilp: the initialiser has now been invoked.\n",
 %         !IO).
 
 %-----------------------------------------------------------------------------%
@@ -317,9 +317,9 @@ initialiser(!IO).
 :- pred finaliser(io::di, io::uo) is det.
 finaliser(!IO).
 % finaliser(!IO) :-
-%     io.write_string("mercury_lib: the finaliser has now been invoked.\n",
+%     io.write_string("mfoilp: the finaliser has now been invoked.\n",
 %         !IO).
 
 %-----------------------------------------------------------------------------%
-:- end_module mercury_lib.
+:- end_module mfoilp.
 %-----------------------------------------------------------------------------%

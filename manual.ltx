@@ -1,11 +1,48 @@
 \documentclass{article}
 
-\title{mfoilp developer manual}
+\title{mfoilp User/Developer manual}
 \author{James Cussens}
 
 \begin{document}
 
 \maketitle
+
+\section{Defining a problem instance}
+\label{sec:prob}
+
+The simplest way to create a first-order MIP problem instance is
+to create a Mercury source file called \texttt{prob.m} with
+the interface given in Fig~\ref{fig:interface}.
+
+
+\begin{figure}
+  \centering
+\begin{verbatim}
+:- module prob.
+:- interface.
+
+%----------------------------------------------------------------------%
+
+:- import_module mercury_lib.
+
+:- type atom.
+
+:- pred initial_variable(atom::out) is multi.
+:- pred delayed_variable(atom::out) is nondet.
+:- pred initial_constraint(lincons::out) is nondet.
+:- pred delayed_constraint(lincons::out) is nondet.
+
+:- func objective(atom) = float.
+:- func lb(atom) = float.
+:- func ub(atom) = float.
+:- func vartype(atom) = vartype.
+
+%----------------------------------------------------------------------%
+\end{verbatim}
+  \caption{prob.m interface}
+  \label{fig:interface}
+\end{figure}
+
 
 \section{Mercury interface}
 \label{sec:mercuryinterface}

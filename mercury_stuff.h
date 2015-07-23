@@ -4,7 +4,7 @@
 ** as well as other exported entities, like mutables.
 **
 */
-#include "mercury_lib.mh"
+#include "mfoilp.mh"
 
 typedef MR_Word MR_AtomStore;
 typedef MR_Word MR_IntList;
