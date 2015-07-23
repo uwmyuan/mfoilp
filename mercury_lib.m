@@ -239,7 +239,7 @@ activity([Coeff * Atom|T],Sol,!ConsVal) :-
 :- pragma foreign_export("C", makevars(out,out,out,out,out,out,out), "MR_initial_variables").
 
 makevars(AtomStore,Idents,Names,Lbs,Ubs,VarTypes,Objs) :-
-	solutions(prob.atom,AllAtoms),
+	solutions(prob.initial_variable,AllAtoms),
 	bimap.init(AS0),
 	store_atoms(AllAtoms,Idents,Names,Lbs,Ubs,VarTypes,Objs,0,AS0,AtomStore).
 
