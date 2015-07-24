@@ -23,6 +23,8 @@
 :- type vartype ---> binary ; integer ; implint ; continuous.
 
 :- type sol == map(atom,float).
+:- type state ---> state(sol,float,list(atom),list(atom)).
+
 
 :- pred makevars(atom_store::out,
 		 list(int)::out,
@@ -58,6 +60,8 @@
 :- pred consfail(atom_store::in,list(int)::in,list(float)::in) is semidet.
 
 :- pred locks(atom_store::in,int::in,int::out,int::out) is cc_multi.
+
+:- func solval(sol,atom) = float.
 
 %-----------------------------------------------------------------------------%
 
@@ -193,12 +197,19 @@ cuts(AtomStore,Indices,Values,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs) :-
 	map.init(Sol0),
 	makesol(Indices,Values,AtomStore,Sol0,Sol),
 	(
+	  % first try explicitly defined cutting plane algorithm
 	  prob.cuts(Sol,Cuts0) ->
 	  Cuts = Cuts0;
 	  (
-	    cut(AtomStore,Indices,Values,Cons) ->
-	    Cuts = [Cons];
-	    Cuts = []
+	   % then try see if cuts are causal
+	    prob.clausal_cuts(Sol,Cuts1) ->
+	    Cuts = Cuts1;
+	    (
+	      % OK, resort to generate-and-test
+	      cut(AtomStore,Indices,Values,Cons) ->
+	      Cuts = [Cons];
+	      Cuts = []
+	    )
 	  )
 	),
 	list.map7(lincons2scip(AtomStore),Cuts,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs).
@@ -235,13 +246,16 @@ consfail(Sol,Cons) :-
 
 activity([],_Sol,!ConsVal).
 activity([Coeff * Atom|T],Sol,!ConsVal) :-
-	(
-	  map.search(Sol,Atom,Val) ->
-	  activity(T,Sol,!.ConsVal+Coeff*Val,!:ConsVal);
-	  % Atom not found, so Val is zero
-	  activity(T,Sol,!ConsVal)
-	).
+	activity(T,Sol,!.ConsVal+Coeff*solval(Sol,Atom),!:ConsVal).
 
+
+
+solval(Sol,Atom) = Val :-
+	(
+	  map.search(Sol,Atom,Val0) ->
+	  Val = Val0;
+	  Val = 0.0
+	).
 
 :- pragma foreign_export("C", makevars(out,out,out,out,out,out,out), "MR_initial_variables").
 
@@ -298,6 +312,46 @@ name(X) = Name :-
 	State0 = string.builder.init,
 	stream.string_writer.write(string.builder.handle,X,State0,State),
 	Name = string.builder.to_string(State).
+
+%----------------------------------------------------------------------%
+
+% Predicates for clauses, eg MLNs
+
+:- pred poslit(atom::in,state::in,state::out) is semidet.
+
+poslit(Atom,
+       state(Sol,ValIn,NegIn,PosIn),
+       state(Sol,ValOut,NegIn,[Atom|PosIn])) :-
+	ValOut = ValIn+solval(Sol,Atom),
+	ValOut < 1.0.
+
+:- pred neglit(atom::in,state::in,state::out) is semidet.
+
+neglit(Atom,
+       state(Sol,ValIn,NegIn,PosIn),
+       state(Sol,ValOut,[Atom|NegIn],PosIn)) :-
+	ValOut = ValIn+1.0-solval(Sol,Atom),
+	ValOut < 1.0.
+
+% syntactic sugar
+:- pred if_this(atom::in,state::in,state::out) is semidet.
+if_this(Atom,!State) :- neglit(Atom,!State).
+:- pred and_this(atom::in,state::in,state::out) is semidet.
+and_this(Atom,!State) :- neglit(Atom,!State).
+:- pred then_this(atom::in,state::in,state::out) is semidet.
+then_this(Atom,!State) :- poslit(Atom,!State).
+:- pred or_this(atom::in,state::in,state::out) is semidet.
+or_this(Atom,!State) :- poslit(Atom,!State).
+
+:- pred clausal_cut(sol::in,lincons::out) is nondet.
+
+clausal_cut(Sol,Cut) :-
+	StateIn = state(Sol,0.0,[],[]),
+	prob.clause(StateIn,StateOut),
+	StateOut = state(_Sol,_Val,NegLits,PosLits),
+	clause2lincons(NegLits,PosLits,Cut).
+
+
 
 %-----------------------------------------------------------------------------%
 %
