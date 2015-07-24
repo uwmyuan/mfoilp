@@ -352,13 +352,13 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 
       
       /* create Mercury-understandable version of the solution
-         only include variables (ie their indicse) with non-zero values 
+         only include variables (ie their indices) with non-zero values 
       */
       for( i = 0; i < consdata->nvars; ++i )
       {
          var = consdata->vars[i];
          val = SCIPgetSolVal(scip, NULL, var);
-         if( !SCIPisZero(scip, val))
+         if( !SCIPisZero(scip, val) )
          {
             indices = MR_list_cons( i, indices);
             values = MR_list_cons( MR_float_to_word(val), values);

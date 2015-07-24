@@ -10,6 +10,7 @@
 :- import_module list.
 :- import_module float.
 :- import_module string.
+:- import_module map.
 :- import_module prob.
 
 
@@ -21,6 +22,7 @@
 :- type lincons ---> lincons(lb,lexp,ub).
 :- type vartype ---> binary ; integer ; implint ; continuous.
 
+:- type sol == map(atom,float).
 
 :- pred makevars(atom_store::out,
 		 list(int)::out,
@@ -62,7 +64,6 @@
 :- implementation.
 
 :- import_module bimap.
-:- import_module map.
 :- import_module bool.
 :- import_module solutions.
 :- import_module io.
@@ -75,7 +76,7 @@
 :- type lexp_int == list(lterm_int).
 :- type lincons_int ---> lincons(float,lexp_int,float).
 
-:- type sol == map(atom,float).
+
 :- type locktype ---> neither ; down_only ; up_only ; both.
 :- type lockinfo ---> lockinfo(lb,float,ub).
 
@@ -186,15 +187,21 @@ consfail(AtomStore,Indices,Values) :-
 
 :- pragma foreign_export("C", cuts(in,in,in,out,out,out,out,out,out,out), "MR_cuts").
 
-% just generate at most one cut for the time being
+% just generate at most one 'default' cut for the time being
 
 cuts(AtomStore,Indices,Values,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs) :-
+	map.init(Sol0),
+	makesol(Indices,Values,AtomStore,Sol0,Sol),
 	(
-	  cut(AtomStore,Indices,Values,Cons) ->
-	  lincons2scip(AtomStore,Cons,Name,LbF,FinLb,Coeffs,Vars,UbF,FinUb),
-	  Names = [Name], LbFs = [LbF], FinLbs = [FinLb], Coeffss = [Coeffs], Varss = [Vars], UbFs = [UbF], FinUbs = [FinUb];
-	  Names = [], LbFs = [], FinLbs = [], Coeffss = [], Varss = [], UbFs = [], FinUbs = []
-	).
+	  prob.cuts(Sol,Cuts0) ->
+	  Cuts = Cuts0;
+	  (
+	    cut(AtomStore,Indices,Values,Cons) ->
+	    Cuts = [Cons];
+	    Cuts = []
+	  )
+	),
+	list.map7(lincons2scip(AtomStore),Cuts,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs).
 
 :- pred cut(atom_store::in,list(int)::in,list(float)::in,lincons::out) is nondet.
 

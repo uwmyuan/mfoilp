@@ -45,6 +45,8 @@ with the interface given in Fig~\ref{fig:interface}.
 :- pred initial_constraint(lincons::out) is nondet.
 :- pred delayed_constraint(lincons::out) is nondet.
 
+:- pred cuts(sol::in,list(lincons)::out) is semidet.
+
 :- func objective(atom) = float.
 :- func lb(atom) = float.
 :- func ub(atom) = float.
@@ -230,6 +232,18 @@ delayed_constraint(lincons(neginf,LinExpr,finite(float(Size-1)))) :-
   \label{fig:delayedcons}
 \end{figure}
 
+Finally, consider the \texttt{cuts/2} predicate declared in the
+interface of \texttt{prob.m}. This predicate can be used to define a
+specialised cutting plane algorithm for the efficient generation of
+delayed constraints. Since the TSP instance is small there is no need
+to come up with a good cutting plane algorithm, but the predicate
+still needs to be defined. Defining \texttt{cuts/2} to always fail:
+\begin{verbatim}
+cuts(_,_) :- fail.
+\end{verbatim}
+is the correct way to indicate to \mfoilp{} that no cutting plane
+algorithm has been written for this problem.
+
 \section{Solving with \mfoilp}
 \label{sec:solving}
 
@@ -285,6 +299,39 @@ values. Note too that although only one delayed constraint is
 \emph{added} as a cutting plane, it is necessary for \mfoilp{} to
 \emph{check} that all delayed constraints are satisfied before it can
 be sure it has found a feasible solution.
+
+\section{Being more efficient}
+\label{sec:efficiency}
+
+The simplest way to use \mfoilp{} is to define only initial variables
+and constraints. These are used to create a MIP instance which SCIP
+solves in the normal way. If a problem requires (or is more
+efficiently solved with) many variables and/or constraints it will be
+necessary to declare these as delayed variables and constraints.
+
+However, the default \mfoilp{} approach to generating delayed
+variables and constraints is very inefficient. For delayed
+constraints, each delayed constraint is generated in turn and only
+then tested to see if it is a cutting plane. The same approach is
+taken with delayed variables; they too are enumerated until one with
+negative reduced cost is generated (or we run out of delayed
+variables).
+
+To avoid this pure generate-and-test approach, the user has the option
+of supplying a cutting plane algorithm and/or a pricer by writing one
+in the file \texttt{prob.m} which defines the instance. To write a
+cutting plane algorithm one defines the \texttt{cuts/2} predicate so
+that it does not fail (as it did in the TSP example), but instead
+generates zero or more delayed constraints which are violated by the
+current LP solution. \emph{If this is done, the
+  \texttt{delayed\_constraint} predicate is no longer used to generate
+  delayed constraints}, so there is no point in defining it to be
+anything other than:
+\begin{verbatim}
+delayed_constraint(_) :- fail.
+\end{verbatim}
+
+
 
 \section{Mercury interface}
 \label{sec:mercuryinterface}
