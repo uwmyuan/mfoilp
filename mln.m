@@ -13,7 +13,7 @@
 :- pred delayed_constraint(lincons::out) is nondet.
 :- pred cuts(sol::in,list(lincons)::out) is nondet.
 
-:- pred clause(clause_cut::in,clause_cut::out) is nondet.
+:- pred clause(clause_info::in,clause_info::out) is nondet.
 
 :- func objective(atom) = float.
 :- func lb(atom) = float.
@@ -85,6 +85,11 @@ lb(_Atom) = 0.0.
 ub(_Atom) = 1.0.
 vartype(_Atom) = binary.
 
+clause -->
+	poslit(smokes(bob)).
+
+clause -->
+	neglit(cancer(bob)).
 
 
 clause -->

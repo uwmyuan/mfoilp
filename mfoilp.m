@@ -23,7 +23,8 @@
 :- type vartype ---> binary ; integer ; implint ; continuous.
 
 :- type sol == map(atom,float).
-:- type clause_cut ---> clause_cut(sol,float,list(atom),list(atom)).
+:- type clause_info ---> clause_cut(sol,float,list(atom),list(atom))
+	; clause_build(list(atom),list(atom)).
 
 
 :- pred makevars(atom_store::out,
@@ -63,12 +64,12 @@
 
 :- func solval(sol,atom) = float.
 
-:- pred poslit(atom::in,clause_cut::in,clause_cut::out) is semidet.
-:- pred neglit(atom::in,clause_cut::in,clause_cut::out) is semidet.
-:- pred if_this(atom::in,clause_cut::in,clause_cut::out) is semidet.
-:- pred and_this(atom::in,clause_cut::in,clause_cut::out) is semidet.
-:- pred then_this(atom::in,clause_cut::in,clause_cut::out) is semidet.
-:- pred or_this(atom::in,clause_cut::in,clause_cut::out) is semidet.
+:- pred poslit(atom::in,clause_info::in,clause_info::out) is semidet.
+:- pred neglit(atom::in,clause_info::in,clause_info::out) is semidet.
+:- pred if_this(atom::in,clause_info::in,clause_info::out) is semidet.
+:- pred and_this(atom::in,clause_info::in,clause_info::out) is semidet.
+:- pred then_this(atom::in,clause_info::in,clause_info::out) is semidet.
+:- pred or_this(atom::in,clause_info::in,clause_info::out) is semidet.
 
 
 %-----------------------------------------------------------------------------%
@@ -158,7 +159,16 @@ locks(AtomStore,Index,Up,Down) :-
 		 list.member(F*Atom,LExp),
 		 Out = lockinfo(Lb,F,Ub)
 	       ),
-	do_while(Call,filter,neither,Locks),
+	do_while(Call,filter,neither,Locks1),
+	Call2 = (
+		 pred(Out::out) is nondet :- prob.clause(clause_build([],[]),clause_build(NegLits,PosLits)),
+		 (
+		   (list.member(Atom,NegLits),Out=lockinfo(finite(1.0),-1.0,posinf))
+		 ;
+		   (list.member(Atom,PosLits),Out=lockinfo(finite(1.0),1.0,posinf))
+		 )
+	       ),
+	do_while(Call2,filter,Locks1,Locks),
 	locknum(Locks,Up,Down).
 
 :- pred locknum(locktype::in,int::out,int::out) is det.
@@ -338,6 +348,9 @@ consfail(Sol,Cons) :-
 	activity(LExp,Sol,0.0,ConsVal),
 	((Ub=finite(Ubf),ConsVal > Ubf) ; (Lb=finite(Lbf),ConsVal < Lbf)).
 
+consfail(Sol,Cons) :-
+	clausal_cut(Sol,Cons).
+
 % evaluate the value of linear expression in constraint for given solution Sol
 % only non-zero values recorded in Sol
 
@@ -376,11 +389,22 @@ poslit(Atom,
 	ValOut = ValIn+solval(Sol,Atom),
 	ValOut < 1.0.
 
+poslit(Atom,
+       clause_build(NegIn,PosIn),
+       clause_build(NegIn,[Atom|PosIn])).
+
+
 neglit(Atom,
        clause_cut(Sol,ValIn,NegIn,PosIn),
        clause_cut(Sol,ValOut,[Atom|NegIn],PosIn)) :-
 	ValOut = ValIn+1.0-solval(Sol,Atom),
 	ValOut < 1.0.
+
+
+neglit(Atom,
+       clause_build(NegIn,PosIn),
+       clause_build([Atom|NegIn],PosIn)).
+
 
 % syntactic sugar
 
