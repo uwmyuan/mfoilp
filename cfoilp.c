@@ -168,7 +168,7 @@ int main(
 
    MR_initial_constraints(atomstore,&consstore,&idents,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs);
 
-   /* add Mercury variables to SCIP instance */
+   /* create space to record constraints in probdata */
    probdata->cons_store = consstore;
    probdata->nconss = 0;
    probdata->conss_len = VAR_BLOCKSIZE;

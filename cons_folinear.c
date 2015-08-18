@@ -423,7 +423,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
          
          SCIP_CALL( SCIPflushRowExtensions(scip, row) );
 #ifdef SCIP_DEBUG
-         SCIPdebug( SCIProwPrint(row, NULL) );
+         SCIPdebug( SCIPprintRow(scip, row, NULL) );
 #endif
          SCIP_CALL( SCIPaddCut(scip, NULL, row, FALSE, &infeasible) );
          SCIP_CALL( SCIPreleaseRow(scip, &row));

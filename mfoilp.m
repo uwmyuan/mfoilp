@@ -23,7 +23,7 @@
 :- type vartype ---> binary ; integer ; implint ; continuous.
 
 :- type sol == map(atom,float).
-:- type state ---> state(sol,float,list(atom),list(atom)).
+:- type clause_cut ---> clause_cut(sol,float,list(atom),list(atom)).
 
 
 :- pred makevars(atom_store::out,
@@ -63,6 +63,14 @@
 
 :- func solval(sol,atom) = float.
 
+:- pred poslit(atom::in,clause_cut::in,clause_cut::out) is semidet.
+:- pred neglit(atom::in,clause_cut::in,clause_cut::out) is semidet.
+:- pred if_this(atom::in,clause_cut::in,clause_cut::out) is semidet.
+:- pred and_this(atom::in,clause_cut::in,clause_cut::out) is semidet.
+:- pred then_this(atom::in,clause_cut::in,clause_cut::out) is semidet.
+:- pred or_this(atom::in,clause_cut::in,clause_cut::out) is semidet.
+
+
 %-----------------------------------------------------------------------------%
 
 :- implementation.
@@ -88,11 +96,53 @@
 
 %-----------------------------------------------------------------------------%
 
+%-----------------------------------------------------------------------------%
+%
+% Constants for SCIP variable types
+%
+%-----------------------------------------------------------------------------%
+
 :- func scip_vartype(vartype) = int.
 scip_vartype(binary) = 0.
 scip_vartype(integer) = 1.
 scip_vartype(implint) = 2.
 scip_vartype(continuous) = 3.
+
+%-----------------------------------------------------------------------------%
+%
+% Predicates for generating MIP variables
+%
+%-----------------------------------------------------------------------------%
+
+
+:- pragma foreign_export("C", makevars(out,out,out,out,out,out,out), "MR_initial_variables").
+
+makevars(AtomStore,Idents,Names,Lbs,Ubs,VarTypes,Objs) :-
+	solutions(prob.initial_variable,AllAtoms),
+	bimap.init(AS0),
+	store_atoms(AllAtoms,Idents,Names,Lbs,Ubs,VarTypes,Objs,0,AS0,AtomStore).
+
+:- pred store_atoms(list(prob.atom)::in,
+		    list(int)::out,
+		    list(string)::out,
+		    list(float)::out,
+		    list(float)::out,
+		    list(int)::out,
+		    list(float)::out,
+		    int::in,atom_store::in,atom_store::out) is det.
+
+store_atoms([],[],[],[],[],[],[],_,!AS).
+store_atoms([H|T],[I|IT],[name(H)|NT],[prob.lb(H)|LT],[prob.ub(H)|UT],
+	    [scip_vartype(vartype(H))|VT],[prob.objective(H)|OT],I,!AS) :-
+	bimap.det_insert(I,H,!AS),
+	store_atoms(T,IT,NT,LT,UT,VT,OT,I+1,!AS).
+
+
+%-----------------------------------------------------------------------------%
+%
+% Predicates for calculating variable locks
+%
+%-----------------------------------------------------------------------------%
 
 :- pragma foreign_export("C", locks(in,in,out,out), "MR_consLock").
 
@@ -174,12 +224,11 @@ down_lock(lockinfo(Lb,F,Ub)) :-
 	  not Ub = posinf
 	).
 
-:- pragma foreign_export("C", consfail(in,in,in), "MR_consFail").
-
-
-
-consfail(AtomStore,Indices,Values) :-
-	cut(AtomStore,Indices,Values,_Cons).
+%-----------------------------------------------------------------------------%
+%
+% Predicate for pricing
+%
+%-----------------------------------------------------------------------------%
 
 % :- pragma foreign_export("C", price(in,in,in,in,out,out,out,out,out,out), "MR_delayed_variables").
 
@@ -189,95 +238,11 @@ consfail(AtomStore,Indices,Values) :-
 % 	prob.delayed_variable(Atom),
 % 	reduced_cost(Atom,DualSol) < 0.
 
-:- pragma foreign_export("C", cuts(in,in,in,out,out,out,out,out,out,out), "MR_cuts").
-
-% just generate at most one 'default' cut for the time being
-
-cuts(AtomStore,Indices,Values,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs) :-
-	map.init(Sol0),
-	makesol(Indices,Values,AtomStore,Sol0,Sol),
-	(
-	  % first try explicitly defined cutting plane algorithm
-	  prob.cuts(Sol,Cuts0) ->
-	  Cuts = Cuts0;
-	  (
-	   % then try see if cuts are causal
-	    prob.clausal_cuts(Sol,Cuts1) ->
-	    Cuts = Cuts1;
-	    (
-	      % OK, resort to generate-and-test
-	      cut(AtomStore,Indices,Values,Cons) ->
-	      Cuts = [Cons];
-	      Cuts = []
-	    )
-	  )
-	),
-	list.map7(lincons2scip(AtomStore),Cuts,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs).
-
-:- pred cut(atom_store::in,list(int)::in,list(float)::in,lincons::out) is nondet.
-
-cut(AtomStore,Indices,Values,Cons) :-
-	map.init(Sol0),
-	makesol(Indices,Values,AtomStore,Sol0,Sol),
-	consfail(Sol,Cons).
-
-:- pred makesol(list(int)::in,list(float)::in,atom_store::in,sol::in,sol::out) is det.
-
-makesol([],_Vals,_AtomStore,!Sol).
-makesol([_H|_T],[],_AtomStore,!Sol).
-makesol([H|T],[VH|VT],AtomStore,!Sol) :-
-	bimap.lookup(AtomStore,H,Atom),
-	map.det_insert(Atom,VH,!Sol),
-	makesol(T,VT,AtomStore,!Sol).
-
-
-:- pred consfail(sol::in,lincons::out) is nondet.
-
-consfail(Sol,Cons) :-
-	prob.delayed_constraint(Cons),
-	Cons = lincons(Lb,LExp,Ub),
-	activity(LExp,Sol,0.0,ConsVal),
-	((Ub=finite(Ubf),ConsVal > Ubf) ; (Lb=finite(Lbf),ConsVal < Lbf)).
-
-% evaluate the value of linear expression in constraint for given solution Sol
-% only non-zero values recorded in Sol
-
-:- pred activity(lexp::in,sol::in,float::in,float::out) is det.
-
-activity([],_Sol,!ConsVal).
-activity([Coeff * Atom|T],Sol,!ConsVal) :-
-	activity(T,Sol,!.ConsVal+Coeff*solval(Sol,Atom),!:ConsVal).
-
-
-
-solval(Sol,Atom) = Val :-
-	(
-	  map.search(Sol,Atom,Val0) ->
-	  Val = Val0;
-	  Val = 0.0
-	).
-
-:- pragma foreign_export("C", makevars(out,out,out,out,out,out,out), "MR_initial_variables").
-
-makevars(AtomStore,Idents,Names,Lbs,Ubs,VarTypes,Objs) :-
-	solutions(prob.initial_variable,AllAtoms),
-	bimap.init(AS0),
-	store_atoms(AllAtoms,Idents,Names,Lbs,Ubs,VarTypes,Objs,0,AS0,AtomStore).
-
-:- pred store_atoms(list(prob.atom)::in,
-		    list(int)::out,
-		    list(string)::out,
-		    list(float)::out,
-		    list(float)::out,
-		    list(int)::out,
-		    list(float)::out,
-		    int::in,atom_store::in,atom_store::out) is det.
-
-store_atoms([],[],[],[],[],[],[],_,!AS).
-store_atoms([H|T],[I|IT],[name(H)|NT],[prob.lb(H)|LT],[prob.ub(H)|UT],
-	    [scip_vartype(vartype(H))|VT],[prob.objective(H)|OT],I,!AS) :-
-	bimap.det_insert(I,H,!AS),
-	store_atoms(T,IT,NT,LT,UT,VT,OT,I+1,!AS).
+%-----------------------------------------------------------------------------%
+%
+% Predicates for generating initial constraints
+%
+%-----------------------------------------------------------------------------%
 
 
 :- pragma foreign_export("C", makelincons(in,out,out,out,out,out,out,out,out,out), "MR_initial_constraints").
@@ -313,45 +278,128 @@ name(X) = Name :-
 	stream.string_writer.write(string.builder.handle,X,State0,State),
 	Name = string.builder.to_string(State).
 
-%----------------------------------------------------------------------%
 
+
+%-----------------------------------------------------------------------------%
+%
+% Predicates for checking solutions
+%
+%-----------------------------------------------------------------------------%
+
+
+:- pragma foreign_export("C", consfail(in,in,in), "MR_consFail").
+
+consfail(AtomStore,Indices,Values) :-
+	map.init(Sol0),
+	makesol(Indices,Values,AtomStore,Sol0,Sol),
+	consfail(Sol,_Cons).
+
+
+%-----------------------------------------------------------------------------%
+%
+% Predicates for generating cuts
+%
+%-----------------------------------------------------------------------------%
+
+:- pragma foreign_export("C", cuts(in,in,in,out,out,out,out,out,out,out), "MR_cuts").
+
+cuts(AtomStore,Indices,Values,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs) :-
+	map.init(Sol0),
+	makesol(Indices,Values,AtomStore,Sol0,Sol),
+	(
+				% first try explicitly defined cutting plane algorithm
+	  prob.cuts(Sol,Cuts0) ->
+	  Cuts = Cuts0;
+				% otherwise collect any clausal cuts
+	  solutions(clausal_cut(Sol),Cuts0),
+				% add in a single general cut (if any)
+	  (
+	    consfail(Sol,Cons) ->
+	    Cuts = [Cons|Cuts0];
+	    Cuts = Cuts0
+	  )
+	),
+	list.map7(lincons2scip(AtomStore),Cuts,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs).
+
+:- pred makesol(list(int)::in,list(float)::in,atom_store::in,sol::in,sol::out) is det.
+
+makesol([],_Vals,_AtomStore,!Sol).
+makesol([_H|_T],[],_AtomStore,!Sol).
+makesol([H|T],[VH|VT],AtomStore,!Sol) :-
+	bimap.lookup(AtomStore,H,Atom),
+	map.det_insert(Atom,VH,!Sol),
+	makesol(T,VT,AtomStore,!Sol).
+
+:- pred consfail(sol::in,lincons::out) is nondet.
+
+consfail(Sol,Cons) :-
+	prob.delayed_constraint(Cons),
+	Cons = lincons(Lb,LExp,Ub),
+	activity(LExp,Sol,0.0,ConsVal),
+	((Ub=finite(Ubf),ConsVal > Ubf) ; (Lb=finite(Lbf),ConsVal < Lbf)).
+
+% evaluate the value of linear expression in constraint for given solution Sol
+% only non-zero values recorded in Sol
+
+:- pred activity(lexp::in,sol::in,float::in,float::out) is det.
+
+activity([],_Sol,!ConsVal).
+activity([Coeff * Atom|T],Sol,!ConsVal) :-
+	activity(T,Sol,!.ConsVal+Coeff*solval(Sol,Atom),!:ConsVal).
+
+solval(Sol,Atom) = Val :-
+	(
+	  map.search(Sol,Atom,Val0) ->
+	  Val = Val0;
+	  Val = 0.0
+	).
+
+%-----------------------------------------------------------------------------%
+%
 % Predicates for clauses, eg MLNs
-
-:- pred poslit(atom::in,state::in,state::out) is semidet.
-
-poslit(Atom,
-       state(Sol,ValIn,NegIn,PosIn),
-       state(Sol,ValOut,NegIn,[Atom|PosIn])) :-
-	ValOut = ValIn+solval(Sol,Atom),
-	ValOut < 1.0.
-
-:- pred neglit(atom::in,state::in,state::out) is semidet.
-
-neglit(Atom,
-       state(Sol,ValIn,NegIn,PosIn),
-       state(Sol,ValOut,[Atom|NegIn],PosIn)) :-
-	ValOut = ValIn+1.0-solval(Sol,Atom),
-	ValOut < 1.0.
-
-% syntactic sugar
-:- pred if_this(atom::in,state::in,state::out) is semidet.
-if_this(Atom,!State) :- neglit(Atom,!State).
-:- pred and_this(atom::in,state::in,state::out) is semidet.
-and_this(Atom,!State) :- neglit(Atom,!State).
-:- pred then_this(atom::in,state::in,state::out) is semidet.
-then_this(Atom,!State) :- poslit(Atom,!State).
-:- pred or_this(atom::in,state::in,state::out) is semidet.
-or_this(Atom,!State) :- poslit(Atom,!State).
+%
+%-----------------------------------------------------------------------------%
 
 :- pred clausal_cut(sol::in,lincons::out) is nondet.
 
 clausal_cut(Sol,Cut) :-
-	StateIn = state(Sol,0.0,[],[]),
+	StateIn = clause_cut(Sol,0.0,[],[]),
 	prob.clause(StateIn,StateOut),
-	StateOut = state(_Sol,_Val,NegLits,PosLits),
+	StateOut = clause_cut(_Sol,_Val,NegLits,PosLits),
 	clause2lincons(NegLits,PosLits,Cut).
 
 
+
+poslit(Atom,
+       clause_cut(Sol,ValIn,NegIn,PosIn),
+       clause_cut(Sol,ValOut,NegIn,[Atom|PosIn])) :-
+	ValOut = ValIn+solval(Sol,Atom),
+	ValOut < 1.0.
+
+neglit(Atom,
+       clause_cut(Sol,ValIn,NegIn,PosIn),
+       clause_cut(Sol,ValOut,[Atom|NegIn],PosIn)) :-
+	ValOut = ValIn+1.0-solval(Sol,Atom),
+	ValOut < 1.0.
+
+% syntactic sugar
+
+if_this(Atom,!State) :- neglit(Atom,!State).
+and_this(Atom,!State) :- neglit(Atom,!State).
+then_this(Atom,!State) :- poslit(Atom,!State).
+or_this(Atom,!State) :- poslit(Atom,!State).
+
+:- pred clause2lincons(list(atom)::in,list(atom)::in,lincons::out) is det.
+
+clause2lincons(NegLits,PosLits,lincons(finite(Lb),Terms,posinf)) :-
+	c2l(NegLits,PosLits,Terms,Lb).
+
+:- pred c2l(list(atom)::in,list(atom)::in,lexp::out,float::out) is det.
+c2l([],[],[],1.0).
+c2l([],[H|T],[1.0 * H | Rest],Lb) :-
+   c2l([],T,Rest,Lb).
+c2l([H|T],PosLits,[-1.0 * H | Rest],Lb-1.0) :-
+	c2l(T,PosLits,Rest,Lb).
 
 %-----------------------------------------------------------------------------%
 %

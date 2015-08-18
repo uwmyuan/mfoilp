@@ -8,6 +8,50 @@
 \maketitle
 
 
+\section{Overall architecture}
+\label{sec:architecture}
+
+\subsection{cfoilp.c}
+\label{sec:cfoilp}
+
+The \texttt{main} function is in \texttt{cfoilp.c}. Code here creates
+a SCIP instance by:
+\begin{enumerate}
+\item Creating the probdata
+\item Activating the pricer (not yet implemented)
+\item Calling Mercury \verb+MR_initial_variables+ to create initial variables
+\item Including the first-order linear constraint handler and creating
+  a single first-order linear constraint
+\item Adding initial constraints by calling \verb+MR_initial_constraints+
+\end{enumerate}
+
+
+\subsection{consfolinear}
+\label{sec:consfolinear}
+
+Locking, checking and cutting plane generation are all done by calling
+relevant Mercury functions.
+
+
+
+
+\end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 \section{Generating a cutting plane algorithm}
 \label{sec:cuttingplanes}
 
@@ -75,4 +119,4 @@ generate ground instances of literals (left-to-right) and check that
 the cumulative value is always below 1.
 
 
-\end{document}
+
