@@ -227,3 +227,51 @@ is specifically designed for clauses.
 
 Decided to focus on getting MLN solving working, so only "clever" cuts
 for first-order clauses.
+
+How mfoilp solves the MAP problem for MLNs
+
+1. The MLN is supplied as a problem instance. Clauses are defined
+thus:
+
+clause -->
+	neglit(cancer(bob)).
+
+
+clause -->
+	{person(X)},
+	neglit(smokes(X)),
+	poslit(cancer(X)),
+	poslit(cb1(1,X)).
+
+2. All MIP variables ( = 'atoms' ) are created at the
+beginning. All variables are sent to the FOLinear constructor and so
+are 'in' the single FOLinear constraint. They are all locked there.
+
+3. Solutions are sent to Mercury from cons_folinear for checking and
+cutting plane generation.
+
+
+At present MIP variables are locked by generating all ground instances and
+then seeing if the MIP variable in question is 'in' that ground
+instance.
+
+
+Wed Aug 19 10:35:34 BST 2015
+
+For generating cuts we should generate negative literals from the
+solution:
+
+
+:- pred neglit(atom::out,clause_info::in,clause_info::out) is semidet.
+neglit(Atom,
+       clause_cut(Sol,ValIn,NegIn,PosIn),
+       clause_cut(Sol,ValOut,[Atom|NegIn],PosIn)) :-
+	map.member(Sol,Atom,Val),
+	ValOut = ValIn+1.0-Val,
+	ValOut < 1.0.
+
+but to build a clause should do this:
+
+neglit(Atom,
+       clause_build(NegIn,PosIn),
+       clause_build([Atom|NegIn],PosIn)) :- initial_variable(Atom).

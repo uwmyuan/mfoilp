@@ -24,7 +24,8 @@
 
 :- type sol == map(atom,float).
 :- type clause_info ---> clause_cut(sol,float,list(atom),list(atom))
-	; clause_build(list(atom),list(atom)).
+	; clause_build(list(atom),list(atom))
+	; clause_checkvar(atom,atom).
 
 
 :- pred makevars(atom_store::out,
@@ -65,9 +66,9 @@
 :- func solval(sol,atom) = float.
 
 :- pred poslit(atom::in,clause_info::in,clause_info::out) is semidet.
-:- pred neglit(atom::in,clause_info::in,clause_info::out) is semidet.
-:- pred if_this(atom::in,clause_info::in,clause_info::out) is semidet.
-:- pred and_this(atom::in,clause_info::in,clause_info::out) is semidet.
+:- pred neglit(atom::out,clause_info::in,clause_info::out) is nondet.
+:- pred if_this(atom::out,clause_info::in,clause_info::out) is nondet.
+:- pred and_this(atom::out,clause_info::in,clause_info::out) is nondet.
 :- pred then_this(atom::in,clause_info::in,clause_info::out) is semidet.
 :- pred or_this(atom::in,clause_info::in,clause_info::out) is semidet.
 
@@ -389,6 +390,9 @@ poslit(Atom,
 	ValOut = ValIn+solval(Sol,Atom),
 	ValOut < 1.0.
 
+%poslit(Atom,clause_check(Var),clause_checkvar(Var)) :-
+%	not Atom = Var.
+
 poslit(Atom,
        clause_build(NegIn,PosIn),
        clause_build(NegIn,[Atom|PosIn])).
@@ -397,13 +401,23 @@ poslit(Atom,
 neglit(Atom,
        clause_cut(Sol,ValIn,NegIn,PosIn),
        clause_cut(Sol,ValOut,[Atom|NegIn],PosIn)) :-
-	ValOut = ValIn+1.0-solval(Sol,Atom),
+	map.member(Sol,Atom,Val),
+	ValOut = ValIn+1.0-Val,
 	ValOut < 1.0.
 
+%neglit(Atom,
+%       clause_cut(Sol,ValIn,NegIn,PosIn),
+%       clause_cut(Sol,ValOut,[Atom|NegIn],PosIn)) :-
+%	ValOut = ValIn+1.0-solval(Sol,Atom),
+%	ValOut < 1.0.
+
+%neglit(Atom,clause_checkvar(Var),clause_checkvar(Var)) :-
+%	not Atom = Var.
 
 neglit(Atom,
        clause_build(NegIn,PosIn),
-       clause_build([Atom|NegIn],PosIn)).
+       clause_build([Atom|NegIn],PosIn)) :-
+	initial_variable(Atom).
 
 
 % syntactic sugar

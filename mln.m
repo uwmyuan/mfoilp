@@ -93,16 +93,14 @@ clause -->
 
 
 clause -->
-	{person(X)},
 	neglit(smokes(X)),
 	poslit(cancer(X)),
 	poslit(cb1(1,X)).
 
 clause -->
-	{person(X)},
 	neglit(smokes(X)),
-	{person(Y), not X = Y},
 	neglit(friends(X,Y)),
+	{not X = Y},
 	poslit(smokes(Y)),
 	poslit(cb2(2,X,Y)).
 
