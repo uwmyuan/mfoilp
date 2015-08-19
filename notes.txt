@@ -275,3 +275,30 @@ but to build a clause should do this:
 neglit(Atom,
        clause_build(NegIn,PosIn),
        clause_build([Atom|NegIn],PosIn)) :- initial_variable(Atom).
+
+Wed Aug 19 15:06:53 BST 2015
+
+Now moved to declaring variable lock information in the problem
+instance. Like this:
+
+is_poslit(smokes(bob)).
+is_poslit(cancer(_)).
+is_poslit(cb1(1,_)).
+is_poslit(cb2(2,_,_)).
+is_poslit(smokes(_)).
+
+is_neglit(cancer(bob)).
+is_neglit(smokes(_)).
+is_neglit(friends(X,Y)) :- not X = Y.
+
+Current MLN solving approach
+All variables declared using initial_variable in problem
+instance. cuts/2, initial_constraint/1 and delayed_constraint/1 all
+declared as fail. But clause/3 predicate defined which declares the
+clauses. SCIP creates the variables and keeps the atomstore pointer
+(which has been created by Mercury). A single folinear constraint is
+created with all variables included. This computes locks on all
+variables. And calls MR_cuts to get cuts for linear
+relaxations. MR_cuts is just the exported name for cuts/10 which finds
+all cuts for current solution. Same predicate ( clausal_cut/2) is used
+for checking.
