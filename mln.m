@@ -15,6 +15,9 @@
 
 :- pred clause(clause_info::in,clause_info::out) is nondet.
 
+:- pred is_neglit(atom::in) is semidet.
+:- pred is_poslit(atom::in) is semidet.
+
 :- func objective(atom) = float.
 :- func lb(atom) = float.
 :- func ub(atom) = float.
@@ -104,6 +107,17 @@ clause -->
 	poslit(smokes(Y)),
 	poslit(cb2(2,X,Y)).
 
+% essentially meta-information used to quickly compute locks for variables.
+
+is_poslit(smokes(bob)).
+is_poslit(cancer(_)).
+is_poslit(cb1(1,_)).
+is_poslit(cb2(2,_,_)).
+is_poslit(smokes(_)).
+
+is_neglit(cancer(bob)).
+is_neglit(smokes(_)).
+is_neglit(friends(X,Y)) :- not X = Y.
 
 % clause -->
 % 	{person(X)},

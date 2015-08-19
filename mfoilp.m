@@ -22,10 +22,11 @@
 :- type lincons ---> lincons(lb,lexp,ub).
 :- type vartype ---> binary ; integer ; implint ; continuous.
 
+:- type locktype ---> neither ; down_only ; up_only ; both.
+
 :- type sol == map(atom,float).
-:- type clause_info ---> clause_cut(sol,float,list(atom),list(atom))
-	; clause_build(list(atom),list(atom))
-	; clause_checkvar(atom,atom).
+:- type clause_info ---> clause_cut(sol,float,list(atom),list(atom)).
+
 
 
 :- pred makevars(atom_store::out,
@@ -91,7 +92,7 @@
 :- type lincons_int ---> lincons(float,lexp_int,float).
 
 
-:- type locktype ---> neither ; down_only ; up_only ; both.
+
 :- type lockinfo ---> lockinfo(lb,float,ub).
 
 % :- type dualsol == map(lincons,float).
@@ -161,16 +162,18 @@ locks(AtomStore,Index,Up,Down) :-
 		 Out = lockinfo(Lb,F,Ub)
 	       ),
 	do_while(Call,filter,neither,Locks1),
-	Call2 = (
-		 pred(Out::out) is nondet :- prob.clause(clause_build([],[]),clause_build(NegLits,PosLits)),
-		 (
-		   (list.member(Atom,NegLits),Out=lockinfo(finite(1.0),-1.0,posinf))
-		 ;
-		   (list.member(Atom,PosLits),Out=lockinfo(finite(1.0),1.0,posinf))
-		 )
-	       ),
-	do_while(Call2,filter,Locks1,Locks),
-	locknum(Locks,Up,Down).
+	% add locks directly declared
+	(
+	  is_poslit(Atom) ->
+	  filter(lockinfo(finite(1.0),1.0,posinf),_,Locks1,Locks2);
+	  Locks2 = Locks1
+	),
+	(
+	  is_neglit(Atom) ->
+	  filter(lockinfo(finite(1.0),-1.0,posinf),_,Locks2,Locks3);
+	  Locks3 = Locks2
+	),
+	locknum(Locks3,Up,Down).
 
 :- pred locknum(locktype::in,int::out,int::out) is det.
 locknum(neither,0,0).
@@ -382,21 +385,11 @@ clausal_cut(Sol,Cut) :-
 	StateOut = clause_cut(_Sol,_Val,NegLits,PosLits),
 	clause2lincons(NegLits,PosLits,Cut).
 
-
-
 poslit(Atom,
        clause_cut(Sol,ValIn,NegIn,PosIn),
        clause_cut(Sol,ValOut,NegIn,[Atom|PosIn])) :-
 	ValOut = ValIn+solval(Sol,Atom),
 	ValOut < 1.0.
-
-%poslit(Atom,clause_check(Var),clause_checkvar(Var)) :-
-%	not Atom = Var.
-
-poslit(Atom,
-       clause_build(NegIn,PosIn),
-       clause_build(NegIn,[Atom|PosIn])).
-
 
 neglit(Atom,
        clause_cut(Sol,ValIn,NegIn,PosIn),
@@ -404,21 +397,6 @@ neglit(Atom,
 	map.member(Sol,Atom,Val),
 	ValOut = ValIn+1.0-Val,
 	ValOut < 1.0.
-
-%neglit(Atom,
-%       clause_cut(Sol,ValIn,NegIn,PosIn),
-%       clause_cut(Sol,ValOut,[Atom|NegIn],PosIn)) :-
-%	ValOut = ValIn+1.0-solval(Sol,Atom),
-%	ValOut < 1.0.
-
-%neglit(Atom,clause_checkvar(Var),clause_checkvar(Var)) :-
-%	not Atom = Var.
-
-neglit(Atom,
-       clause_build(NegIn,PosIn),
-       clause_build([Atom|NegIn],PosIn)) :-
-	initial_variable(Atom).
-
 
 % syntactic sugar
 
