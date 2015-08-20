@@ -251,8 +251,26 @@ makedualsol([H|T],[VH|VT],ConsStore,!DualSol) :-
 
 :- func reduced_cost(atom,dualsol) = float.
 
-% dummy definition
-reduced_cost(_,_) = -2.0.
+reduced_cost(Atom,DualSol) = RedCost :-
+	map.foldl(dual_valcons(Atom),DualSol,prob.objective(Atom),RedCost).
+
+:- pred dual_valcons(atom::in,lincons::in,float::in,float::in,float::out) is det.
+
+dual_valcons(Atom,lincons(_,LExp,_),DualValue,In,Out) :-
+	dual_valcons2(LExp,Atom,DualValue,In,Out).
+
+:- pred dual_valcons2(lexp::in,atom::in,float::in,float::in,float::out) is det.
+
+dual_valcons2([],_,_,In,In).
+dual_valcons2([H|T],Atom,DualValue,In,Out) :-
+	(
+	  H = F * Atom ->
+	  Mid = In - DualValue * F;
+	  Mid = In
+	),
+	dual_valcons2(T,Atom,DualValue,Mid,Out).
+
+	
 
 :- pragma foreign_export("C", init_rows(out), "MR_initial_rows").
 

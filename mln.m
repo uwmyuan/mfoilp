@@ -62,12 +62,13 @@ delayed_constraint(_) :- fail.
 % define atom-variable generator
 
 initial_variable(friends(X,Y)) :- person(X), person(Y), not X = Y.
-initial_variable(smokes(X)) :- person(X), not X = alice.
+initial_variable(smokes(X)) :- person(X), not X = alice, not X = bob.
 initial_variable(cancer(X)) :- person(X).
 initial_variable(cb1(1,X)) :- person(X).
 initial_variable(cb2(2,X,Y)) :- person(X), person(Y), not X = Y.
 
 delayed_variable(smokes(alice)).
+delayed_variable(smokes(bob)).
 
 :- pred person(person::out) is multi.
 
@@ -87,7 +88,11 @@ objective(Atom) = Cost :-
 	  (
 	    Atom = cb2(2,_,_) ->
 	    Cost = 3.0;
-	    Cost = 0.0
+	    (
+	      Atom = smokes(alice) ->
+	      Cost = -10.0;
+	      Cost = 0.0
+	    )
 	  )
 	).
 lb(_Atom) = 0.0.
