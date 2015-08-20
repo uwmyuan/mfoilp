@@ -302,3 +302,6 @@ variables. And calls MR_cuts to get cuts for linear
 relaxations. MR_cuts is just the exported name for cuts/10 which finds
 all cuts for current solution. Same predicate ( clausal_cut/2) is used
 for checking.
+
+MR_cuts needs to return *constraint indices* when returning cuts, so
+that the rows can be stored with the correct index in the probdata cons_store.

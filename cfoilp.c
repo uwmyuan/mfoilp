@@ -7,6 +7,7 @@
 #include <scip/scipdefplugins.h>
 
 #include "cons_folinear.h"
+#include "cfoilp.h"
 /*#include "pricer_fovars.h"*/
 
 
@@ -19,20 +20,9 @@
 
 #include "mercury_stuff.h"
 
-#define VAR_BLOCKSIZE 10;
 
-struct SCIP_ProbData
-{
-   int          nvars;         /**< number of variables in the problem */
-   SCIP_VAR**   vars;          /**< variables in the problem */
-   int          vars_len;      /**< length of vars array */
-   MR_AtomStore atom_store;    /**< Mercury bimap between atoms and their indices */
-   int          nconss;        /**< number of constraints in the problem */
-   SCIP_CONS**  conss;         /**< constraints in the problem */
-   int          conss_len;     /**< length of conss array */
-   MR_ConsStore cons_store;    /**< Mercury bimap between constraints and their indices */
 
-};
+
 
 /** main function (just for testing at present ) */
 int main(
@@ -44,6 +34,7 @@ int main(
 
    MR_AtomStore atomstore;
    MR_ConsStore consstore;
+   MR_RowStore rowstore;
    MR_IntList idents;
    MR_StringList names;
    MR_FloatList lbs;
@@ -102,6 +93,25 @@ int main(
 
    /*SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MAXIMIZE) );*/
 
+   /* initialise probdata */
+
+   probdata->nvars = 0;
+   probdata->vars = NULL;
+   probdata->vars_len = VAR_BLOCKSIZE;
+   SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
+   probdata->nconss = 0;
+   probdata->conss = NULL;
+   probdata->conss_len = VAR_BLOCKSIZE;
+   SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->conss), probdata->conss_len) );
+   probdata->nrows = 0;
+   probdata->rows = NULL;
+   probdata->rows_len = VAR_BLOCKSIZE;
+   SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->rows), probdata->rows_len) );
+
+   /* initialise to empty Mercury bimap */ 
+   MR_initial_rows(&rowstore);
+   probdata->row_store = rowstore;
+
    /* Call Mercury to create variables */
 
    MR_initial_variables(&atomstore,    /* don't need this to make variables
@@ -113,12 +123,9 @@ int main(
       &vartypes,           /* variable type for each variable to be created */
       &objs);              /* objective coeff for each variable to be created */
 
+   probdata->atom_store = atomstore;
 
    /* add Mercury variables to SCIP instance */
-   probdata->atom_store = atomstore;
-   probdata->nvars = 0;
-   probdata->vars_len = VAR_BLOCKSIZE;
-   SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
 
    while ( !MR_list_is_empty(idents) ) 
    {
@@ -160,19 +167,14 @@ int main(
    SCIP_CALL( SCIPincludeConshdlrFolinear(scip) );
 
    /* create first-order constraint */
-   SCIP_CALL( SCIPcreateConsBasicFolinear(scip, &cons, "todo", 
-         probdata->nvars,probdata->vars,probdata->atom_store) );
+   SCIP_CALL( SCIPcreateConsBasicFolinear(scip, &cons, "global_folinear") );
    SCIP_CALL( SCIPaddCons(scip, cons) );
    SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
 
    MR_initial_constraints(atomstore,&consstore,&idents,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs);
 
-   /* create space to record constraints in probdata */
    probdata->cons_store = consstore;
-   probdata->nconss = 0;
-   probdata->conss_len = VAR_BLOCKSIZE;
-   SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->conss), probdata->conss_len) );
 
    while ( !MR_list_is_empty(idents) )
    {
@@ -214,7 +216,7 @@ int main(
 
       }
       /* declare constraint modifiable for adding variables during pricing */
-      /*SCIP_CALL( SCIPsetConsModifiable(scip, cons, TRUE) );*/
+      SCIP_CALL( SCIPsetConsModifiable(scip, cons, TRUE) );
 
       SCIP_CALL( SCIPaddCons(scip, cons) );
       /*SCIP_CALL(  SCIPprintCons(scip, cons, NULL)  ); */
@@ -225,6 +227,8 @@ int main(
          probdata->conss_len += VAR_BLOCKSIZE;
          SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->conss), probdata->conss_len) );
       }
+
+      /* HERE is where constraint is added to probdata */
       probdata->conss[probdata->nconss++] = cons;
 
       idents = MR_list_tail(idents);

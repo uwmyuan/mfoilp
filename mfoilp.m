@@ -15,6 +15,7 @@
 
 
 :- type atom_store.
+:- type cons_store.
 :- type lterm ---> (float * atom).
 :- type lexp == list(lterm).
 :- type lb ---> finite(float) ; neginf.
@@ -27,7 +28,7 @@
 :- type sol == map(atom,float).
 :- type clause_info ---> clause_cut(sol,float,list(atom),list(atom)).
 
-
+:- pred init_rows(cons_store::out) is det.
 
 :- pred makevars(atom_store::out,
 		 list(int)::out,
@@ -49,15 +50,19 @@
 		    list(int)::out) is det.
 
 :- pred cuts(atom_store::in,             % mapping
-	    list(int)::in,               % solution
-	    list(float)::in,             % solution
-	    list(string)::out,           % cuts
-	    list(float)::out,            % cuts
-	    list(int)::out,              % cuts
-	    list(list(float))::out,      % cuts
-	    list(list(int))::out,        % cuts
-	    list(float)::out,            % cuts
-	    list(int)::out) is cc_multi. % cuts
+	     list(int)::in,		 % solution
+	     list(float)::in,		 % solution
+	     cons_store::in,
+	     int::in,
+	     cons_store::out,
+	     list(int)::out,
+	     list(string)::out,		 % cuts
+	     list(float)::out,		 % cuts
+	     list(int)::out,		 % cuts
+	     list(list(float))::out,	 % cuts
+	     list(list(int))::out,	 % cuts
+	     list(float)::out,		 % cuts
+	     list(int)::out) is cc_multi. % cuts
 
 
 :- pred consfail(atom_store::in,list(int)::in,list(float)::in) is semidet.
@@ -73,6 +78,9 @@
 :- pred then_this(atom::in,clause_info::in,clause_info::out) is semidet.
 :- pred or_this(atom::in,clause_info::in,clause_info::out) is semidet.
 
+:- pred price(cons_store::in,list(int)::in,list(float)::in,cons_store::in,list(int)::in,list(float)::in,
+	      int::in,list(int)::out,list(string)::out,list(float)::out,list(float)::out,list(int)::out,
+	      list(float)::out,atom_store::in,atom_store::out) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -95,7 +103,7 @@
 
 :- type lockinfo ---> lockinfo(lb,float,ub).
 
-% :- type dualsol == map(lincons,float).
+:- type dualsol == map(lincons,float).
 
 %-----------------------------------------------------------------------------%
 
@@ -244,14 +252,35 @@ down_lock(lockinfo(Lb,F,Ub)) :-
 %
 %-----------------------------------------------------------------------------%
 
-% :- pragma foreign_export("C", price(in,in,in,in,out,out,out,out,out,out), "MR_delayed_variables").
+:- pragma foreign_export("C", price(in,in,in,in,in,in,in,out,out,out,out,out,out,in,out), "MR_delayed_variables").
 
-% price(AtomStore,ConsStore,Indices,Values,Idents,Names,Lbs,Ubs,VarTypes,Objs) :-
-% 	map.init(DualSol0),
-% 	makedualsol(Indices,Values,ConsStore,DualSol0,DualSol),
-% 	prob.delayed_variable(Atom),
-% 	reduced_cost(Atom,DualSol) < 0.
+price(ConsStore,ConsIndices,ConsValues,RowStore,RowIndices,RowValues,NAtoms,Idents,Names,Lbs,Ubs,VarTypes,Objs,AtomStore,NewAtomStore) :-
+	map.init(DualSol0),
+	makedualsol(ConsIndices,ConsValues,ConsStore,DualSol0,DualSol1),
+	makedualsol(RowIndices,RowValues,RowStore,DualSol1,DualSol),
+	Call = (pred(Atom::out) is nondet :- prob.delayed_variable(Atom), reduced_cost(Atom,DualSol) < 0.0),
+	solutions(Call,NewAtoms),
+	store_atoms(NewAtoms,Idents,Names,Lbs,Ubs,VarTypes,Objs,NAtoms,AtomStore,NewAtomStore).
 
+:- pred makedualsol(list(int)::in,list(float)::in,cons_store::in,dualsol::in,dualsol::out) is det.
+
+makedualsol([],_Vals,_ConsStore,!DualSol).
+makedualsol([_H|_T],[],_ConsStore,!DualSol).
+makedualsol([H|T],[VH|VT],ConsStore,!DualSol) :-
+	bimap.lookup(ConsStore,H,Cons),
+	map.det_insert(Cons,VH,!DualSol),
+	makedualsol(T,VT,ConsStore,!DualSol).
+
+:- func reduced_cost(atom,dualsol) = float.
+
+% dummy definition
+reduced_cost(_,_) = 2.0.
+
+:- pragma foreign_export("C", init_rows(out), "MR_initial_rows").
+
+init_rows(RowStore) :-
+	bimap.init(RowStore).
+	
 %-----------------------------------------------------------------------------%
 %
 % Predicates for generating initial constraints
@@ -264,16 +293,21 @@ down_lock(lockinfo(Lb,F,Ub)) :-
 makelincons(AtomStore,ConsStore,Idents,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs) :-
 	solutions(prob.initial_constraint,AllLinCons),
 	bimap.init(CS0),
-	makeconstore(AllLinCons,Idents,0,CS0,ConsStore),
-	list.map7(lincons2scip(AtomStore),AllLinCons,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs).
+	makeconstore(AllLinCons,AllLinConsOut,0,Idents,CS0,ConsStore),
+	list.map7(lincons2scip(AtomStore),AllLinConsOut,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs).
 
 
-:- pred makeconstore(list(lincons)::in,list(int)::out,int::in,cons_store::in,cons_store::out) is det.
+:- pred makeconstore(list(lincons)::in,list(lincons)::out,int::in,list(int)::out,cons_store::in,cons_store::out) is det.
 
-makeconstore([],[],_,!CS).
-makeconstore([H|T],[I|IT],I,!CS) :-
-	bimap.det_insert(I,H,!CS),
-	makeconstore(T,IT,I+1,!CS).
+makeconstore([],[],_,[],!CS).
+makeconstore([H|T],Out,I,IOut,!CS) :-
+	(
+	  bimap.insert(I,H,!CS) ->
+	  Out = [H|T2],
+	  IOut = [I|IT],
+	  makeconstore(T,T2,I+1,IT,!CS);
+	  makeconstore(T,Out,I,IOut,!CS)
+	).
 
 :- pred lincons2scip(atom_store::in,lincons::in,string::out,float::out,int::out,list(float)::out,list(int)::out,float::out,int::out) is det.
 
@@ -315,9 +349,9 @@ consfail(AtomStore,Indices,Values) :-
 %
 %-----------------------------------------------------------------------------%
 
-:- pragma foreign_export("C", cuts(in,in,in,out,out,out,out,out,out,out), "MR_cuts").
+:- pragma foreign_export("C", cuts(in,in,in,in,in,out,out,out,out,out,out,out,out,out), "MR_cuts").
 
-cuts(AtomStore,Indices,Values,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs) :-
+cuts(AtomStore,Indices,Values,RowStoreIn,NRowsIn,RowStoreOut,NewRowIdents,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs) :-
 	map.init(Sol0),
 	makesol(Indices,Values,AtomStore,Sol0,Sol),
 	(
@@ -333,7 +367,8 @@ cuts(AtomStore,Indices,Values,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs) :-
 	    Cuts = Cuts0
 	  )
 	),
-	list.map7(lincons2scip(AtomStore),Cuts,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs).
+	makeconstore(Cuts,CutsOut,NRowsIn,NewRowIdents,RowStoreIn,RowStoreOut),  % update row store
+	list.map7(lincons2scip(AtomStore),CutsOut,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs).
 
 :- pred makesol(list(int)::in,list(float)::in,atom_store::in,sol::in,sol::out) is det.
 
@@ -343,6 +378,8 @@ makesol([H|T],[VH|VT],AtomStore,!Sol) :-
 	bimap.lookup(AtomStore,H,Atom),
 	map.det_insert(Atom,VH,!Sol),
 	makesol(T,VT,AtomStore,!Sol).
+
+
 
 :- pred consfail(sol::in,lincons::out) is nondet.
 

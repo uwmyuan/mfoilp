@@ -11,7 +11,7 @@
 
 
 #define PRICER_NAME            "fovars"
-#define PRICER_DESC            "variable pricer template"
+#define PRICER_DESC            "first-order variable pricer"
 #define PRICER_PRIORITY        0
 #define PRICER_DELAY           TRUE     /* only call pricer if all problem variables have non-negative reduced costs */
 
@@ -141,23 +141,97 @@ static
 SCIP_DECL_PRICERREDCOST(pricerRedcostFovars)
 {  /*lint --e{715}*/
 
-   /* ask Mercury to find variables with reduced cost */
+   SCIP_CONS* cons;
+   SCIP_ROW* row;
+   SCIP_Real dualval;
+   SCIP_PROBDATA*  probdata = SCIPgetProbData(scip);	
+
+   int i;
+
+   MR_IntList cons_indices = MR_list_empty();
+   MR_FloatList cons_values = MR_list_empty();
+
+   MR_IntList row_indices = MR_list_empty();
+   MR_FloatList row_values = MR_list_empty();
+
+   MR_IntList idents;
+   MR_StringList names;
+   MR_FloatList lbs;
+   MR_FloatList ubs;
+   MR_IntList vartypes;
+   MR_FloatList objs;
+
+   MR_AtomStore new_atom_store;
 
    (*result) = SCIP_DIDNOTRUN;
 
+   assert(probdata != NULL);
+
+   /* Construct dual solution for Mercury */
+
+   /* dual values from linear constraints */
+
+   assert(probdata->conss != NULL);
+   assert(probdata->cons_store != NULL);
+
+   for( i = 0; i < probdata->nconss; ++i )
+   {
+      cons = probdata->conss[i];
+      dualval = SCIPgetDualsolLinear(scip,cons);
+      if( !SCIPisZero(scip, dualval) )
+      {
+         cons_indices = MR_list_cons( i, cons_indices);
+         cons_values = MR_list_cons( MR_float_to_word(dualval), cons_values);
+      }
+
+   }
+
+   assert(probdata->rows != NULL);
+   assert(probdata->row_store != NULL);
+
+   /* dual values from cutting planes */
+
+   for( i = 0; i < probdata->nrows; ++i )
+   {
+      row = probdata->rows[i];
+      if( row != NULL )
+         dualval = SCIProwGetDualsol(row);
+      else
+         dualval = 0.0;
+      if( !SCIPisZero(scip, dualval) )
+      {
+         row_indices = MR_list_cons( i, row_indices);
+         row_values = MR_list_cons( MR_float_to_word(dualval), row_values);
+      }
+
+   }
+
+   /* Get Mercury to find reduced cost variables */
 
    MR_delayed_variables(
-      atomstore,
-      consstore,
-      dualsol,
+      probdata->cons_store, /* Mercury mapping from constraint indices to Mercury constraint terms */
+      cons_indices,         /* constraint indices for constraints with non-zero dual value */
+      cons_values,          /* dual values corresponding to each (indexed) constraint */
+      probdata->row_store, /* Mercury mapping from cutting plane indices to Mercury constraint terms */
+      row_indices,         /* cutting plane indices for cutting planes with non-zero dual value */
+      row_values,          /* dual values corresponding to each (indexed) cutting plane */
+      probdata->nvars,     /* current number of variables in the MIP */
       &idents,             /* index for each variable to be created */
       &names,              /* name for each variable to be created */
       &lbs,                /* lower bound for each variable to be created */
       &ubs,                /* upper bound for each variable to be created */
       &vartypes,           /* variable type for each variable to be created */
-      &objs);              /* objective coeff for each variable to be created */
+      &objs,                /* objective coeff for each variable to be created */
+      probdata->atom_store, /* current store of atoms/variables */
+      &new_atom_store       /* new store of atoms/variables */
+      );              
    
+   
+   /* update atom store */
 
+   probdata->atom_store = new_atom_store;
+
+   /* Add new variables */
 
    while ( !MR_list_is_empty(idents) ) 
    {

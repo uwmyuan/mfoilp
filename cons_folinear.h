@@ -31,9 +31,6 @@ SCIP_RETCODE SCIPcreateConsFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
-   int                   nvars,              /**< number of variables in the constraint */
-   SCIP_VAR**            vars,               /**< array with variables of constraint entries */
-   MR_Word               atom_store,         /**< map from indices to logical atoms (to pass to Mercury) */
    SCIP_Bool             initial,            /**< should the LP relaxation of constraint be in the initial LP?
                                               *   Usually set to TRUE. Set to FALSE for 'lazy constraints'. */
    SCIP_Bool             separate,           /**< should the constraint be separated during LP processing?
@@ -68,10 +65,7 @@ EXTERN
 SCIP_RETCODE SCIPcreateConsBasicFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
-   const char*           name,               /**< name of constraint */
-   int                   nvars,              /**< number of variables in the constraint */
-   SCIP_VAR**            vars,               /**< array with variables of constraint entries */
-   MR_Word               atom_store          /**< map from indices to logical atoms (to pass to Mercury) */
+   const char*           name               /**< name of constraint */
    );
 
 #ifdef __cplusplus

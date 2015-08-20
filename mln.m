@@ -9,6 +9,7 @@
 :- type atom.
 
 :- pred initial_variable(atom::out) is nondet.
+:- pred delayed_variable(atom::out) is nondet.
 :- pred initial_constraint(lincons::out) is nondet.
 :- pred delayed_constraint(lincons::out) is nondet.
 :- pred cuts(sol::in,list(lincons)::out) is nondet.
@@ -41,6 +42,10 @@ initial_constraint(_) :- fail.
 
 % no general delayed constraints
 delayed_constraint(_) :- fail.
+
+% no general delayed variables
+delayed_variable(_) :- fail.
+
 
 %----------------------------------------------------------------------%
 
