@@ -222,20 +222,20 @@ down_lock(lockinfo(Lb,F,Ub)) :-
 %
 %-----------------------------------------------------------------------------%
 
-:- pragma foreign_export("C", price(in,in,in,in,in,in,in,out,out,out,out,out,out,in,out), "MR_delayed_variables").
+:- pragma foreign_export("C", price(in,in,in,in,in,in,in,in,out,out,out,out,out,out,in,out), "MR_delayed_variables").
 
 :- pred price(cons_store::in,list(int)::in,list(float)::in,cons_store::in,list(int)::in,list(float)::in,
-	      int::in,list(int)::out,list(string)::out,list(float)::out,list(float)::out,list(int)::out,
+	      int::in,int::in,list(int)::out,list(string)::out,list(float)::out,list(float)::out,list(int)::out,
 	      list(float)::out,atom_store::in,atom_store::out) is det.
 
-price(ConsStore,ConsIndices,ConsValues,RowStore,RowIndices,RowValues,NAtoms,Idents,Names,Lbs,Ubs,VarTypes,Objs,AtomStore,NewAtomStore) :-
+price(ConsStore,ConsIndices,ConsValues,RowStore,RowIndices,RowValues,NAtoms,IsFarkas,Idents,Names,Lbs,Ubs,VarTypes,Objs,AtomStore,NewAtomStore) :-
 	map.init(DualSol0),
 	makedualsol(ConsIndices,ConsValues,ConsStore,DualSol0,DualSol1),
 	makedualsol(RowIndices,RowValues,RowStore,DualSol1,DualSol),
 	Call = (
 		 pred(Atom::out) is nondet :- prob.delayed_variable(Atom),
 		 not bimap.contains_value(AtomStore,Atom),  % only create brand new variables
-		 reduced_cost(Atom,DualSol) < 0.0
+		 reduced_cost(Atom,DualSol,IsFarkas) < 0.0
 	       ),
 	solutions(Call,NewAtoms),
 	store_atoms(NewAtoms,Idents,Names,Lbs,Ubs,VarTypes,Objs,NAtoms,AtomStore,NewAtomStore).
@@ -249,10 +249,14 @@ makedualsol([H|T],[VH|VT],ConsStore,!DualSol) :-
 	map.det_insert(Cons,VH,!DualSol),
 	makedualsol(T,VT,ConsStore,!DualSol).
 
-:- func reduced_cost(atom,dualsol) = float.
+:- func reduced_cost(atom,dualsol,int) = float.
 
-reduced_cost(Atom,DualSol) = RedCost :-
-	map.foldl(dual_valcons(Atom),DualSol,prob.objective(Atom),RedCost).
+reduced_cost(Atom,DualSol,IsFarkas) = RedCost :-
+	(
+	  IsFarkas = 1 ->
+	  map.foldl(dual_valcons(Atom),DualSol,0.0,RedCost);
+	  map.foldl(dual_valcons(Atom),DualSol,prob.objective(Atom),RedCost)
+	).
 
 :- pred dual_valcons(atom::in,lincons::in,float::in,float::in,float::out) is det.
 

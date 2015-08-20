@@ -454,7 +454,10 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
          
          if ( infeasible )
          {
-            *result = SCIP_CUTOFF;
+            /* do not declare that the current subproblem is infeasible
+               since pricing may allow us to recover feasibility *
+               *result = SCIP_CUTOFF; */
+            *result = SCIP_INFEASIBLE;
             return SCIP_OKAY;
          }
 

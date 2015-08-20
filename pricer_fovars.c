@@ -44,6 +44,171 @@ struct SCIP_PricerData
 /* put your local methods here, and declare them static */
 
 
+static
+SCIP_RETCODE pricing(
+   SCIP* scip,           /**< SCIP data structure */
+   int isfarkas          /**< whether we perform Farkas pricing */
+   )
+{  
+
+   SCIP_CONS* cons;
+   SCIP_ROW* row;
+   SCIP_Real dualval;
+   SCIP_PROBDATA*  probdata = SCIPgetProbData(scip);	
+
+   int i;
+
+   MR_IntList cons_indices = MR_list_empty();
+   MR_FloatList cons_values = MR_list_empty();
+
+   MR_IntList row_indices = MR_list_empty();
+   MR_FloatList row_values = MR_list_empty();
+
+   MR_IntList idents;
+   MR_StringList names;
+   MR_FloatList lbs;
+   MR_FloatList ubs;
+   MR_IntList vartypes;
+   MR_FloatList objs;
+
+   MR_AtomStore new_atom_store;
+
+   int ident;
+   MR_String name;
+   SCIP_Real lb;
+   SCIP_Real ub;
+   SCIP_Real obj;
+   int vartype;
+
+   SCIP_VAR* var;
+
+   assert(probdata != NULL);
+
+   /* Construct dual solution for Mercury */
+
+   /* dual values from linear constraints */
+
+   assert(probdata->conss != NULL);
+   assert(probdata->cons_store != NULL);
+
+   for( i = 0; i < probdata->nconss; ++i )
+   {
+      cons = probdata->conss[i];
+      if( isfarkas )
+         dualval = SCIPgetDualfarkasLinear(scip,cons);
+      else
+         dualval = SCIPgetDualsolLinear(scip,cons);
+#ifdef SCIP_DEBUG
+      SCIPdebugMessage("constraint <%d> has dual value <%g>.\n", i, dualval);
+      SCIPdebug(  SCIPprintCons(scip, cons, NULL)  );
+#endif
+
+      if( !SCIPisZero(scip, dualval) )
+      {
+         cons_indices = MR_list_cons( i, cons_indices);
+         cons_values = MR_list_cons( MR_float_to_word(dualval), cons_values);
+      }
+
+   }
+
+   assert(probdata->rows != NULL);
+   assert(probdata->row_store != NULL);
+
+   /* dual values from cutting planes */
+
+   for( i = 0; i < probdata->nrows; ++i )
+   {
+      row = probdata->rows[i];
+      if( row != NULL )
+         if( isfarkas )
+            dualval = SCIProwGetDualfarkas(row);
+         else
+            dualval = SCIProwGetDualsol(row);
+      else
+         dualval = 0.0;
+#ifdef SCIP_DEBUG
+      SCIPdebugMessage("cutting plane <%d> has dual value <%g>.\n", i, dualval);
+      if( row != NULL )
+         SCIPdebug( SCIPprintRow(scip, row, NULL) );
+#endif
+      if( !SCIPisZero(scip, dualval) )
+      {
+         row_indices = MR_list_cons( i, row_indices);
+         row_values = MR_list_cons( MR_float_to_word(dualval), row_values);
+      }
+
+   }
+
+   /* Get Mercury to find reduced cost variables */
+
+   MR_delayed_variables(
+      probdata->cons_store, /* Mercury mapping from constraint indices to Mercury constraint terms */
+      cons_indices,         /* constraint indices for constraints with non-zero dual value */
+      cons_values,          /* dual values corresponding to each (indexed) constraint */
+      probdata->row_store, /* Mercury mapping from cutting plane indices to Mercury constraint terms */
+      row_indices,         /* cutting plane indices for cutting planes with non-zero dual value */
+      row_values,          /* dual values corresponding to each (indexed) cutting plane */
+      probdata->nvars,     /* current number of variables in the MIP */
+      isfarkas,            /* whether we are perfoming farkas pricing */
+      &idents,             /* index for each variable to be created */
+      &names,              /* name for each variable to be created */
+      &lbs,                /* lower bound for each variable to be created */
+      &ubs,                /* upper bound for each variable to be created */
+      &vartypes,           /* variable type for each variable to be created */
+      &objs,                /* objective coeff for each variable to be created */
+      probdata->atom_store, /* current store of atoms/variables */
+      &new_atom_store       /* new store of atoms/variables */
+      );              
+   
+   
+   /* update atom store */
+
+   probdata->atom_store = new_atom_store;
+
+   /* Add new variables */
+
+   SCIPdebugMessage("Pricing in new variables\n");
+
+   while ( !MR_list_is_empty(idents) ) 
+   {
+      ident =   MR_list_head(idents);
+      name =    (MR_String) MR_list_head(names);
+      lb =      MR_word_to_float(MR_list_head(lbs));
+      ub =      MR_word_to_float(MR_list_head(ubs));
+      obj =     MR_word_to_float(MR_list_head(objs));
+      vartype = MR_list_head(vartypes);
+
+      SCIP_CALL( SCIPcreateVarBasic(scip, &var, name, lb, ub, obj, vartype) );
+      SCIP_CALL( SCIPaddPricedVar(scip, var, 1.0) );
+      
+      
+      SCIPdebug(SCIPprintVar(scip, var, NULL) );
+
+
+      if( !(ident < probdata->vars_len) )
+      {
+         probdata->vars_len += VAR_BLOCKSIZE;
+         SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
+      }
+      probdata->vars[probdata->nvars++] = var;
+
+      /* Now need to add new variable to existing constraints and cutting planes.
+         The former with SCIPaddCoefLinear and the latter with SCIPaddVarToRow */
+
+      idents = MR_list_tail(idents);
+      names = MR_list_tail(names);
+      lbs = MR_list_tail(lbs);
+      ubs = MR_list_tail(ubs);
+      objs = MR_list_tail(objs);
+      vartypes = MR_list_tail(vartypes);
+   }
+
+   SCIPdebugMessage("Pricing complete\n");
+
+   return SCIP_OKAY;
+}
+
+
 
 
 /*
@@ -145,152 +310,12 @@ SCIP_DECL_PRICEREXITSOL(pricerExitsolFovars)
 static
 SCIP_DECL_PRICERREDCOST(pricerRedcostFovars)
 {  /*lint --e{715}*/
-
-   SCIP_CONS* cons;
-   SCIP_ROW* row;
-   SCIP_Real dualval;
-   SCIP_PROBDATA*  probdata = SCIPgetProbData(scip);	
-
-   int i;
-
-   MR_IntList cons_indices = MR_list_empty();
-   MR_FloatList cons_values = MR_list_empty();
-
-   MR_IntList row_indices = MR_list_empty();
-   MR_FloatList row_values = MR_list_empty();
-
-   MR_IntList idents;
-   MR_StringList names;
-   MR_FloatList lbs;
-   MR_FloatList ubs;
-   MR_IntList vartypes;
-   MR_FloatList objs;
-
-   MR_AtomStore new_atom_store;
-
-   int ident;
-   MR_String name;
-   SCIP_Real lb;
-   SCIP_Real ub;
-   SCIP_Real obj;
-   int vartype;
-
-   SCIP_VAR* var;
-
+ 
    (*result) = SCIP_DIDNOTRUN;
 
-   assert(probdata != NULL);
+   SCIPdebugMessage("call scip_redcost ...\n");
 
-   /* Construct dual solution for Mercury */
-
-   /* dual values from linear constraints */
-
-   assert(probdata->conss != NULL);
-   assert(probdata->cons_store != NULL);
-
-   for( i = 0; i < probdata->nconss; ++i )
-   {
-      cons = probdata->conss[i];
-      dualval = SCIPgetDualsolLinear(scip,cons);
-#ifdef SCIP_DEBUG
-      SCIPdebugMessage("constraint <%d> has dual value <%g>.\n", i, dualval);
-      SCIPdebug(  SCIPprintCons(scip, cons, NULL)  );
-#endif
-
-      if( !SCIPisZero(scip, dualval) )
-      {
-         cons_indices = MR_list_cons( i, cons_indices);
-         cons_values = MR_list_cons( MR_float_to_word(dualval), cons_values);
-      }
-
-   }
-
-   assert(probdata->rows != NULL);
-   assert(probdata->row_store != NULL);
-
-   /* dual values from cutting planes */
-
-   for( i = 0; i < probdata->nrows; ++i )
-   {
-      row = probdata->rows[i];
-      if( row != NULL )
-         dualval = SCIProwGetDualsol(row);
-      else
-         dualval = 0.0;
-#ifdef SCIP_DEBUG
-      SCIPdebugMessage("cutting plane <%d> has dual value <%g>.\n", i, dualval);
-      if( row != NULL )
-         SCIPdebug( SCIPprintRow(scip, row, NULL) );
-#endif
-      if( !SCIPisZero(scip, dualval) )
-      {
-         row_indices = MR_list_cons( i, row_indices);
-         row_values = MR_list_cons( MR_float_to_word(dualval), row_values);
-      }
-
-   }
-
-   /* Get Mercury to find reduced cost variables */
-
-   MR_delayed_variables(
-      probdata->cons_store, /* Mercury mapping from constraint indices to Mercury constraint terms */
-      cons_indices,         /* constraint indices for constraints with non-zero dual value */
-      cons_values,          /* dual values corresponding to each (indexed) constraint */
-      probdata->row_store, /* Mercury mapping from cutting plane indices to Mercury constraint terms */
-      row_indices,         /* cutting plane indices for cutting planes with non-zero dual value */
-      row_values,          /* dual values corresponding to each (indexed) cutting plane */
-      probdata->nvars,     /* current number of variables in the MIP */
-      &idents,             /* index for each variable to be created */
-      &names,              /* name for each variable to be created */
-      &lbs,                /* lower bound for each variable to be created */
-      &ubs,                /* upper bound for each variable to be created */
-      &vartypes,           /* variable type for each variable to be created */
-      &objs,                /* objective coeff for each variable to be created */
-      probdata->atom_store, /* current store of atoms/variables */
-      &new_atom_store       /* new store of atoms/variables */
-      );              
-   
-   
-   /* update atom store */
-
-   probdata->atom_store = new_atom_store;
-
-   /* Add new variables */
-
-   SCIPdebugMessage("Pricing in new variables\n");
-
-   while ( !MR_list_is_empty(idents) ) 
-   {
-      ident =   MR_list_head(idents);
-      name =    (MR_String) MR_list_head(names);
-      lb =      MR_word_to_float(MR_list_head(lbs));
-      ub =      MR_word_to_float(MR_list_head(ubs));
-      obj =     MR_word_to_float(MR_list_head(objs));
-      vartype = MR_list_head(vartypes);
-
-      SCIP_CALL( SCIPcreateVarBasic(scip, &var, name, lb, ub, obj, vartype) );
-      SCIP_CALL( SCIPaddPricedVar(scip, var, 1.0) );
-      
-      
-      SCIPdebug(SCIPprintVar(scip, var, NULL) );
-
-
-      if( !(ident < probdata->vars_len) )
-      {
-         probdata->vars_len += VAR_BLOCKSIZE;
-         SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
-      }
-      probdata->vars[probdata->nvars++] = var;
-
-      idents = MR_list_tail(idents);
-      names = MR_list_tail(names);
-      lbs = MR_list_tail(lbs);
-      ubs = MR_list_tail(ubs);
-      objs = MR_list_tail(objs);
-      vartypes = MR_list_tail(vartypes);
-   }
-
-   SCIPdebugMessage("Pricing complete\n");
+   SCIP_CALL( pricing(scip, 0) );
 
    (*result) = SCIP_SUCCESS;
 
@@ -298,19 +323,17 @@ SCIP_DECL_PRICERREDCOST(pricerRedcostFovars)
 }
 
 
-#if 0
 /** Farkas pricing method of variable pricer for infeasible LPs */
 static
 SCIP_DECL_PRICERFARKAS(pricerFarkasFovars)
-{  /*lint --e{715}*/
-   SCIPerrorMessage("method of fovars variable pricer not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
+{ 
+   SCIPdebugMessage("call scip_farkas ...\n");
+
+   SCIP_CALL( pricing(scip, 1) );
 
    return SCIP_OKAY;
 }
-#else
-#define pricerFarkasFovars NULL
-#endif
+
 
 
 

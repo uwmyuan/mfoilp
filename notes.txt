@@ -311,3 +311,4 @@ Thu Aug 20 14:34:31 BST 2015
 Due to definition of poslit and solval we can create constraints
 containing MIP variables == atoms, for which there is no corresponding variable.
 
+Just need to add new variables into constraints and cutting planes
