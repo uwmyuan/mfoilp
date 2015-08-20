@@ -3,73 +3,26 @@
 :- module mfoilp.
 :- interface.
 
-
 %-----------------------------------------------------------------------------%
 
-:- import_module int.
+
 :- import_module list.
 :- import_module float.
-:- import_module string.
-:- import_module map.
 :- import_module prob.
 
+% for problem instance to define variables
+:- type vartype ---> binary ; integer ; implint ; continuous.
 
-:- type atom_store.
-:- type cons_store.
+% for problem instance to define (initial) constraints
 :- type lterm ---> (float * atom).
 :- type lexp == list(lterm).
 :- type lb ---> finite(float) ; neginf.
 :- type ub ---> finite(float) ; posinf.
 :- type lincons ---> lincons(lb,lexp,ub).
-:- type vartype ---> binary ; integer ; implint ; continuous.
-
-:- type locktype ---> neither ; down_only ; up_only ; both.
-
-:- type sol == map(atom,float).
-:- type clause_info ---> clause_cut(sol,float,list(atom),list(atom)).
-
-:- pred init_rows(cons_store::out) is det.
-
-:- pred makevars(atom_store::out,
-		 list(int)::out,
-		 list(string)::out,
-		 list(float)::out,
-		 list(float)::out,
-		 list(int)::out,
-		 list(float)::out) is det.
-
-:- pred makelincons(atom_store::in,
-		    cons_store::out,
-		    list(int)::out,
-		    list(string)::out,
-		    list(float)::out,
-		    list(int)::out,
-		    list(list(float))::out,
-		    list(list(int))::out,
-		    list(float)::out,
-		    list(int)::out) is det.
-
-:- pred cuts(atom_store::in,             % mapping
-	     list(int)::in,		 % solution
-	     list(float)::in,		 % solution
-	     cons_store::in,
-	     int::in,
-	     cons_store::out,
-	     list(int)::out,
-	     list(string)::out,		 % cuts
-	     list(float)::out,		 % cuts
-	     list(int)::out,		 % cuts
-	     list(list(float))::out,	 % cuts
-	     list(list(int))::out,	 % cuts
-	     list(float)::out,		 % cuts
-	     list(int)::out) is cc_multi. % cuts
 
 
-:- pred consfail(atom_store::in,list(int)::in,list(float)::in) is semidet.
-
-:- pred locks(atom_store::in,int::in,int::out,int::out) is cc_multi.
-
-:- func solval(sol,atom) = float.
+% for problem instance to define clauses
+:- type clause_info.
 
 :- pred poslit(atom::in,clause_info::in,clause_info::out) is semidet.
 :- pred neglit(atom::out,clause_info::in,clause_info::out) is nondet.
@@ -78,14 +31,14 @@
 :- pred then_this(atom::in,clause_info::in,clause_info::out) is semidet.
 :- pred or_this(atom::in,clause_info::in,clause_info::out) is semidet.
 
-:- pred price(cons_store::in,list(int)::in,list(float)::in,cons_store::in,list(int)::in,list(float)::in,
-	      int::in,list(int)::out,list(string)::out,list(float)::out,list(float)::out,list(int)::out,
-	      list(float)::out,atom_store::in,atom_store::out) is det.
 
 %-----------------------------------------------------------------------------%
 
 :- implementation.
 
+:- import_module int.
+:- import_module string.
+:- import_module map.
 :- import_module bimap.
 :- import_module bool.
 :- import_module solutions.
@@ -99,11 +52,16 @@
 :- type lexp_int == list(lterm_int).
 :- type lincons_int ---> lincons(float,lexp_int,float).
 
-
-
 :- type lockinfo ---> lockinfo(lb,float,ub).
+:- type locktype ---> neither ; down_only ; up_only ; both.
 
 :- type dualsol == map(lincons,float).
+
+:- type sol == map(atom,float).
+:- type clause_info ---> clause_cut(sol,float,list(atom),list(atom)).
+
+
+
 
 %-----------------------------------------------------------------------------%
 
@@ -127,6 +85,15 @@ scip_vartype(continuous) = 3.
 
 
 :- pragma foreign_export("C", makevars(out,out,out,out,out,out,out), "MR_initial_variables").
+
+:- pred makevars(atom_store::out,
+		 list(int)::out,
+		 list(string)::out,
+		 list(float)::out,
+		 list(float)::out,
+		 list(int)::out,
+		 list(float)::out) is det.
+
 
 makevars(AtomStore,Idents,Names,Lbs,Ubs,VarTypes,Objs) :-
 	solutions(prob.initial_variable,AllAtoms),
@@ -161,6 +128,9 @@ store_atoms([H|T],[I|IT],[name(H)|NT],[prob.lb(H)|LT],[prob.ub(H)|UT],
 % only need to add locks due to delayed constraints
 % since initial constraints generate SCIP linear constraints
 % which get their var locks from SCIP
+
+:- pred locks(atom_store::in,int::in,int::out,int::out) is cc_multi.
+
 locks(AtomStore,Index,Up,Down) :-
 	bimap.lookup(AtomStore,Index,Atom),
 	Call = (
@@ -254,6 +224,10 @@ down_lock(lockinfo(Lb,F,Ub)) :-
 
 :- pragma foreign_export("C", price(in,in,in,in,in,in,in,out,out,out,out,out,out,in,out), "MR_delayed_variables").
 
+:- pred price(cons_store::in,list(int)::in,list(float)::in,cons_store::in,list(int)::in,list(float)::in,
+	      int::in,list(int)::out,list(string)::out,list(float)::out,list(float)::out,list(int)::out,
+	      list(float)::out,atom_store::in,atom_store::out) is det.
+
 price(ConsStore,ConsIndices,ConsValues,RowStore,RowIndices,RowValues,NAtoms,Idents,Names,Lbs,Ubs,VarTypes,Objs,AtomStore,NewAtomStore) :-
 	map.init(DualSol0),
 	makedualsol(ConsIndices,ConsValues,ConsStore,DualSol0,DualSol1),
@@ -278,6 +252,7 @@ reduced_cost(_,_) = 2.0.
 
 :- pragma foreign_export("C", init_rows(out), "MR_initial_rows").
 
+:- pred init_rows(cons_store::out) is det.
 init_rows(RowStore) :-
 	bimap.init(RowStore).
 	
@@ -289,6 +264,18 @@ init_rows(RowStore) :-
 
 
 :- pragma foreign_export("C", makelincons(in,out,out,out,out,out,out,out,out,out), "MR_initial_constraints").
+
+:- pred makelincons(atom_store::in,
+		    cons_store::out,
+		    list(int)::out,
+		    list(string)::out,
+		    list(float)::out,
+		    list(int)::out,
+		    list(list(float))::out,
+		    list(list(int))::out,
+		    list(float)::out,
+		    list(int)::out) is det.
+
 
 makelincons(AtomStore,ConsStore,Idents,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs) :-
 	solutions(prob.initial_constraint,AllLinCons),
@@ -337,6 +324,8 @@ name(X) = Name :-
 
 :- pragma foreign_export("C", consfail(in,in,in), "MR_consFail").
 
+:- pred consfail(atom_store::in,list(int)::in,list(float)::in) is semidet.
+
 consfail(AtomStore,Indices,Values) :-
 	map.init(Sol0),
 	makesol(Indices,Values,AtomStore,Sol0,Sol),
@@ -351,12 +340,29 @@ consfail(AtomStore,Indices,Values) :-
 
 :- pragma foreign_export("C", cuts(in,in,in,in,in,out,out,out,out,out,out,out,out,out), "MR_cuts").
 
+:- pred cuts(atom_store::in,             % mapping
+	     list(int)::in,		 % solution
+	     list(float)::in,		 % solution
+	     cons_store::in,
+	     int::in,
+	     cons_store::out,
+	     list(int)::out,
+	     list(string)::out,		 % cuts
+	     list(float)::out,		 % cuts
+	     list(int)::out,		 % cuts
+	     list(list(float))::out,	 % cuts
+	     list(list(int))::out,	 % cuts
+	     list(float)::out,		 % cuts
+	     list(int)::out) is cc_multi. % cuts
+
+
 cuts(AtomStore,Indices,Values,RowStoreIn,NRowsIn,RowStoreOut,NewRowIdents,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs) :-
 	map.init(Sol0),
 	makesol(Indices,Values,AtomStore,Sol0,Sol),
 	(
 				% first try explicitly defined cutting plane algorithm
-	  prob.cuts(Sol,Cuts0) ->
+	  %prob.cuts(Sol,Cuts0) ->
+	  fail ->
 	  Cuts = Cuts0;
 				% otherwise collect any clausal cuts
 	  solutions(clausal_cut(Sol),Cuts0),
@@ -401,6 +407,7 @@ activity([],_Sol,!ConsVal).
 activity([Coeff * Atom|T],Sol,!ConsVal) :-
 	activity(T,Sol,!.ConsVal+Coeff*solval(Sol,Atom),!:ConsVal).
 
+:- func solval(sol,atom) = float.
 solval(Sol,Atom) = Val :-
 	(
 	  map.search(Sol,Atom,Val0) ->
