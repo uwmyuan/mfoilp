@@ -232,7 +232,11 @@ price(ConsStore,ConsIndices,ConsValues,RowStore,RowIndices,RowValues,NAtoms,Iden
 	map.init(DualSol0),
 	makedualsol(ConsIndices,ConsValues,ConsStore,DualSol0,DualSol1),
 	makedualsol(RowIndices,RowValues,RowStore,DualSol1,DualSol),
-	Call = (pred(Atom::out) is nondet :- prob.delayed_variable(Atom), reduced_cost(Atom,DualSol) < 0.0),
+	Call = (
+		 pred(Atom::out) is nondet :- prob.delayed_variable(Atom),
+		 not bimap.contains_value(AtomStore,Atom),  % only create brand new variables
+		 reduced_cost(Atom,DualSol) < 0.0
+	       ),
 	solutions(Call,NewAtoms),
 	store_atoms(NewAtoms,Idents,Names,Lbs,Ubs,VarTypes,Objs,NAtoms,AtomStore,NewAtomStore).
 
@@ -248,7 +252,7 @@ makedualsol([H|T],[VH|VT],ConsStore,!DualSol) :-
 :- func reduced_cost(atom,dualsol) = float.
 
 % dummy definition
-reduced_cost(_,_) = 2.0.
+reduced_cost(_,_) = -2.0.
 
 :- pragma foreign_export("C", init_rows(out), "MR_initial_rows").
 

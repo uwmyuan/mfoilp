@@ -5,6 +5,7 @@
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
+#define SCIP_DEBUG
 #include <assert.h>
 
 #include "pricer_fovars.h"
@@ -191,6 +192,11 @@ SCIP_DECL_PRICERREDCOST(pricerRedcostFovars)
    {
       cons = probdata->conss[i];
       dualval = SCIPgetDualsolLinear(scip,cons);
+#ifdef SCIP_DEBUG
+      SCIPdebugMessage("constraint <%d> has dual value <%g>.\n", i, dualval);
+      SCIPdebug(  SCIPprintCons(scip, cons, NULL)  );
+#endif
+
       if( !SCIPisZero(scip, dualval) )
       {
          cons_indices = MR_list_cons( i, cons_indices);
@@ -211,6 +217,11 @@ SCIP_DECL_PRICERREDCOST(pricerRedcostFovars)
          dualval = SCIProwGetDualsol(row);
       else
          dualval = 0.0;
+#ifdef SCIP_DEBUG
+      SCIPdebugMessage("cutting plane <%d> has dual value <%g>.\n", i, dualval);
+      if( row != NULL )
+         SCIPdebug( SCIPprintRow(scip, row, NULL) );
+#endif
       if( !SCIPisZero(scip, dualval) )
       {
          row_indices = MR_list_cons( i, row_indices);
@@ -246,6 +257,8 @@ SCIP_DECL_PRICERREDCOST(pricerRedcostFovars)
 
    /* Add new variables */
 
+   SCIPdebugMessage("Pricing in new variables\n");
+
    while ( !MR_list_is_empty(idents) ) 
    {
       ident =   MR_list_head(idents);
@@ -257,6 +270,10 @@ SCIP_DECL_PRICERREDCOST(pricerRedcostFovars)
 
       SCIP_CALL( SCIPcreateVarBasic(scip, &var, name, lb, ub, obj, vartype) );
       SCIP_CALL( SCIPaddPricedVar(scip, var, 1.0) );
+      
+      
+      SCIPdebug(SCIPprintVar(scip, var, NULL) );
+
 
       if( !(ident < probdata->vars_len) )
       {
@@ -272,6 +289,8 @@ SCIP_DECL_PRICERREDCOST(pricerRedcostFovars)
       objs = MR_list_tail(objs);
       vartypes = MR_list_tail(vartypes);
    }
+
+   SCIPdebugMessage("Pricing complete\n");
 
    (*result) = SCIP_SUCCESS;
 

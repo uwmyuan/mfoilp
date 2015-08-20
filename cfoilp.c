@@ -7,6 +7,7 @@
 #include <scip/scipdefplugins.h>
 
 #include "cons_folinear.h"
+#include "pricer_fovars.h"
 #include "cfoilp.h"
 /*#include "pricer_fovars.h"*/
 
@@ -76,7 +77,7 @@ int main(
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
    /* include fovars pricer  */
-   /*SCIP_CALL( SCIPincludePricerFovars(scip) );*/
+   SCIP_CALL( SCIPincludePricerFovars(scip) );
 
 
    /* allocate memory */
@@ -87,7 +88,7 @@ int main(
          NULL, NULL, NULL, probdata) );
 
    /* activates fovars pricer  */
-   /*SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "fovars")) );*/
+   SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "fovars")) );
 
 
 

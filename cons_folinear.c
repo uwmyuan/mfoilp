@@ -441,7 +441,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
          SCIPdebug( SCIPprintRow(scip, row, NULL) );
 #endif
          SCIP_CALL( SCIPaddCut(scip, NULL, row, FALSE, &infeasible) );
-         SCIP_CALL( SCIPreleaseRow(scip, &row));
+         /*SCIP_CALL( SCIPreleaseRow(scip, &row));*/
          ++nGen;
 
          /* add row to probdata */

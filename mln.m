@@ -4,7 +4,6 @@
 %----------------------------------------------------------------------%
 
 :- import_module mfoilp.
-:- import_module list.
 
 :- type atom.
 
@@ -12,7 +11,7 @@
 :- pred delayed_variable(atom::out) is nondet.
 :- pred initial_constraint(lincons::out) is nondet.
 :- pred delayed_constraint(lincons::out) is nondet.
-:- pred cuts(sol::in,list(lincons)::out) is nondet.
+%:- pred cuts(sol::in,list(lincons)::out) is nondet.
 
 :- pred clause(clause_info::in,clause_info::out) is nondet.
 
@@ -35,7 +34,7 @@
 % meta information, so to speak
 
 % no specialised cutting plane algorithm
-cuts(_,_) :- fail.
+%cuts(_,_) :- fail.
 
 % no general initial constraints
 initial_constraint(_) :- fail.
@@ -44,7 +43,7 @@ initial_constraint(_) :- fail.
 delayed_constraint(_) :- fail.
 
 % no general delayed variables
-delayed_variable(_) :- fail.
+% delayed_variable(_) :- fail.
 
 
 %----------------------------------------------------------------------%
@@ -63,10 +62,12 @@ delayed_variable(_) :- fail.
 % define atom-variable generator
 
 initial_variable(friends(X,Y)) :- person(X), person(Y), not X = Y.
-initial_variable(smokes(X)) :- person(X).
+initial_variable(smokes(X)) :- person(X), not X = alice.
 initial_variable(cancer(X)) :- person(X).
 initial_variable(cb1(1,X)) :- person(X).
 initial_variable(cb2(2,X,Y)) :- person(X), person(Y), not X = Y.
+
+delayed_variable(smokes(alice)).
 
 :- pred person(person::out) is multi.
 
