@@ -304,10 +304,26 @@ makeconstore([H|T],Out,I,IOut,!CS) :-
 
 lincons2scip(AtomStore,LinCons,name(LinCons),LbF,FinLb,Coeffs,Vars,UbF,FinUb) :-
 	LinCons = lincons(Lb,LinExpr,Ub),
-	GetIndicesCoeffs = (pred(F*Atom::in,F::out,I::out) is det :- I = bimap.reverse_lookup(AtomStore,Atom)), 
-	list.map2(GetIndicesCoeffs,LinExpr,Coeffs,Vars),
-	(Lb=finite(LbFX) -> LbF=LbFX, FinLb=1; LbF=0.0, FinLb=0),
-	(Ub=finite(UbFX) -> UbF=UbFX, FinUb=1; UbF=0.0, FinUb=0).
+	% unfortunately no "filter_map2" in the Mercury list library
+	my_filter_map2(LinExpr,AtomStore,Coeffs,Vars),
+	(Lb=finite(LbFX) -> LbF=LbFX, FinLb=1; LbF=0.0, FinLb=0),  % in right disjunct, LbF is a dummy value
+	(Ub=finite(UbFX) -> UbF=UbFX, FinUb=1; UbF=0.0, FinUb=0).  % in right disjunct, UbF is a dummy value
+
+
+:- pred my_filter_map2(lexp::in,atom_store::in,list(float)::out,list(int)::out) is det.
+
+my_filter_map2([],_AtomStore,[],[]).
+my_filter_map2([F * Atom|T],AtomStore,Coeffs,Vars) :-
+	(
+	  bimap.reverse_search(AtomStore,I,Atom) ->
+	  Vars = [I|VarsT],
+	  Coeffs = [F|CoeffsT];
+	  % so creating a constraint / cutting plane with a 'missing' variable
+	  Vars = VarsT,
+	  Coeffs = CoeffsT
+	),
+	my_filter_map2(T,AtomStore,CoeffsT,VarsT).
+	  
 
 	
 :- func name(T) = string.
