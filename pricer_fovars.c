@@ -7,7 +7,10 @@
 
 #include <assert.h>
 
-#include "scip/pricer_fovars.h"
+#include "pricer_fovars.h"
+#include "cfoilp.h"
+#include "scip/scipdefplugins.h"
+
 
 
 #define PRICER_NAME            "fovars"
@@ -27,6 +30,7 @@
 /** variable pricer data */
 struct SCIP_PricerData
 {
+   int dummy;
 };
 
 
@@ -162,6 +166,15 @@ SCIP_DECL_PRICERREDCOST(pricerRedcostFovars)
    MR_FloatList objs;
 
    MR_AtomStore new_atom_store;
+
+   int ident;
+   MR_String name;
+   SCIP_Real lb;
+   SCIP_Real ub;
+   SCIP_Real obj;
+   int vartype;
+
+   SCIP_VAR* var;
 
    (*result) = SCIP_DIDNOTRUN;
 

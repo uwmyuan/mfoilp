@@ -11,6 +11,7 @@
 
 
 #include "scip/scip.h"
+#include "mercury_stuff.h"
 
 #ifdef __cplusplus
 extern "C" {
