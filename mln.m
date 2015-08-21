@@ -61,7 +61,7 @@ delayed_constraint(_) :- fail.
 
 % define atom-variable generator
 
-initial_variable(friends(X,Y)) :- person(X), person(Y), not X = Y.
+initial_variable(friends(X,Y)) :- person(X), person(Y), X @< Y.
 initial_variable(smokes(X)) :- person(X), not X = alice, not X = bob.
 initial_variable(cancer(X)) :- person(X).
 initial_variable(cb1(1,X)) :- person(X).
@@ -90,7 +90,7 @@ objective(Atom) = Cost :-
 	    Cost = 3.0;
 	    (
 	      Atom = smokes(alice) ->
-	      Cost = -0.0;
+	      Cost = 0.0;
 	      Cost = 0.0
 	    )
 	  )
@@ -105,6 +105,11 @@ clause -->
 clause -->
 	neglit(cancer(bob)).
 
+clause -->
+	{person(Y), bob @< Y},
+	poslit(friends(bob,Y)).
+
+clause --> neglit(smokes(ed)).
 
 clause -->
 	neglit(smokes(X)),
@@ -114,7 +119,7 @@ clause -->
 clause -->
 	neglit(smokes(X)),
 	neglit(friends(X,Y)),
-	{not X = Y},
+	{X @<  Y},
 	poslit(smokes(Y)),
 	poslit(cb2(2,X,Y)).
 
@@ -125,6 +130,7 @@ is_poslit(cancer(_)).
 is_poslit(cb1(1,_)).
 is_poslit(cb2(2,_,_)).
 is_poslit(smokes(_)).
+is_poslit(friends(bob,X)) :- not X = bob.
 
 is_neglit(cancer(bob)).
 is_neglit(smokes(_)).
