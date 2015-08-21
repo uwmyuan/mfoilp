@@ -281,7 +281,44 @@ dual_valcons2([H|T],Atom,DualValue,In,Out) :-
 :- pred init_rows(cons_store::out) is det.
 init_rows(RowStore) :-
 	bimap.init(RowStore).
+
+% compute the coefficient of a variable
+
+:- pragma foreign_export("C", varcoeffs(in,in,in,out,out), "MR_varcoeffs").
+
+:- pred varcoeffs(atom_store::in,int::in,cons_store::in,list(int)::out,list(float)::out) is det.
+
+varcoeffs(AtomStore,VarIndex,ConsStore,ConsIndices,Coeffs) :-
+	bimap.lookup(AtomStore,VarIndex,Atom),
+	bimap.foldl2(addposcoeff(Atom),ConsStore,[],ConsIndices,[],Coeffs).
+
+
+:- pred addposcoeff(atom::in,int::in,lincons::in,list(int)::in,list(int)::out,list(float)::in,list(float)::out) is det.
+
+addposcoeff(Atom,I,lincons(_,LExp,_),IndicesIn,IndicesOut,CoeffsIn,CoeffsOut) :-
+	(
+	  mymember(F,Atom,LExp) ->
+	  IndicesOut = [I|IndicesIn],
+	  CoeffsOut = [F|CoeffsIn];
+	  IndicesOut = IndicesIn,
+	  CoeffsOut = CoeffsIn
+	).
+
+:- pred mymember(float::out,atom::in,lexp::in) is semidet.
+
+mymember(Out,Atom,[H|T]) :-
+	(
+	  H = F * Atom ->
+	  Out = F;
+	  mymember(Out,Atom,T)
+	).
+
+
+
 	
+
+
+
 %-----------------------------------------------------------------------------%
 %
 % Predicates for generating initial constraints

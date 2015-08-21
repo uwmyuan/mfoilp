@@ -108,6 +108,7 @@ int main(
    probdata->rows = NULL;
    probdata->rows_len = VAR_BLOCKSIZE;
    SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->rows), probdata->rows_len) );
+   probdata->folinearcons = NULL;
 
    /* initialise to empty Mercury bimap */ 
    MR_initial_rows(&rowstore);
@@ -170,8 +171,8 @@ int main(
    /* create first-order constraint */
    SCIP_CALL( SCIPcreateConsBasicFolinear(scip, &cons, "global_folinear") );
    SCIP_CALL( SCIPaddCons(scip, cons) );
-   SCIP_CALL( SCIPreleaseCons(scip, &cons) );
-
+   /*SCIP_CALL( SCIPreleaseCons(scip, &cons) );*/
+   probdata->folinearcons = cons;
 
    MR_initial_constraints(atomstore,&consstore,&idents,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs);
 

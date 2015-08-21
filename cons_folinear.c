@@ -72,6 +72,37 @@ struct SCIP_ConsData
 
 /* put your local methods here, and declare them static */
 
+SCIP_RETCODE addCoefFolinear(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< folinear constraint to add variable to */
+   SCIP_VAR*             var,                /**< variable of constraint entry */
+   int                   i,                  /**< index of variable of constraint entry */
+   MR_AtomStore          atom_store          /**< Mercury bimap between variables and their indices */
+   )
+{
+
+   MR_Integer up;
+   MR_Integer down;
+
+   SCIP_Bool 	lockdown;
+   SCIP_Bool 	lockup; 
+
+   MR_consLock(atom_store, (MR_Integer) i, &up, &down);
+
+   lockdown = (down == 1) ? TRUE : FALSE;
+   lockup =   (up   == 1) ? TRUE : FALSE;
+
+   if( lockdown )
+       SCIPdebugMessage("adding down lock for variable <%s>\n", SCIPvarGetName(var));
+   if( lockup )
+      SCIPdebugMessage("adding up lock for variable <%s>\n", SCIPvarGetName(var));
+
+   SCIP_CALL( SCIPlockVarCons(scip, var, cons, lockdown, lockup) );
+            
+   return SCIP_OKAY;
+}
+
+
 
 /*
  * Linear constraint upgrading
@@ -422,7 +453,8 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
       
          (void) SCIPsnprintf(s, SCIP_MAXSTRLEN, "%s", name);
 
-         SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, s, lb, ub, FALSE, FALSE, TRUE) );
+         /* note row is set to modifiable to allow priced-in variables to enter */
+         SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, s, lb, ub, FALSE, TRUE, TRUE) );
          SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
 
          while ( !MR_list_is_empty(coeffs) )
@@ -687,9 +719,9 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
 
       if( up )
       {
-
+         
          SCIPdebugMessage("adding up lock for variable <%s>\n", SCIPvarGetName(var));
-
+         
          if( down )
          {
             SCIPaddVarLocks(scip, var, nlockspos + nlocksneg, nlockspos + nlocksneg);
@@ -703,6 +735,7 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
          SCIPaddVarLocks(scip, var, nlockspos, nlocksneg);
          SCIPdebugMessage("adding down lock for variable <%s>\n", SCIPvarGetName(var));            
       }
+
    }
    
    return SCIP_OKAY;

@@ -16,6 +16,16 @@
 extern "C" {
 #endif
 
+EXTERN
+SCIP_RETCODE addCoefFolinear(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< folinear constraint to add variable to */
+   SCIP_VAR*             var,                /**< variable of constraint entry */
+   int                   i,                   /**< index of variable of constraint entry */
+   MR_AtomStore          atom_store          /**< Mercury bimap between variables and their indices */
+   );
+
+
 /** creates the handler for folinear constraints and includes it in SCIP */
 EXTERN
 SCIP_RETCODE SCIPincludeConshdlrFolinear(

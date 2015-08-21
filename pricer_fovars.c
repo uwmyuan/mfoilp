@@ -10,6 +10,7 @@
 
 #include "pricer_fovars.h"
 #include "cfoilp.h"
+#include "cons_folinear.h"
 #include "scip/scipdefplugins.h"
 
 
@@ -81,6 +82,11 @@ SCIP_RETCODE pricing(
    int vartype;
 
    SCIP_VAR* var;
+
+   MR_IntList varcons_indices;
+   MR_FloatList coeffs;
+   int c;
+   SCIP_Real coeff;
 
    assert(probdata != NULL);
 
@@ -178,6 +184,8 @@ SCIP_RETCODE pricing(
       obj =     MR_word_to_float(MR_list_head(objs));
       vartype = MR_list_head(vartypes);
 
+      assert( ident == probdata->nvars );
+
       SCIP_CALL( SCIPcreateVarBasic(scip, &var, name, lb, ub, obj, vartype) );
       SCIP_CALL( SCIPaddPricedVar(scip, var, 1.0) );
       
@@ -191,6 +199,45 @@ SCIP_RETCODE pricing(
          SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
       }
       probdata->vars[probdata->nvars++] = var;
+
+      /* 'add' new variable to the single folinear constraint
+         ( this just locks the variable ) */
+      
+      SCIP_CALL( addCoefFolinear(scip, probdata->folinearcons, var, ident, probdata->atom_store) );
+
+      /* add variable to any linear constraints in which it appears 
+         with non-zero coefficient */
+      
+      MR_varcoeffs(probdata->atom_store, ident, probdata->cons_store, &varcons_indices, &coeffs);
+
+      while ( !MR_list_is_empty(varcons_indices) ) 
+      {
+         c = MR_list_head(varcons_indices);
+         coeff = MR_word_to_float(MR_list_head(coeffs));
+
+         SCIP_CALL( SCIPaddCoefLinear(scip, probdata->conss[c], var, coeff) );
+
+          varcons_indices = MR_list_tail(varcons_indices);
+          coeffs = MR_list_tail(coeffs);
+      }
+      
+
+      /* add variable to any cutting planes in which it appears 
+         with non-zero coefficient */
+      
+      MR_varcoeffs(probdata->atom_store, ident, probdata->row_store, &varcons_indices, &coeffs);
+
+      while ( !MR_list_is_empty(varcons_indices) ) 
+      {
+         c = MR_list_head(varcons_indices);
+         coeff = MR_word_to_float(MR_list_head(coeffs));
+
+         SCIP_CALL( SCIPaddVarToRow(scip, probdata->rows[c], var, coeff) );
+
+          varcons_indices = MR_list_tail(varcons_indices);
+          coeffs = MR_list_tail(coeffs);
+      }
+      
 
       /* Now need to add new variable to existing constraints and cutting planes.
          The former with SCIPaddCoefLinear and the latter with SCIPaddVarToRow */
