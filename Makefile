@@ -168,7 +168,7 @@ else
 		$(LDFLAGS) $(LINKCXX_o)$@
 endif
 
-mfoilp.init: mfoilp.m
+mfoilp.init: mfoilp.m prob.m
 	$(MMC) $(GRADEOPT) --make  libmfoilp
 
 # The following rule creates the stand-alone interface to the mfoilp

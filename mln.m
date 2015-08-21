@@ -90,7 +90,7 @@ objective(Atom) = Cost :-
 	    Cost = 3.0;
 	    (
 	      Atom = smokes(alice) ->
-	      Cost = -10.0;
+	      Cost = -0.0;
 	      Cost = 0.0
 	    )
 	  )
