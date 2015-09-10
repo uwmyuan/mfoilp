@@ -312,3 +312,105 @@ Due to definition of poslit and solval we can create constraints
 containing MIP variables == atoms, for which there is no corresponding variable.
 
 Just need to add new variables into constraints and cutting planes
+
+Fri Aug 21 13:57:17 BST 2015
+
+Initial version of mfoilp now appears to be working. TODO list:
+
+1. Explore using higher-order terms as lterms. This might allow
+compact representation of ground constraints (with many variables,
+most of which are assumed not to be in SCIP instance).
+
+2. Make pricing search more efficient.
+
+3. Use on large MLN instance and see what happens.
+
+4. Write documentation.
+
+Wed Aug 26 11:20:06 BST 2015
+
+Working on code to convert MLNs in Alchemy/Rockit format into Mercury.
+
+From Rockit documentation:
+A predicate definition preceded by * is considered to have the closed
+world assumption; i.e., all ground atoms of this predicate not listed
+in the evidence are false. (Example: *friends(Human,Human))
+OK, this is easy the "*" ground atoms are initial, we just don't
+create any others.
+
+Tue Sep  8 15:51:35 BST 2015
+
+New, half-implemented improvements.
+
+1. occurs_in_dualsolution ensures that only delayed variables that
+appear in a constraint with non-zero dual value are considered. (This
+unfortunately means that variables with negative coefficients not
+appearing in the dual will not be generated).
+
+2. delayed_constraint now takes an extra "sol" argument (which can be
+ignored).
+
+Thu Sep 10 11:49:58 BST 2015
+
+Want this algorithm:
+
+For each negative lit, scan through atoms in the sol, if one unifies
+with partially instantiated term, do the check that the activity remains
+below 1.0.
+
+Given a goal (neglit(Y,In,Out), Y = smokes(X))
+
+and predicates
+:- pred neglit(atom::out,state::in,state::out) is nondet.
+neglit(friends(a,b),In,Out) :- expensive(friends(a,b),In,Out).
+neglit(smokes(f),In,Out) :- expensive(smokes(f),In,Out).
+
+how to stop the first expensive call.
+
+clearly want:
+
+(neglit(Y), Y = smokes(X), expensive(Y,In,Out))
+
+and predicates
+:- pred neglit(atom::out,state::in,state::out) is nondet.
+neglit(friends(a,b)).
+neglit(smokes(f)).
+
+clause(cc(Sol,NegIn,PosIn,ValIn),cc(Sol,NegOut,PosOut,ValOut)) :-
+  map.member(Sol,Atom,Val),
+  Atom = smokes(X),
+  Val1 = ValIn+1.0-Val,
+  Val1 < 1.0,
+  map.member(Sol,Atom2,Val2),
+  Atom2 = cancer(X),
+  Val3 = Val1+1.0-Val2,
+  map.member(..
+
+clause --> 
+       neglit(smokes(X),V1),
+       ok(V1),
+       poslit(cancer(X),V2),
+       ok(V2),
+       poslit(cb1(1,X),V3),ok(V3).
+
+this is the same as:
+
+clause --> 
+       neglit(Y,V1),
+       {Y = smokes(X)},
+       ok(V1),
+       poslit(cancer(X),V2),
+       ok(V2),
+       poslit(cb1(1,X),V3),ok(V3).
+
+
+neglit(AtomOut,AtomIn,
+       clause_cut(Sol,ValIn,NegIn,PosIn,RHS),
+       clause_cut(Sol,ValOut,[Atom|NegIn],PosIn,RHS)) :-
+	map.member(Sol,AtomOut,Val), AtomOut=AtomIn,
+	ValOut = ValIn+1.0-Val,
+	ValOut < 1.0.
+
+
+Only solution seems to be to add an extra predicate so as to delay the
+test on value.

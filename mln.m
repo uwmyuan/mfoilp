@@ -10,7 +10,7 @@
 :- pred initial_variable(atom::out) is nondet.
 :- pred delayed_variable(atom::out) is nondet.
 :- pred initial_constraint(lincons::out) is nondet.
-:- pred delayed_constraint(lincons::out) is nondet.
+:- pred delayed_constraint(sol::in,lincons::out) is nondet.
 %:- pred cuts(sol::in,list(lincons)::out) is nondet.
 
 :- pred clause(clause_info::in,clause_info::out) is nondet.
@@ -40,7 +40,7 @@
 initial_constraint(_) :- fail.
 
 % no general delayed constraints
-delayed_constraint(_) :- fail.
+delayed_constraint(_,_) :- fail.
 
 % no general delayed variables
 % delayed_variable(_) :- fail.
@@ -61,12 +61,13 @@ delayed_constraint(_) :- fail.
 
 % define atom-variable generator
 
-initial_variable(friends(X,Y)) :- person(X), person(Y), X @< Y.
+
 initial_variable(smokes(X)) :- person(X), not X = alice, not X = bob.
 initial_variable(cancer(X)) :- person(X).
 initial_variable(cb1(1,X)) :- person(X).
 initial_variable(cb2(2,X,Y)) :- person(X), person(Y), not X = Y.
 
+delayed_variable(friends(X,Y)) :- person(X), person(Y), X @< Y.
 delayed_variable(smokes(alice)).
 delayed_variable(smokes(bob)).
 
@@ -112,12 +113,15 @@ clause -->
 clause --> neglit(smokes(ed)).
 
 clause -->
+	insol(smokes(X)),
 	neglit(smokes(X)),
 	poslit(cancer(X)),
 	poslit(cb1(1,X)).
 
 clause -->
+	insol(smokes(X)),
 	neglit(smokes(X)),
+	insol(friends(X,Y)),
 	neglit(friends(X,Y)),
 	{X @<  Y},
 	poslit(smokes(Y)),

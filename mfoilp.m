@@ -14,22 +14,32 @@
 :- type vartype ---> binary ; integer ; implint ; continuous.
 
 % for problem instance to define (initial) constraints
+
+% linear term is either a float*atom or a call that returns float*atom terms
 :- type lterm ---> (float * atom).
 :- type lexp == list(lterm).
+:- type sumterm == pred(lterm).
+:- type sumexp == list(sumterm).
 :- type lb ---> finite(float) ; neginf.
 :- type ub ---> finite(float) ; posinf.
+% not ready yet :- type lincons ---> lincons(lb,lexp,sumexp,ub).
 :- type lincons ---> lincons(lb,lexp,ub).
 
+:- type sol.
 
 % for problem instance to define clauses
 :- type clause_info.
 
+:- pred insol(atom::out,clause_info::in,clause_info::out) is nondet.
 :- pred poslit(atom::in,clause_info::in,clause_info::out) is semidet.
-:- pred neglit(atom::out,clause_info::in,clause_info::out) is nondet.
-:- pred if_this(atom::out,clause_info::in,clause_info::out) is nondet.
-:- pred and_this(atom::out,clause_info::in,clause_info::out) is nondet.
-:- pred then_this(atom::in,clause_info::in,clause_info::out) is semidet.
-:- pred or_this(atom::in,clause_info::in,clause_info::out) is semidet.
+:- pred neglit(atom::in,clause_info::in,clause_info::out) is semidet.
+%:- pred if_this(atom::out,clause_info::in,clause_info::out) is nondet.
+%:- pred and_this(atom::out,clause_info::in,clause_info::out) is nondet.
+%:- pred then_this(atom::in,clause_info::in,clause_info::out) is semidet.
+%:- pred or_this(atom::in,clause_info::in,clause_info::out) is semidet.
+
+%:- pred gen_neglit(atom::in,gen_clause_info::in,gen_clause_info::out) is semidet.
+%:- pred setrhs(float::in,gen_clause_info::in,gen_clause_info::out) is det.
 
 
 %-----------------------------------------------------------------------------%
@@ -58,8 +68,13 @@
 :- type dualsol == map(lincons,float).
 
 :- type sol == map(atom,float).
-:- type clause_info ---> clause_cut(sol,float,list(atom),list(atom)).
-
+:- type clause_info ---> clause_cut(
+				    sol,          % solution for which a cut is sought (does not change)
+				    float,        % activity of the ground clause constructed so far
+				    list(atom),   % negative literals in clause so far
+				    list(atom),   % positive literals in clause so far
+				    float         % RHS of the clause (1.0, unless the clause is generalised)
+				   ).
 
 
 
@@ -133,13 +148,17 @@ store_atoms([H|T],[I|IT],[name(H)|NT],[prob.lb(H)|LT],[prob.ub(H)|UT],
 
 locks(AtomStore,Index,Up,Down) :-
 	bimap.lookup(AtomStore,Index,Atom),
-	Call = (
-		 pred(Out::out) is nondet :- prob.delayed_constraint(Cons),
-		 Cons = lincons(Lb,LExp,Ub),
-		 list.member(F*Atom,LExp),
-		 Out = lockinfo(Lb,F,Ub)
-	       ),
-	do_while(Call,filter,neither,Locks1),
+	% currently commented out, need to search for delayed constraints
+	% containing a given atom, not just generate constraints and then
+	% look for the atom!!
+	% Call = (
+	% 	 pred(Out::out) is nondet :- prob.delayed_constraint(_,Cons),
+	% 	 Cons = lincons(Lb,LExp,Ub),
+	% 	 list.member(F*Atom,LExp),
+	% 	 Out = lockinfo(Lb,F,Ub)
+	%        ),
+	% do_while(Call,filter,neither,Locks1),
+	Locks1 = neither,
 	% add locks directly declared
 	(
 	  is_poslit(Atom) ->
@@ -233,7 +252,7 @@ price(ConsStore,ConsIndices,ConsValues,RowStore,RowIndices,RowValues,NAtoms,IsFa
 	makedualsol(ConsIndices,ConsValues,ConsStore,DualSol0,DualSol1),
 	makedualsol(RowIndices,RowValues,RowStore,DualSol1,DualSol),
 	Call = (
-		 pred(Atom::out) is nondet :- prob.delayed_variable(Atom),
+		 pred(Atom::out) is nondet :- ( prob.delayed_variable(Atom) ; occurs_in_dualsolution(DualSol,Atom)),
 		 not bimap.contains_value(AtomStore,Atom),  % only create brand new variables
 		 reduced_cost(Atom,DualSol,IsFarkas) < 0.0
 	       ),
@@ -248,6 +267,13 @@ makedualsol([H|T],[VH|VT],ConsStore,!DualSol) :-
 	bimap.lookup(ConsStore,H,Cons),
 	map.det_insert(Cons,VH,!DualSol),
 	makedualsol(T,VT,ConsStore,!DualSol).
+
+
+:- pred occurs_in_dualsolution(dualsol::in,atom::out) is nondet.
+
+ occurs_in_dualsolution(DualSol,Atom) :-
+	 list.member(lincons(_,LExpr,_),map.keys(DualSol)),
+	 list.member( _ * Atom,LExpr).
 
 :- func reduced_cost(atom,dualsol,int) = float.
 
@@ -441,8 +467,8 @@ cuts(AtomStore,Indices,Values,RowStoreIn,NRowsIn,RowStoreOut,NewRowIdents,Names,
 	(
 				% first try explicitly defined cutting plane algorithm
 	  %prob.cuts(Sol,Cuts0) ->
-	  fail ->
-	  Cuts = Cuts0;
+	  %fail ->
+	  %Cuts = Cuts0;
 				% otherwise collect any clausal cuts
 	  solutions(clausal_cut(Sol),Cuts0),
 				% add in a single general cut (if any)
@@ -469,10 +495,15 @@ makesol([H|T],[VH|VT],AtomStore,!Sol) :-
 :- pred consfail(sol::in,lincons::out) is nondet.
 
 consfail(Sol,Cons) :-
-	prob.delayed_constraint(Cons),
+	prob.delayed_constraint(Sol,Cons),
 	Cons = lincons(Lb,LExp,Ub),
 	activity(LExp,Sol,0.0,ConsVal),
 	((Ub=finite(Ubf),ConsVal > Ubf) ; (Lb=finite(Lbf),ConsVal < Lbf)).
+
+% useful for yanking out atoms with non-zero values in a solution
+
+:- pred insol(sol::in,list(atom)::out) is det.
+insol(Sol,map.keys(Sol)).
 
 consfail(Sol,Cons) :-
 	clausal_cut(Sol,Cons).
@@ -503,42 +534,115 @@ solval(Sol,Atom) = Val :-
 :- pred clausal_cut(sol::in,lincons::out) is nondet.
 
 clausal_cut(Sol,Cut) :-
-	StateIn = clause_cut(Sol,0.0,[],[]),
+	StateIn = clause_cut(Sol,0.0,[],[],1.0),
 	prob.clause(StateIn,StateOut),
-	StateOut = clause_cut(_Sol,_Val,NegLits,PosLits),
-	clause2lincons(NegLits,PosLits,Cut).
+	StateOut = clause_cut(_Sol,_Val,NegLits,PosLits,RHS),
+	clause2lincons(NegLits,PosLits,Cut,RHS).
 
 poslit(Atom,
-       clause_cut(Sol,ValIn,NegIn,PosIn),
-       clause_cut(Sol,ValOut,NegIn,[Atom|PosIn])) :-
+       clause_cut(Sol,ValIn,NegIn,PosIn,RHS),
+       clause_cut(Sol,ValOut,NegIn,[Atom|PosIn],RHS)) :-
 	ValOut = ValIn+solval(Sol,Atom),
 	ValOut < 1.0.
 
+% coeff_poslit(Atom,Coeff,
+%        clause_cut(Sol,ValIn,NegIn,PosIn,RHS),
+%        clause_cut(Sol,ValOut,NegIn,[Atom|PosIn]),RHS) :-
+% 	ValOut = ValIn+Coeff*solval(Sol,Atom),
+% 	ValOut < 1.0.
+
+
+%setrhs(RHS,
+%       clause_cut(Sol,ValIn,NegIn,PosIn,_),
+%       clause_cut(Sol,ValIn-RHS+1.0,NegIn,PosIn,RHS)
+%      ).
+
+
+insol(Atom,In,In) :-
+	In  = clause_cut(Sol,_,_,_,_),
+	map.member(Sol,Atom,_).
+
+% normal negative literals are a special case
+% a neglit can only succeed (to generate a ground atom
+% for a cutting plane) if it is in the solution.
 neglit(Atom,
-       clause_cut(Sol,ValIn,NegIn,PosIn),
-       clause_cut(Sol,ValOut,[Atom|NegIn],PosIn)) :-
-	map.member(Sol,Atom,Val),
+       clause_cut(Sol,ValIn,NegIn,PosIn,RHS),
+       clause_cut(Sol,ValOut,[Atom|NegIn],PosIn,RHS)) :-
+	% if this next goal fails then the value for Atom is 0,
+	% and so ValOut would exceed 1,
+	% this is why we call map.search rather than solval: to fail earlier
+	map.search(Sol,Atom,Val),
 	ValOut = ValIn+1.0-Val,
 	ValOut < 1.0.
 
+% coeff_neglit(Atom,Coeff,
+%        clause_cut(Sol,ValIn,NegIn,PosIn,RHS),
+%        clause_cut(Sol,ValOut,[Atom|NegIn],PosIn,RHS)) :-
+% 	map.member(Sol,Atom,Val),
+% 	ValOut = ValIn+Coeff*(1.0-Val),
+% 	ValOut < 1.0.
+
+%gen_neglit(Atom,
+%       clause_cut(Sol,ValIn,NegIn,PosIn,RHS),
+%       clause_cut(Sol,ValOut,[Atom|NegIn],PosIn,RHS)) :-
+%	ValOut = ValIn+1.0-solval(Sol,Atom),
+%	ValOut < 1.0.
+
+% coeff_gen_neglit(Atom,Coeff,
+%        clause_cut(Sol,ValIn,NegIn,PosIn,RHS),
+%        clause_cut(Sol,ValOut,[Atom|NegIn],PosIn,RHS)) :-
+% 	ValOut = ValIn+Coeff*(1.0-solval(Sol,Atom)),
+% 	ValOut < 1.0.
+
+
+
+
+
+
+% the following three predicate have not been updated to have the "RHS" argument
+
+% setpack_cut(Sol,Cut) :-
+% 	StateIn = clause_cut(Sol,0.0,[],[]),
+% 	prob.setpack(StateIn,StateOut),
+% 	StateOut = clause_cut(_Sol,_Val,NegLits,PosLits),
+% 	clause2lincons(NegLits,PosLits,Cut).
+	
+
+% posunlit(Atom,
+%        clause_cut(Sol,ValIn,NegIn,PosIn),
+%        clause_cut(Sol,ValOut,NegIn,[Atom|PosIn])) :-
+% 	(
+% 	  ValIn > 1.0
+% 	;
+% 	  map.member(Sol,Atom,Val),
+% 	  ValOut = ValIn+solval(Sol,Atom),
+	  
+
+% negunlit(Atom,
+%        clause_cut(Sol,ValIn,NegIn,PosIn),
+%        clause_cut(Sol,ValOut,[Atom|NegIn],PosIn)) :-
+% 	map.member(Sol,Atom,Val),
+% 	ValOut = ValIn+1.0-Val,
+% 	ValOut < 1.0.
+
 % syntactic sugar
 
-if_this(Atom,!State) :- neglit(Atom,!State).
-and_this(Atom,!State) :- neglit(Atom,!State).
-then_this(Atom,!State) :- poslit(Atom,!State).
-or_this(Atom,!State) :- poslit(Atom,!State).
+%if_this(Atom,!State) :- neglit(Atom,!State).
+%and_this(Atom,!State) :- neglit(Atom,!State).
+%then_this(Atom,!State) :- poslit(Atom,!State).
+%or_this(Atom,!State) :- poslit(Atom,!State).
 
-:- pred clause2lincons(list(atom)::in,list(atom)::in,lincons::out) is det.
+:- pred clause2lincons(list(atom)::in,list(atom)::in,lincons::out,float::in) is det.
 
-clause2lincons(NegLits,PosLits,lincons(finite(Lb),Terms,posinf)) :-
-	c2l(NegLits,PosLits,Terms,Lb).
+clause2lincons(NegLits,PosLits,lincons(finite(Lb),Terms,posinf),InLb) :-
+	c2l(NegLits,PosLits,Terms,Lb,InLb).
 
-:- pred c2l(list(atom)::in,list(atom)::in,lexp::out,float::out) is det.
-c2l([],[],[],1.0).
-c2l([],[H|T],[1.0 * H | Rest],Lb) :-
-   c2l([],T,Rest,Lb).
-c2l([H|T],PosLits,[-1.0 * H | Rest],Lb-1.0) :-
-	c2l(T,PosLits,Rest,Lb).
+:- pred c2l(list(atom)::in,list(atom)::in,lexp::out,float::out,float::in) is det.
+c2l([],[],[],Lb,Lb).
+c2l([],[H|T],[1.0 * H | Rest],Lb, InLb) :-
+   c2l([],T,Rest,Lb,InLb).
+c2l([H|T],PosLits,[-1.0 * H | Rest],Lb-1.0,InLb) :-
+	c2l(T,PosLits,Rest,Lb,InLb).
 
 %-----------------------------------------------------------------------------%
 %

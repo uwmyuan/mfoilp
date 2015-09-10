@@ -66,6 +66,14 @@ vartype(_Atom) = binary.
 initial_constraint(lincons(neginf,[1.0 * friends(X,Y), 1.0 * friends(X,Z)],finite(1.0)))  :-
 	atom(friends(X,Y)), atom(friends(X,Z)), not Y=Z. 
 
+
+initial_constraint(lincons(neginf,
+			   [1.0 * friends(X,Y),
+			    sum((pred(1.0 * Atom::out) is nondet :- atom(Atom), Atom = friends(_,Y)))],
+			   finite(1.0))) :-
+	atom(friends(X,Y)).
+	
+
 % for delayed constraints an atom involved in the constraint can be
 % given as input to speed up finding constraints involving particular atoms
 
