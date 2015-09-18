@@ -414,3 +414,27 @@ neglit(AtomOut,AtomIn,
 
 Only solution seems to be to add an extra predicate so as to delay the
 test on value.
+
+Tue Sep 15 13:45:27 BST 2015
+
+Differences to Riedel notes
+consider each grounding of each formula and see whether it is true
+[for us it is which cb(X,Y) groundings are true which matters, each
+grounding either does or does not require the corresponding cb(X,Y) to
+be true.]
+Separate(\phi,y,x) all the groundings of \phi that are not satisfied
+in (\phi,y,x). [all the cb_{\phi}(X,Y..) that we have to set to true. 
+Defines world (eg solution) by a set of ground atoms.
+Has notion of partial grounding which is just what it says.
+
+Fri Sep 18 15:32:18 BST 2015
+
+Decided to create a wmaxsat branch that only deals with (first-order)
+weighted maxsat instances. Don't unnecessarily specialise.
+
+If we generate initial variables which are not in any initial
+constraint, then we need to lock (assuming it is in a delayed
+constraint), since otherwise will be possibly deleted. At present all
+variables in probdata->vars are (suitably) locked. 
+Will consider not locking initial variables in cons_folinear.
+

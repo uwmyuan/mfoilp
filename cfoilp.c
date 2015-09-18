@@ -77,7 +77,7 @@ int main(
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
    /* include fovars pricer  */
-   SCIP_CALL( SCIPincludePricerFovars(scip) );
+   /* SCIP_CALL( SCIPincludePricerFovars(scip) ); */
 
 
    /* allocate memory */
@@ -88,7 +88,7 @@ int main(
          NULL, NULL, NULL, probdata) );
 
    /* activates fovars pricer  */
-   SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "fovars")) );
+   /* SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "fovars")) ); */
 
 
 
@@ -218,7 +218,8 @@ int main(
 
       }
       /* declare constraint modifiable for adding variables during pricing */
-      SCIP_CALL( SCIPsetConsModifiable(scip, cons, TRUE) );
+      /* NO! for wmaxsat assume all initial constraints are not modifiable - ie have their variables */
+      /* SCIP_CALL( SCIPsetConsModifiable(scip, cons, TRUE) ); */
 
       SCIP_CALL( SCIPaddCons(scip, cons) );
       /*SCIP_CALL(  SCIPprintCons(scip, cons, NULL)  ); */

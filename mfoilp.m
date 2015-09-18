@@ -10,7 +10,6 @@
 :- import_module float.
 :- import_module prob.
 
-% for problem instance to define variables
 :- type vartype ---> binary ; integer ; implint ; continuous.
 
 % for problem instance to define (initial) constraints
@@ -57,6 +56,8 @@
 :- import_module stream.string_writer.
 
 :- type atom_store == bimap(int,prob.atom).
+% 2nd argument is the index of the next variable to be created
+:- type as_next --> as(atom_store,int).
 :- type cons_store == bimap(int,lincons).
 :- type lterm_int ---> (float * int).
 :- type lexp_int == list(lterm_int).
@@ -72,8 +73,7 @@
 				    sol,          % solution for which a cut is sought (does not change)
 				    float,        % activity of the ground clause constructed so far
 				    list(atom),   % negative literals in clause so far
-				    list(atom),   % positive literals in clause so far
-				    float         % RHS of the clause (1.0, unless the clause is generalised)
+				    list(atom)    % positive literals in clause so far
 				   ).
 
 
@@ -101,7 +101,7 @@ scip_vartype(continuous) = 3.
 
 :- pragma foreign_export("C", makevars(out,out,out,out,out,out,out), "MR_initial_variables").
 
-:- pred makevars(atom_store::out,
+:- pred makevars(as_next::out,
 		 list(int)::out,
 		 list(string)::out,
 		 list(float)::out,
@@ -113,7 +113,8 @@ scip_vartype(continuous) = 3.
 makevars(AtomStore,Idents,Names,Lbs,Ubs,VarTypes,Objs) :-
 	solutions(prob.initial_variable,AllAtoms),
 	bimap.init(AS0),
-	store_atoms(AllAtoms,Idents,Names,Lbs,Ubs,VarTypes,Objs,0,AS0,AtomStore).
+	store_atoms(AllAtoms,Idents,Names,Lbs,Ubs,VarTypes,Objs,0,Next,AS0,AS),
+	AtomStore = as_next(AS,Next).
 
 :- pred store_atoms(list(prob.atom)::in,
 		    list(int)::out,
@@ -122,13 +123,13 @@ makevars(AtomStore,Idents,Names,Lbs,Ubs,VarTypes,Objs) :-
 		    list(float)::out,
 		    list(int)::out,
 		    list(float)::out,
-		    int::in,atom_store::in,atom_store::out) is det.
+		    int::in,int::out,atom_store::in,atom_store::out) is det.
 
-store_atoms([],[],[],[],[],[],[],_,!AS).
+store_atoms([],[],[],[],[],[],[],!I,!AS).
 store_atoms([H|T],[I|IT],[name(H)|NT],[prob.lb(H)|LT],[prob.ub(H)|UT],
-	    [scip_vartype(vartype(H))|VT],[prob.objective(H)|OT],I,!AS) :-
+	    [scip_vartype(vartype(H))|VT],[prob.objective(H)|OT],I,J,!AS) :-
 	bimap.det_insert(I,H,!AS),
-	store_atoms(T,IT,NT,LT,UT,VT,OT,I+1,!AS).
+	store_atoms(T,IT,NT,LT,UT,VT,OT,I+1,J,!AS).
 
 
 %-----------------------------------------------------------------------------%
@@ -144,20 +145,10 @@ store_atoms([H|T],[I|IT],[name(H)|NT],[prob.lb(H)|LT],[prob.ub(H)|UT],
 % since initial constraints generate SCIP linear constraints
 % which get their var locks from SCIP
 
-:- pred locks(atom_store::in,int::in,int::out,int::out) is cc_multi.
+:- pred locks(as_next::in,int::in,int::out,int::out) is cc_multi.
 
-locks(AtomStore,Index,Up,Down) :-
+locks(as(AtomStore,_),Index,Up,Down) :-
 	bimap.lookup(AtomStore,Index,Atom),
-	% currently commented out, need to search for delayed constraints
-	% containing a given atom, not just generate constraints and then
-	% look for the atom!!
-	% Call = (
-	% 	 pred(Out::out) is nondet :- prob.delayed_constraint(_,Cons),
-	% 	 Cons = lincons(Lb,LExp,Ub),
-	% 	 list.member(F*Atom,LExp),
-	% 	 Out = lockinfo(Lb,F,Ub)
-	%        ),
-	% do_while(Call,filter,neither,Locks1),
 	Locks1 = neither,
 	% add locks directly declared
 	(
@@ -237,116 +228,6 @@ down_lock(lockinfo(Lb,F,Ub)) :-
 
 %-----------------------------------------------------------------------------%
 %
-% Predicate for pricing
-%
-%-----------------------------------------------------------------------------%
-
-:- pragma foreign_export("C", price(in,in,in,in,in,in,in,in,out,out,out,out,out,out,in,out), "MR_delayed_variables").
-
-:- pred price(cons_store::in,list(int)::in,list(float)::in,cons_store::in,list(int)::in,list(float)::in,
-	      int::in,int::in,list(int)::out,list(string)::out,list(float)::out,list(float)::out,list(int)::out,
-	      list(float)::out,atom_store::in,atom_store::out) is det.
-
-price(ConsStore,ConsIndices,ConsValues,RowStore,RowIndices,RowValues,NAtoms,IsFarkas,Idents,Names,Lbs,Ubs,VarTypes,Objs,AtomStore,NewAtomStore) :-
-	map.init(DualSol0),
-	makedualsol(ConsIndices,ConsValues,ConsStore,DualSol0,DualSol1),
-	makedualsol(RowIndices,RowValues,RowStore,DualSol1,DualSol),
-	Call = (
-		 pred(Atom::out) is nondet :- ( prob.delayed_variable(Atom) ; occurs_in_dualsolution(DualSol,Atom)),
-		 not bimap.contains_value(AtomStore,Atom),  % only create brand new variables
-		 reduced_cost(Atom,DualSol,IsFarkas) < 0.0
-	       ),
-	solutions(Call,NewAtoms),
-	store_atoms(NewAtoms,Idents,Names,Lbs,Ubs,VarTypes,Objs,NAtoms,AtomStore,NewAtomStore).
-
-:- pred makedualsol(list(int)::in,list(float)::in,cons_store::in,dualsol::in,dualsol::out) is det.
-
-makedualsol([],_Vals,_ConsStore,!DualSol).
-makedualsol([_H|_T],[],_ConsStore,!DualSol).
-makedualsol([H|T],[VH|VT],ConsStore,!DualSol) :-
-	bimap.lookup(ConsStore,H,Cons),
-	map.det_insert(Cons,VH,!DualSol),
-	makedualsol(T,VT,ConsStore,!DualSol).
-
-
-:- pred occurs_in_dualsolution(dualsol::in,atom::out) is nondet.
-
- occurs_in_dualsolution(DualSol,Atom) :-
-	 list.member(lincons(_,LExpr,_),map.keys(DualSol)),
-	 list.member( _ * Atom,LExpr).
-
-:- func reduced_cost(atom,dualsol,int) = float.
-
-reduced_cost(Atom,DualSol,IsFarkas) = RedCost :-
-	(
-	  IsFarkas = 1 ->
-	  map.foldl(dual_valcons(Atom),DualSol,0.0,RedCost);
-	  map.foldl(dual_valcons(Atom),DualSol,prob.objective(Atom),RedCost)
-	).
-
-:- pred dual_valcons(atom::in,lincons::in,float::in,float::in,float::out) is det.
-
-dual_valcons(Atom,lincons(_,LExp,_),DualValue,In,Out) :-
-	dual_valcons2(LExp,Atom,DualValue,In,Out).
-
-:- pred dual_valcons2(lexp::in,atom::in,float::in,float::in,float::out) is det.
-
-dual_valcons2([],_,_,In,In).
-dual_valcons2([H|T],Atom,DualValue,In,Out) :-
-	(
-	  H = F * Atom ->
-	  Mid = In - DualValue * F;
-	  Mid = In
-	),
-	dual_valcons2(T,Atom,DualValue,Mid,Out).
-
-	
-
-:- pragma foreign_export("C", init_rows(out), "MR_initial_rows").
-
-:- pred init_rows(cons_store::out) is det.
-init_rows(RowStore) :-
-	bimap.init(RowStore).
-
-% compute the coefficient of a variable
-
-:- pragma foreign_export("C", varcoeffs(in,in,in,out,out), "MR_varcoeffs").
-
-:- pred varcoeffs(atom_store::in,int::in,cons_store::in,list(int)::out,list(float)::out) is det.
-
-varcoeffs(AtomStore,VarIndex,ConsStore,ConsIndices,Coeffs) :-
-	bimap.lookup(AtomStore,VarIndex,Atom),
-	bimap.foldl2(addposcoeff(Atom),ConsStore,[],ConsIndices,[],Coeffs).
-
-
-:- pred addposcoeff(atom::in,int::in,lincons::in,list(int)::in,list(int)::out,list(float)::in,list(float)::out) is det.
-
-addposcoeff(Atom,I,lincons(_,LExp,_),IndicesIn,IndicesOut,CoeffsIn,CoeffsOut) :-
-	(
-	  mymember(F,Atom,LExp) ->
-	  IndicesOut = [I|IndicesIn],
-	  CoeffsOut = [F|CoeffsIn];
-	  IndicesOut = IndicesIn,
-	  CoeffsOut = CoeffsIn
-	).
-
-:- pred mymember(float::out,atom::in,lexp::in) is semidet.
-
-mymember(Out,Atom,[H|T]) :-
-	(
-	  H = F * Atom ->
-	  Out = F;
-	  mymember(Out,Atom,T)
-	).
-
-
-
-	
-
-
-
-%-----------------------------------------------------------------------------%
-%
 % Predicates for generating initial constraints
 %
 %-----------------------------------------------------------------------------%
@@ -354,7 +235,9 @@ mymember(Out,Atom,[H|T]) :-
 
 :- pragma foreign_export("C", makelincons(in,out,out,out,out,out,out,out,out,out), "MR_initial_constraints").
 
-:- pred makelincons(atom_store::in,
+% generates SCIP-understandable versions of initial constraints
+
+:- pred makelincons(as_next::in,                % atom store
 		    cons_store::out,
 		    list(int)::out,
 		    list(string)::out,
@@ -366,14 +249,23 @@ mymember(Out,Atom,[H|T]) :-
 		    list(int)::out) is det.
 
 
-makelincons(AtomStore,ConsStore,Idents,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs) :-
+makelincons(AtomStoreNext,ConsStore,Idents,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs) :-
 	solutions(prob.initial_constraint,AllLinCons),
 	bimap.init(CS0),
 	makeconstore(AllLinCons,AllLinConsOut,0,Idents,CS0,ConsStore),
-	list.map7(lincons2scip(AtomStore),AllLinConsOut,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs).
+	list.map7(lincons2scip(AtomStoreNext),AllLinConsOut,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs).
 
 
-:- pred makeconstore(list(lincons)::in,list(lincons)::out,int::in,list(int)::out,cons_store::in,cons_store::out) is det.
+% updates a constraint store and records new constraints and their indices
+% should really be called update_constore or something like that.
+
+:- pred makeconstore(
+		     list(lincons)::in,    % list of constraints to store
+		     list(lincons)::out,   % list of new constraints (in input but not already in constraint store )
+		     int::in,              % index to use to store the next constraint
+		     list(int)::out,       % list of indices of new constaints
+		     cons_store::in,       % initial constraint store
+		     cons_store::out) is det.  % updated constraint store
 
 makeconstore([],[],_,[],!CS).
 makeconstore([H|T],Out,I,IOut,!CS) :-
@@ -385,29 +277,38 @@ makeconstore([H|T],Out,I,IOut,!CS) :-
 	  makeconstore(T,Out,I,IOut,!CS)
 	).
 
-:- pred lincons2scip(atom_store::in,lincons::in,string::out,float::out,int::out,list(float)::out,list(int)::out,float::out,int::out) is det.
+% converts a lincons term into something SCIP can understand using the atom_store
+% if the lincons term contains an atom not in the atom_store then it is added to atom_store
+% and a list of added atom indices, if any, is returned.
 
-lincons2scip(AtomStore,LinCons,name(LinCons),LbF,FinLb,Coeffs,Vars,UbF,FinUb) :-
+:- pred lincons2scip(as_next::in,as_next::out,lincons::in,string::out,float::out,int::out,list(float)::out,list(int)::out,float::out,int::out) is det.
+
+lincons2scip(ASN0,ASN,LinCons,name(LinCons),LbF,FinLb,Coeffs,Vars,UbF,FinUb) :-
 	LinCons = lincons(Lb,LinExpr,Ub),
 	% unfortunately no "filter_map2" in the Mercury list library
-	my_filter_map2(LinExpr,AtomStore,Coeffs,Vars),
+	my_filter_map2(LinExpr,ASN0,ASN,Coeffs,Vars),
 	(Lb=finite(LbFX) -> LbF=LbFX, FinLb=1; LbF=0.0, FinLb=0),  % in right disjunct, LbF is a dummy value
 	(Ub=finite(UbFX) -> UbF=UbFX, FinUb=1; UbF=0.0, FinUb=0).  % in right disjunct, UbF is a dummy value
 
+% yanks our variable indices for the atoms in a constraint
+% creates new variable indices if necessary
 
-:- pred my_filter_map2(lexp::in,atom_store::in,list(float)::out,list(int)::out) is det.
+:- pred my_filter_map2(lexp::in,as_next::in,as_next::out,list(float)::out,list(int)::out) is det.
 
-my_filter_map2([],_AtomStore,[],[]).
-my_filter_map2([F * Atom|T],AtomStore,Coeffs,Vars) :-
+my_filter_map2([],!ASN,[],[]).
+my_filter_map2([F * Atom|T],ASNIn,ASNOut,Coeffs,Vars) :-
+	Coeffs = [F|CoeffsT],
 	(
 	  bimap.reverse_search(AtomStore,I,Atom) ->
 	  Vars = [I|VarsT],
-	  Coeffs = [F|CoeffsT];
-	  % so creating a constraint / cutting plane with a 'missing' variable
-	  Vars = VarsT,
-	  Coeffs = CoeffsT
+	  ASNMid = ASNIn;
+	  % create a new variable in atom store (SCIP will add later)
+	  ASNIn = as(ASIn,Next),
+	  Vars = [Next|VarsT],
+	  bimap.det_insert(Next,Atom,ASIn,ASOut),
+	  ASNMid = as(ASOut,Next+1),
 	),
-	my_filter_map2(T,AtomStore,CoeffsT,VarsT).
+	my_filter_map2(T,ASNMid,ASNOut,CoeffsT,VarsT).
 	  
 
 	
@@ -429,9 +330,9 @@ name(X) = Name :-
 
 :- pragma foreign_export("C", consfail(in,in,in), "MR_consFail").
 
-:- pred consfail(atom_store::in,list(int)::in,list(float)::in) is semidet.
+:- pred consfail(as_next::in,list(int)::in,list(float)::in) is semidet.
 
-consfail(AtomStore,Indices,Values) :-
+consfail(as(AtomStore,_Next),Indices,Values) :-
 	map.init(Sol0),
 	makesol(Indices,Values,AtomStore,Sol0,Sol),
 	consfail(Sol,_Cons).
@@ -445,7 +346,7 @@ consfail(AtomStore,Indices,Values) :-
 
 :- pragma foreign_export("C", cuts(in,in,in,in,in,out,out,out,out,out,out,out,out,out), "MR_cuts").
 
-:- pred cuts(atom_store::in,             % mapping
+:- pred cuts(as_next::in,             % mapping
 	     list(int)::in,		 % solution
 	     list(float)::in,		 % solution
 	     cons_store::in,
@@ -461,25 +362,13 @@ consfail(AtomStore,Indices,Values) :-
 	     list(int)::out) is cc_multi. % cuts
 
 
-cuts(AtomStore,Indices,Values,RowStoreIn,NRowsIn,RowStoreOut,NewRowIdents,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs) :-
+cuts(ASN,Indices,Values,RowStoreIn,NRowsIn,RowStoreOut,NewRowIdents,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs) :-
+	ASN = as(AtomStore,_),
 	map.init(Sol0),
 	makesol(Indices,Values,AtomStore,Sol0,Sol),
-	(
-				% first try explicitly defined cutting plane algorithm
-	  %prob.cuts(Sol,Cuts0) ->
-	  %fail ->
-	  %Cuts = Cuts0;
-				% otherwise collect any clausal cuts
-	  solutions(clausal_cut(Sol),Cuts0),
-				% add in a single general cut (if any)
-	  (
-	    consfail(Sol,Cons) ->
-	    Cuts = [Cons|Cuts0];
-	    Cuts = Cuts0
-	  )
-	),
+	solutions(clausal_cut(Sol),Cuts),
 	makeconstore(Cuts,CutsOut,NRowsIn,NewRowIdents,RowStoreIn,RowStoreOut),  % update row store
-	list.map7(lincons2scip(AtomStore),CutsOut,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs).
+	list.map7(lincons2scip(ASN),CutsOut,Names,LbFs,FinLbs,Coeffss,Varss,UbFs,FinUbs).
 
 :- pred makesol(list(int)::in,list(float)::in,atom_store::in,sol::in,sol::out) is det.
 
