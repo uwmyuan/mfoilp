@@ -28,10 +28,16 @@
 
 % for problem instance to define clauses
 :- type clause_info.
+:- type clause_lits.
 
 :- pred insol(atom::out,clause_info::in,clause_info::out) is nondet.
 :- pred poslit(atom::in,clause_info::in,clause_info::out) is semidet.
 :- pred neglit(atom::in,clause_info::in,clause_info::out) is semidet.
+
+:- pred initial_poslit(atom::in,clause_lits::in,clause_lits::out) is det.
+:- pred initial_neglit(atom::in,clause_lits::in,clause_lits::out) is det.
+
+
 %:- pred if_this(atom::out,clause_info::in,clause_info::out) is nondet.
 %:- pred and_this(atom::out,clause_info::in,clause_info::out) is nondet.
 %:- pred then_this(atom::in,clause_info::in,clause_info::out) is semidet.
@@ -76,6 +82,8 @@
 				    list(atom)    % positive literals in clause so far
 				   ).
 
+:- type clause_lits --> lits(list(atom),list(atom)).
+:- type named_clause_lits -> named(string,clause_lits).
 
 
 %-----------------------------------------------------------------------------%
@@ -137,6 +145,43 @@ store_atoms([H|T],[I|IT],[name(H)|NT],[prob.lb(H)|LT],[prob.ub(H)|UT],
 % Predicates for calculating variable locks
 %
 %-----------------------------------------------------------------------------%
+
+:- pragma foreign_export("C", varsinfolinear(in,in,out,out,out,out), "MR_varsinfolinear").
+
+:- pred varsinfolinear(int::in,as_next::in,list(int)::out,int::out,list(int)::out,list(int)::out) is det.
+
+varsinfolinear(N,as(AS,_),Vars,M) :-
+	varsinfolinear(0,N,AS,Vars,0,M).
+
+:- pred varsinfolinear(int::in,int::in,atom_store::in,list(int)::out,list(int)::out,list(int)::out,int::in,int::out) is det.
+
+varsinfolinear(I,N,AS,Vars,Down,Up,MIn,MOut) :-
+	(
+	  I < N ->
+	  bimap.lookup(AS,I,Atom),
+	  (
+	    prob.is_poslit(Atom) ->
+	    Vars = [I|T],
+	    Down = [1|DownT],
+	    (
+	      prob.is_neglit(Atom) ->
+	      Up = [1|UpT];
+	      Up = [0|UpT]
+	    ),
+	    varsinfolinear(I+1,N,AS,T,DownT,UpT,MIn+1,MOut);
+	    (
+	      prob.is_neglit(Atom) ->
+	      Vars = [I|T],
+	      Down = [0|DownT],
+	      Up = [1|UpT],
+	      varsinfolinear(I+1,N,AS,T,DownT,UpT,MIn+1,MOut);
+	      varsinfolinear(I,N,AS,Vars,Down,Up,MIn,MOut)
+	    ));
+	  Vars = [],
+	  Down = [],
+	  Up = [],
+	  MOut = Min
+	).
 
 :- pragma foreign_export("C", locks(in,in,out,out), "MR_consLock").
 
@@ -228,33 +273,85 @@ down_lock(lockinfo(Lb,F,Ub)) :-
 
 %-----------------------------------------------------------------------------%
 %
-% Predicates for generating initial constraints
+% Predicates for generating initial constraints and variables
 %
 %-----------------------------------------------------------------------------%
 
 
-:- pragma foreign_export("C", makelincons(in,out,out,out,out,out,out,out,out,out), "MR_initial_constraints").
+:- pragma foreign_export("C", makelincons(out,out,out,out,out), "MR_initial_constraints").
 
 % generates SCIP-understandable versions of initial constraints
+% and also records which variables (i.e. ground atoms ) are used in them. 
 
-:- pred makelincons(as_next::in,                % atom store
-		    cons_store::out,
-		    list(int)::out,
-		    list(string)::out,
-		    list(float)::out,
-		    list(int)::out,
-		    list(list(float))::out,
-		    list(list(int))::out,
-		    list(float)::out,
-		    list(int)::out) is det.
+:- pred makelincons(as_next::out,                % atom store with all variables in the clauses
+		    list(float)::out,            % objective value for each variable in atom store
+		                                 % list is ordered, so first two entries are objective values
+		                                 % of variables 0 and 1.
+		    list(string)::out,           % names for each variable
+		    list(string)::out,           % a name for each constraint
+		    list(list(int))::out,        % list of neg lit indices for each clause
+		    list(list(int))::out         % list of pos lit indices for each clause
+		   ) is det.
 
+% generate clauses (as terms)
+% convert to indices, (creating indices where necessary)
+% get hold of objective values
+% finally create names
 
-makelincons(AtomStoreNext,ConsStore,Idents,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs) :-
-	solutions(prob.initial_constraint,AllLinCons),
-	bimap.init(CS0),
-	makeconstore(AllLinCons,AllLinConsOut,0,Idents,CS0,ConsStore),
-	list.map7(lincons2scip(AtomStoreNext),AllLinConsOut,Names,Lbs,FinLbs,Coeffss,Varss,Ubs,FinUbs).
+makelincons(AtomStoreNext,VarObjs,VarNames,ConsNames,NegLitss,PosLitss) :-
+	Call = (pred(named(Name,Lits)) is nondet :- prob.initial_clause(Name,lits([],[]),Lits)),
+	solutions(Call,AllNamedInitialClauses),
+	bimap.init(AS0),
+	list.map2_fold(clause2indices,AllNamedInitialClauses,NegLitss,PosLitss,as(AS0,0),AtomStoreNext),
+	AtomStoreNext = as(AS,Next),
+	allobjs(0,Next,AS,VarObjs,VarNames),
+	name_all(AllNamedInitialClauses,ConsNames).
 
+:- pred name_all(list(named_clause_lits)::in,list(string)::out,map(string,int)::in,map(string,int)::out) is det.
+
+name_all([],[],!Map).
+name_all([named(Name,_)|T],[NameNum|NT],In,Out) :-
+	
+
+:- pred allobjs(int::in,int::in,atom_store::in,list(float)::out,list(string)::out) is det.
+
+allobjs(I,Next,AS,VarObjs,VarNames) :-
+	(
+	  I < Next ->
+	  Atom = bimap.lookup(AS,I),
+	  VarObjs = [prob.objective(Atom)|T],
+	  VarNames = [name(Atom)|VT],
+	  allobjs(I+1,Next,AS,T,VT);
+	  VarObjs = [],
+	  VarNames = []
+	).
+
+% convert a clause (as a pair of lists of ground terms) into corresponding integers
+% updating atomstore as we go. Process negative literals before positive literals.
+
+:- pred clause2indices(named_clause_lits::in,list(int)::out,list(int)::out,as_next::in,as_next::out) is det.
+
+clause2indices(named(_,lits(NegLits,PosLits)),NegLitIndices,PosLitIndices,!ASN) :-
+	lits2indices(NegLits,NegLitIndices,!ASN),
+	lits2indices(PosLits,PosLitIndices,!ASN).
+
+% take a lists of ground atoms
+% and return corresponding lists on indices using AtomStore
+% adding variables to AtomStore if they are not already there
+
+:- pred lits2indices(list(atom)::in,list(int)::out,as_next::in,as_next::out) is det.
+
+lits2indices([],[],ASNIn,ASNIn).
+lits2indices([Lit|Lits],[LitIndex|LitIndices],ASNIn,ASNOut) :-
+	ASNIn = as(ASIn,Next),
+	(
+	  bimap.reverse_search(ASIn,LitIndex,Lit) ->
+	  lits2indices(Lits,LitIndices,ASNIn,ASNOut);
+	  bimap.det_insert(Next,Lit,ASIn,ASMid),
+	  LitIndex = Next,
+	  ASNMid = as(ASMid,Next+1),
+	  lits2indices(Lits,LitIndices,ASNMid,ASNOut)
+	).
 
 % updates a constraint store and records new constraints and their indices
 % should really be called update_constore or something like that.
@@ -427,6 +524,9 @@ clausal_cut(Sol,Cut) :-
 	prob.clause(StateIn,StateOut),
 	StateOut = clause_cut(_Sol,_Val,NegLits,PosLits,RHS),
 	clause2lincons(NegLits,PosLits,Cut,RHS).
+
+initial_poslit(Atom,lits(NegIn,PosIn),lits(NegIn,[Atom|PosIn])).
+initial_neglit(Atom,lits(NegIn,PosIn),lits([Atom|NegIn],PosIn)).
 
 poslit(Atom,
        clause_cut(Sol,ValIn,NegIn,PosIn,RHS),

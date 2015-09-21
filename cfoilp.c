@@ -33,40 +33,38 @@ int main(
 {
    void *stack_bottom;
 
-   MR_AtomStore atomstore;
-   MR_ConsStore consstore;
-   MR_RowStore rowstore;
-   MR_IntList idents;
-   MR_StringList names;
-   MR_FloatList lbs;
-   MR_IntList finlbs;
-   MR_FloatList ubs;
-   MR_IntList finubs;
-   MR_IntList vartypes;
-   MR_FloatList objs;
-   
-   MR_FloatListList coeffss;
-   MR_IntListList varss;
-
-   MR_FloatList coeffs;
-   MR_IntList vars;
-
    SCIP* scip = NULL;
-   SCIP_CONS* cons;
-   SCIP_VAR* var;
+   SCIP_PROBDATA*  probdata = NULL;
 
-   int ident;
-   MR_String name;
-   SCIP_Real lb;
-   int finlb;
-   SCIP_Real ub;
-   int finub;   
+   MR_AtomStore atomstore;
+   MR_FloatList objectives;
+   MR_StringList varnames;
+   MR_StringList consnames;
+   MR_IntListList neglitss;
+   MR_IntListList poslitss;
+
    SCIP_Real obj;
-   int vartype;
+   MR_String varname;     /* SCIP happy to use the Mercury pointer directly */
+   MR_String consname;    /* SCIP happy to use the Mercury pointer directly */
 
-   SCIP_Real coeff;   
+   SCIP_VAR* var;
+   
+   MR_IntList neglits;
+   MR_IntList poslits;
 
-   SCIP_PROBDATA*  probdata;
+   SCIP_VAR* negvar;
+
+   SCIP_CONS* cons;
+
+   MR_IntList vars_indices_infolinear;
+   int n_varsinfolinear;
+   SCIP_VAR** varsinfolinear;
+   MR_IntList mr_up;
+   MR_IntList mr_down;
+   SCIP_Bool* up;
+   SCIP_Bool* down;
+
+   int i;
 
    mercury_init(argc, argv, &stack_bottom);
 
@@ -76,10 +74,6 @@ int main(
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
-   /* include fovars pricer  */
-   /* SCIP_CALL( SCIPincludePricerFovars(scip) ); */
-
-
    /* allocate memory */
    SCIP_CALL( SCIPallocMemory(scip, &probdata) );
 
@@ -87,12 +81,8 @@ int main(
    SCIP_CALL( SCIPcreateProb(scip, "folilp", NULL, NULL, NULL,
          NULL, NULL, NULL, probdata) );
 
-   /* activates fovars pricer  */
-   /* SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "fovars")) ); */
 
-
-
-   /*SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MAXIMIZE) );*/
+   MR_initial_constraints(&atomstore,&objectives,&varnames,&consnames,&neglitss,&poslitss);
 
    /* initialise probdata */
 
@@ -100,149 +90,98 @@ int main(
    probdata->vars = NULL;
    probdata->vars_len = VAR_BLOCKSIZE;
    SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
-   probdata->nconss = 0;
-   probdata->conss = NULL;
-   probdata->conss_len = VAR_BLOCKSIZE;
-   SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->conss), probdata->conss_len) );
-   probdata->nrows = 0;
-   probdata->rows = NULL;
-   probdata->rows_len = VAR_BLOCKSIZE;
-   SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->rows), probdata->rows_len) );
-   probdata->folinearcons = NULL;
-
-   /* initialise to empty Mercury bimap */ 
-   MR_initial_rows(&rowstore);
-   probdata->row_store = rowstore;
-
-   /* Call Mercury to create variables */
-
-   MR_initial_variables(&atomstore,    /* don't need this to make variables
-                               but needed for bookkeeping */
-      &idents,             /* index for each variable to be created */
-      &names,              /* name for each variable to be created */
-      &lbs,                /* lower bound for each variable to be created */
-      &ubs,                /* upper bound for each variable to be created */
-      &vartypes,           /* variable type for each variable to be created */
-      &objs);              /* objective coeff for each variable to be created */
-
    probdata->atom_store = atomstore;
 
-   /* add Mercury variables to SCIP instance */
+   /* create binary variables in constraints using "objectives" list */
 
-   while ( !MR_list_is_empty(idents) ) 
+   while ( !MR_list_is_empty(objectives) ) 
    {
-      ident =   MR_list_head(idents);
-      name =    (MR_String) MR_list_head(names);
-      lb =      MR_word_to_float(MR_list_head(lbs));
-      ub =      MR_word_to_float(MR_list_head(ubs));
-      obj =     MR_word_to_float(MR_list_head(objs));
-      vartype = MR_list_head(vartypes);
-
-      /* throw error if idents are not listed as 0,1,...n */
-      if( ident != probdata->nvars )
-      {
-         SCIPerrorMessage("Mercury did not return list of variable indices  correctly.\n");
-         exit(1);
-      }
-
-      SCIP_CALL( SCIPcreateVarBasic(scip, &var, name, lb, ub, obj, vartype) );
+      obj = MR_word_to_float(MR_list_head(objectives));
+      varname =    (MR_String) MR_list_head(varnames);
+      SCIP_CALL( SCIPcreateVarBasic(scip, &var, varname, 0.0, 1.0, obj, SCIP_VARTYPE_BINARY) );
       SCIP_CALL( SCIPaddVar(scip, var) );
-      if( !(ident < probdata->vars_len) )
+
+      /* increase size of probdata->vars if necessary */
+      if( !(probdata->nvars < probdata->vars_len) )
       {
          probdata->vars_len += VAR_BLOCKSIZE;
          SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
       }
+
+      /* record variable in array */
+      /* value of probdata->nvars will correspond with that of Mercury's atomstore */
       probdata->vars[probdata->nvars++] = var;
 
-      idents = MR_list_tail(idents);
-      names = MR_list_tail(names);
-      lbs = MR_list_tail(lbs);
-      ubs = MR_list_tail(ubs);
-      objs = MR_list_tail(objs);
-      vartypes = MR_list_tail(vartypes);
+      objectives = MR_list_tail(objectives);
+      varnames = MR_list_tail(varnames);
+
    }
 
-   /* Call Mercury to create constraints */   
+   /* now add the initial constraints */
+   
+   while ( !MR_list_is_empty(consnames) )
+   {
+      consname = (MR_String)  MR_list_head(consnames);
+      neglits =  MR_list_head(neglitss);
+      poslits =  MR_list_head(poslitss);
+      
+      SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, consname, 0, NULL) );
+      
+      while ( !MR_list_is_empty(neglits) )
+      {
+         var = probdata->vars[MR_list_head(neglits)];
+         SCIP_CALL( SCIPgetNegatedVar(scip,var,&negvar) );
+         SCIP_CALL( SCIPaddCoefLogicor(scip, cons, negvar) );
+         neglits =  MR_list_head(neglits);
+      }
 
+      while ( !MR_list_is_empty(poslits) )
+      {
+         var = probdata->vars[MR_list_head(poslits)];
+         SCIP_CALL( SCIPaddCoefLogicor(scip, cons, var) );
+         poslits =  MR_list_head(poslits);
+      }
+
+      SCIP_CALL( SCIPaddCons(scip, cons) );
+      /*SCIP_CALL(  SCIPprintCons(scip, cons, NULL)  );*/
+      SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+
+      consnames = MR_list_tail(consnames);
+      neglitss = MR_list_tail(neglitss);
+      poslitss = MR_list_tail(poslitss);
+   }
 
    /* include first-order linear constraint handler */
    SCIP_CALL( SCIPincludeConshdlrFolinear(scip) );
 
+   /* find out which, if any, of the variables in the initial clauses are
+      also involved in the delayed clauses
+   */
+
+   MR_varsinfolinear(probdata->nvars, probdata->atom_store, &vars_indices_infolinear, &n_varsinfolinear, &mr_down, &mr_up);
+
+   SCIP_CALL( SCIPallocMemoryArray(scip, &varsinfolinear, probdata->nvars) );
+   SCIP_CALL( SCIPallocMemoryArray(scip, &down, probdata->nvars) );
+   SCIP_CALL( SCIPallocMemoryArray(scip, &up, probdata->nvars) );
+   
+   for( i = 0; i < n_varsinfolinear; ++i )
+   {
+      varsinfolinear[i] = probdata->atom_store[vars_indices_infolinear[i]];
+      down[i] = MR_list_head(mr_down) == 1 ? TRUE : FALSE;
+      up[i] = MR_list_head(mr_up) == 1 ? TRUE : FALSE;
+      mr_down = MR_list_tail(mr_down);
+      mr_up = MR_list_tail(mr_up);
+   }
+
+
    /* create first-order constraint */
-   SCIP_CALL( SCIPcreateConsBasicFolinear(scip, &cons, "global_folinear") );
+   SCIP_CALL( SCIPcreateConsBasicFolinear(scip, &cons, "global_folinear", varsinfolinear, n_varsinfolinear, down, up) );
    SCIP_CALL( SCIPaddCons(scip, cons) );
    /*SCIP_CALL( SCIPreleaseCons(scip, &cons) );*/
-   probdata->folinearcons = cons;
 
-   MR_initial_constraints(atomstore,&consstore,&idents,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs);
-
-   probdata->cons_store = consstore;
-
-   while ( !MR_list_is_empty(idents) )
-   {
-      ident =   MR_list_head(idents);
-
-      /* throw error if idents are not listed as 0,1,...n */
-      if( ident != probdata->nconss )
-      {
-         SCIPerrorMessage("Mercury did not return list of constraint indices  correctly.\n");
-         exit(1);
-      }
-
-
-      coeffs = MR_list_head(coeffss);
-      vars = MR_list_head(varss);
-      name = (MR_String)  MR_list_head(names);
-
-      finlb = MR_list_head(finlbs);
-      if( finlb )
-         lb = MR_word_to_float(MR_list_head(lbs));
-      else
-         lb = -SCIPinfinity(scip);
-
-      finub = MR_list_head(finubs);
-      if( finub )
-         ub = MR_word_to_float(MR_list_head(ubs));
-      else
-         ub = SCIPinfinity(scip);
-
-      /* add a constraint */
-      SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, name, 0, NULL, NULL, lb, ub) );
-      while ( !MR_list_is_empty(coeffs) )
-      {
-         coeff = MR_word_to_float(MR_list_head(coeffs));
-         var = probdata->vars[MR_list_head(vars)];
-         SCIP_CALL( SCIPaddCoefLinear(scip, cons, var, coeff) );
-         coeffs = MR_list_tail(coeffs);
-         vars = MR_list_tail(vars);
-
-      }
-      /* declare constraint modifiable for adding variables during pricing */
-      /* NO! for wmaxsat assume all initial constraints are not modifiable - ie have their variables */
-      /* SCIP_CALL( SCIPsetConsModifiable(scip, cons, TRUE) ); */
-
-      SCIP_CALL( SCIPaddCons(scip, cons) );
-      /*SCIP_CALL(  SCIPprintCons(scip, cons, NULL)  ); */
-      SCIP_CALL( SCIPreleaseCons(scip, &cons) );
-
-      if( !(ident < probdata->conss_len) )
-      {
-         probdata->conss_len += VAR_BLOCKSIZE;
-         SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->conss), probdata->conss_len) );
-      }
-
-      /* HERE is where constraint is added to probdata */
-      probdata->conss[probdata->nconss++] = cons;
-
-      idents = MR_list_tail(idents);
-      coeffss = MR_list_tail(coeffss);
-      varss = MR_list_tail(varss);
-      names = MR_list_tail(names);
-      lbs = MR_list_tail(lbs);
-      finlbs = MR_list_tail(finlbs);
-      ubs = MR_list_tail(ubs);
-      finubs = MR_list_tail(finubs);
-   }
+   SCIPfreeMemoryArray(scip,&varsinfolinear);
+   SCIPfreeMemoryArray(scip,&down);
+   SCIPfreeMemoryArray(scip,&up);
 
    /* solve the model */
    SCIP_CALL( SCIPsolve(scip) );

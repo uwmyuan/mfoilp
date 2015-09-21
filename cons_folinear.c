@@ -55,9 +55,10 @@
 /* not currently used since all information in probdata */
 struct SCIP_ConsData
 {
-   MR_Word atom_store;
    SCIP_VAR** vars;
    SCIP_Real nvars;
+   SCIP_Bool* down;
+   SCIP_Bool* up;
 };
 
 /** constraint handler data */
@@ -621,9 +622,9 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
       SCIPdebugMessage("checking first order linear constraint <%s>.\n", SCIPconsGetName(cons));
 
       
-      for( i = 0; i < probdata->nvars; ++i )
+      for( i = 0; i < consdata->nvars; ++i )
       {
-         var = probdata->vars[i];
+         var = consdata->vars[i];
          val = SCIPgetSolVal(scip, sol, var);
          if( !SCIPisZero(scip, val))
          {
@@ -699,8 +700,6 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
    int i;
    SCIP_VAR* var;
 
-   SCIP_PROBDATA*  probdata = SCIPgetProbData(scip);
-
    assert( scip != NULL );
    assert( conshdlr != NULL );
    assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
@@ -708,21 +707,21 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
 
    SCIPdebugMessage("locking first order linear constraint <%s>.\n", SCIPconsGetName(cons));
 
-   assert( probdata != NULL );
-   assert( probdata->atom_store != NULL );
-   assert( probdata->vars != NULL );
+   assert( consdata != NULL );
+   assert( consdata->down != NULL );
+   assert( consdata->up != NULL );
+   assert( consdata->vars != NULL );
 
-   for( i = 0; i < probdata->nvars; ++i )
+   for( i = 0; i < consdata->nvars; ++i )
    {
-      var = probdata->vars[i];
-      MR_consLock(probdata->atom_store,(MR_Integer) i,&up,&down);
+      var = consdata->vars[i];
 
-      if( up )
+      if( consdata->up[i] )
       {
          
          SCIPdebugMessage("adding up lock for variable <%s>\n", SCIPvarGetName(var));
          
-         if( down )
+         if( consdata->down[i] )
          {
             SCIPaddVarLocks(scip, var, nlockspos + nlocksneg, nlockspos + nlocksneg);
             SCIPdebugMessage("adding down lock for variable <%s>\n", SCIPvarGetName(var));            
@@ -730,7 +729,7 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
          else
             SCIPaddVarLocks(scip, var, nlocksneg, nlockspos);
       }
-      else if( down )
+      else if( consdata->down[i] )
       {
          SCIPaddVarLocks(scip, var, nlockspos, nlocksneg);
          SCIPdebugMessage("adding down lock for variable <%s>\n", SCIPvarGetName(var));            
@@ -956,6 +955,10 @@ SCIP_RETCODE SCIPcreateConsFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
+   SCIP_VAR**            vars,               /**< vars in the constraint */
+   int                   nvars,              /**< number of vars in the constraint */
+   SCIP_Bool*            down,               /**< whether a variable is down locked */
+   SCIP_Bool*            up,                 /**< whether a variable is up locked */
    SCIP_Bool             initial,            /**< should the LP relaxation of constraint be in the initial LP?
                                               *   Usually set to TRUE. Set to FALSE for 'lazy constraints'. */
    SCIP_Bool             separate,           /**< should the constraint be separated during LP processing?
@@ -983,6 +986,7 @@ SCIP_RETCODE SCIPcreateConsFolinear(
 {
 
    SCIP_CONSHDLR* conshdlr;
+   SCIP_CONSDATA* consdata;
 
    /* find the folinear constraint handler */
    conshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
@@ -990,6 +994,22 @@ SCIP_RETCODE SCIPcreateConsFolinear(
    {
       SCIPerrorMessage("folinear constraint handler not found\n");
       return SCIP_PLUGINNOTFOUND;
+   }
+
+   /* initialise constraint data */
+   
+   SCIP_CALL( SCIPallocBlockMemory(scip, &consdata) );
+
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->vars, nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->up, nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->down, nvars) );
+
+   consdata->nvars = nvars;
+   for( i = 0; i < nvars; ++i )
+   {
+      consdata->vars[i] = vars[i];
+      consdata->down[i] = down[i];
+      consdata->up[i] = up[i];
    }
 
    /* create constraint */
@@ -1007,10 +1027,14 @@ SCIP_RETCODE SCIPcreateConsFolinear(
 SCIP_RETCODE SCIPcreateConsBasicFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
-   const char*           name                /**< name of constraint */
+   const char*           name,               /**< name of constraint */
+   SCIP_VAR**            vars,               /**< vars in the constraint */
+   int                   nvars,              /**< number of vars in the constraint */
+   SCIP_Bool*            down,               /**< whether a variable is down locked */
+   SCIP_Bool*            up                  /**< whether a variable is up locked */
    )
 {
-   SCIP_CALL( SCIPcreateConsFolinear(scip, cons, name, 
+   SCIP_CALL( SCIPcreateConsFolinear(scip, cons, name, vars, nvars, down, up
          TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
    return SCIP_OKAY;

@@ -438,3 +438,11 @@ constraint), since otherwise will be possibly deleted. At present all
 variables in probdata->vars are (suitably) locked. 
 Will consider not locking initial variables in cons_folinear.
 
+Mon Sep 21 09:44:33 BST 2015
+
+When a variable is created, Mercury says whether it is up and/or down
+locked by first-order clauses. If so, it is "added" to the folinear constraint
+
+So order is call initial_clauses. create variables and post clauses.
+if any of these variables are also in folinear, send them to folinear
+(with appropriate info) when it is created.
