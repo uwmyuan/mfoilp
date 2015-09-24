@@ -386,6 +386,8 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
          val = SCIPgetSolVal(scip, NULL, var);
          if( !SCIPisZero(scip, val))
          {
+            SCIP_CALL( SCIPprintVar(scip, var, NULL) );
+            printf("%f\n", val);
             indices = MR_list_cons( i, indices);
             values = MR_list_cons( MR_float_to_word(val), values);
          }
@@ -397,6 +399,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 
       if( MR_existscut((MR_String) SCIPconsGetName(cons),probdata->atom_store,indices,values) )
       {
+         printf("Found a cut for %s\n", (MR_String) SCIPconsGetName(cons));
          *result = SCIP_INFEASIBLE;
          return SCIP_OKAY;
       }
@@ -745,8 +748,8 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
          
          if( consdata->down[i] )
          {
-            SCIPaddVarLocks(scip, var, nlockspos + nlocksneg, nlockspos + nlocksneg);
             SCIPdebugMessage("adding down lock for variable <%s>\n", SCIPvarGetName(var));            
+            SCIPaddVarLocks(scip, var, nlockspos + nlocksneg, nlockspos + nlocksneg);
          }
          else
             SCIPaddVarLocks(scip, var, nlocksneg, nlockspos);

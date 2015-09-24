@@ -88,10 +88,12 @@ varsinfolinear(Name,I,N,AS,Vars,Down,Up,MIn,MOut) :-
 	  I < N ->
 	  bimap.lookup(AS,I,Atom),
 	  (
+	    % a positive literal is down-locked
 	    prob.poslit(Name,Atom) ->
 	    Vars = [I|T],
 	    Down = [1|DownT],
 	    (
+	      % a negative literal is up-locked
 	      prob.neglit(Name,Atom) ->
 	      Up = [1|UpT];
 	      Up = [0|UpT]
