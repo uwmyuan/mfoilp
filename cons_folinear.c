@@ -246,18 +246,33 @@ SCIP_DECL_CONSEXITSOL(consExitsolFolinear)
 
 
 /** frees specific constraint data */
-#if 0
 static
 SCIP_DECL_CONSDELETE(consDeleteFolinear)
 {  /*lint --e{715}*/
-   SCIPerrorMessage("method of folinear constraint handler not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
+
+   int n;
+
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
+   assert( cons != NULL );
+   assert( consdata != NULL);
+   assert( *consdata != NULL);
+   assert( (*consdata)->vars != NULL );
+   assert( (*consdata)->down != NULL );
+   assert( (*consdata)->up != NULL );
+
+   SCIPdebugMessage("deleting first order linear constraint <%s>.\n", SCIPconsGetName(cons));
+
+   n = (*consdata)->nvars;
+   SCIPfreeBlockMemoryArray(scip, &((*consdata)->vars), n);
+   SCIPfreeBlockMemoryArray(scip, &((*consdata)->down), n);
+   SCIPfreeBlockMemoryArray(scip, &((*consdata)->up), n);
+   SCIPfreeBlockMemory(scip, consdata);
 
    return SCIP_OKAY;
 }
-#else
-#define consDeleteFolinear NULL
-#endif
+
 
 
 /** transforms constraint data into data belonging to the transformed problem */
@@ -347,7 +362,6 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 
    probdata = SCIPgetProbData(scip);
    assert( probdata != NULL );
-   assert( probdata->atom_store != NULL );
 
    /* loop through all constraints */
    for (c = 0; c < nconss; ++c)
@@ -381,7 +395,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
          which does not satisfy the solution 
       */
 
-      if( MR_existscut(SCIPconsGetName(cons),probdata->atom_store,indices,values) )
+      if( MR_existscut((MR_String) SCIPconsGetName(cons),probdata->atom_store,indices,values) )
       {
          *result = SCIP_INFEASIBLE;
          return SCIP_OKAY;
@@ -531,7 +545,6 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
 
    probdata = SCIPgetProbData(scip);
    assert( probdata != NULL );
-   assert( probdata->atom_store != NULL );
 
    /* loop through all constraints */
    for (c = 0; c < nconss; ++c)
@@ -565,7 +578,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
          which does not satisfy the solution 
       */
 
-      if( MR_existscut(SCIPconsGetName(cons),probdata->atom_store,indices,values) )
+      if( MR_existscut((MR_String) SCIPconsGetName(cons),probdata->atom_store,indices,values) )
       {
          SCIPdebugMessage("constraint <%s> infeasible.\n", SCIPconsGetName(cons));
          *result = SCIP_INFEASIBLE;
@@ -591,17 +604,10 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
    SCIP_VAR* var; 
    SCIP_Real val;
    int i;
-   /* int j; */
-   /* int k; */
-   /* int n; */
 
    SCIP_CONSDATA* consdata;
    SCIP_PROBDATA* probdata;
    
-   /* where to put these typedefs? */
-   /* typedef MR_Word MR_IntList; */
-   /* typedef MR_Word MR_FloatList; */
-
    MR_IntList indices;
    MR_FloatList values;
 
@@ -613,7 +619,6 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
 
    probdata = SCIPgetProbData(scip);
    assert( probdata != NULL );
-   assert( probdata->atom_store != NULL );
    
    /* loop through all constraints */
    for (c = 0; c < nconss; ++c)
@@ -647,7 +652,7 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
          which does not satisfy the solution 
       */
 
-      if( MR_existscut(SCIPconsGetName(cons),probdata->atom_store,indices,values) )
+      if( MR_existscut((MR_String) SCIPconsGetName(cons),probdata->atom_store,indices,values) )
       {
          *result = SCIP_INFEASIBLE;
          return SCIP_OKAY;
@@ -935,7 +940,7 @@ SCIP_RETCODE SCIPincludeConshdlrFolinear(
    /* SCIP_CALL( SCIPsetConshdlrActive(scip, conshdlr, consActiveFolinear) ); */
    /* SCIP_CALL( SCIPsetConshdlrCopy(scip, conshdlr, conshdlrCopyFolinear, consCopyFolinear) ); */
    /* SCIP_CALL( SCIPsetConshdlrDeactive(scip, conshdlr, consDeactiveFolinear) ); */
-   /* SCIP_CALL( SCIPsetConshdlrDelete(scip, conshdlr, consDeleteFolinear) ); */
+   SCIP_CALL( SCIPsetConshdlrDelete(scip, conshdlr, consDeleteFolinear) );
    /* SCIP_CALL( SCIPsetConshdlrDelvars(scip, conshdlr, consDelvarsFolinear) ); */
    /* SCIP_CALL( SCIPsetConshdlrDisable(scip, conshdlr, consDisableFolinear) ); */
    /* SCIP_CALL( SCIPsetConshdlrEnable(scip, conshdlr, consEnableFolinear) ); */
@@ -1032,7 +1037,7 @@ SCIP_RETCODE SCIPcreateConsFolinear(
    }
 
    /* create constraint */
-   SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, NULL, initial, separate, enforce, check, propagate,
+   SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, initial, separate, enforce, check, propagate,
          local, modifiable, dynamic, removable, stickingatnode) );
 
    return SCIP_OKAY;
@@ -1053,6 +1058,8 @@ SCIP_RETCODE SCIPcreateConsBasicFolinear(
    SCIP_Bool*            up                  /**< whether a variable is up locked */
    )
 {
+
+
    SCIP_CALL( SCIPcreateConsFolinear(scip, cons, name, vars, nvars, down, up,
          TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
