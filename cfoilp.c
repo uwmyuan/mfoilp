@@ -45,7 +45,7 @@ int main(
 
    SCIP_Real obj;
    MR_String varname;     /* SCIP happy to use the Mercury pointer directly */
-   MR_String consname;    /* SCIP happy to use the Mercury pointer directly */
+   char* consname;    /* SCIP happy to use the Mercury pointer directly */
 
    SCIP_VAR* var;
    
@@ -57,14 +57,19 @@ int main(
    SCIP_CONS* cons;
 
    MR_IntList vars_indices_infolinear;
-   int n_varsinfolinear;
+   MR_Integer n_varsinfolinear;
    SCIP_VAR** varsinfolinear;
    MR_IntList mr_up;
    MR_IntList mr_down;
    SCIP_Bool* up;
    SCIP_Bool* down;
 
-   int i;
+   int i,j;
+
+   MR_StringList clausenames;
+   MR_String clausename;
+
+   SCIP_VAR* clausevars[100];
 
    mercury_init(argc, argv, &stack_bottom);
 
@@ -121,29 +126,31 @@ int main(
    
    while ( !MR_list_is_empty(consnames) )
    {
-      consname = (MR_String)  MR_list_head(consnames);
+      consname = (char *)  MR_list_head(consnames);
       neglits =  MR_list_head(neglitss);
       poslits =  MR_list_head(poslitss);
-      
-      SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, consname, 0, NULL) );
-      
+
+      i = 0;
+
       while ( !MR_list_is_empty(neglits) )
       {
-         var = probdata->vars[MR_list_head(neglits)];
+         var = probdata->vars[(int) MR_list_head(neglits)];
          SCIP_CALL( SCIPgetNegatedVar(scip,var,&negvar) );
-         SCIP_CALL( SCIPaddCoefLogicor(scip, cons, negvar) );
-         neglits =  MR_list_head(neglits);
+         clausevars[i++] = negvar;
+         neglits =  MR_list_tail(neglits);
       }
 
       while ( !MR_list_is_empty(poslits) )
       {
-         var = probdata->vars[MR_list_head(poslits)];
-         SCIP_CALL( SCIPaddCoefLogicor(scip, cons, var) );
-         poslits =  MR_list_head(poslits);
+         var = probdata->vars[(int) MR_list_head(poslits)];
+         clausevars[i++] = var;
+         poslits =  MR_list_tail(poslits);
       }
 
+
+      SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, consname, i, clausevars) );
       SCIP_CALL( SCIPaddCons(scip, cons) );
-      /*SCIP_CALL(  SCIPprintCons(scip, cons, NULL)  );*/
+      SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );
       SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
       consnames = MR_list_tail(consnames);
@@ -151,37 +158,51 @@ int main(
       poslitss = MR_list_tail(poslitss);
    }
 
-   /* include first-order linear constraint handler */
-   SCIP_CALL( SCIPincludeConshdlrFolinear(scip) );
+   fflush(stdout);
 
-   /* find out which, if any, of the variables in the initial clauses are
-      also involved in the delayed clauses
-   */
+   /* /\* include first-order linear constraint handler *\/ */
+   /* SCIP_CALL( SCIPincludeConshdlrFolinear(scip) ); */
 
-   MR_varsinfolinear(probdata->nvars, probdata->atom_store, &vars_indices_infolinear, &n_varsinfolinear, &mr_down, &mr_up);
+   /* /\* make temporary storage big enough *\/ */
 
-   SCIP_CALL( SCIPallocMemoryArray(scip, &varsinfolinear, probdata->nvars) );
-   SCIP_CALL( SCIPallocMemoryArray(scip, &down, probdata->nvars) );
-   SCIP_CALL( SCIPallocMemoryArray(scip, &up, probdata->nvars) );
-   
-   for( i = 0; i < n_varsinfolinear; ++i )
-   {
-      varsinfolinear[i] = probdata->atom_store[vars_indices_infolinear[i]];
-      down[i] = MR_list_head(mr_down) == 1 ? TRUE : FALSE;
-      up[i] = MR_list_head(mr_up) == 1 ? TRUE : FALSE;
-      mr_down = MR_list_tail(mr_down);
-      mr_up = MR_list_tail(mr_up);
-   }
+   /* SCIP_CALL( SCIPallocMemoryArray(scip, &varsinfolinear, probdata->nvars) ); */
+   /* SCIP_CALL( SCIPallocMemoryArray(scip, &down, probdata->nvars) ); */
+   /* SCIP_CALL( SCIPallocMemoryArray(scip, &up, probdata->nvars) ); */
+
+   /* MR_delayed_clauses(&clausenames); */
+
+   /* while ( !MR_list_is_empty(clausenames) ) */
+   /* { */
+   /*    clausename =  (MR_String) MR_list_head(clausenames); */
+
+   /*    /\* find out which, if any, of the variables in the initial clauses are */
+   /*       also involved in this delayed clause */
+   /*    *\/ */
+
+   /*    MR_varsinfolinear(clausename, probdata->nvars, probdata->atom_store, &vars_indices_infolinear, &n_varsinfolinear, &mr_down, &mr_up); */
+
+   /*    for( i = 0; i < n_varsinfolinear; ++i ) */
+   /*    { */
+   /*       varsinfolinear[i] = probdata->vars[(int) MR_list_head(vars_indices_infolinear)]; */
+   /*       down[i] = MR_list_head(mr_down) == 1 ? TRUE : FALSE; */
+   /*       up[i] = MR_list_head(mr_up) == 1 ? TRUE : FALSE; */
+   /*       vars_indices_infolinear = MR_list_tail(vars_indices_infolinear); */
+   /*       mr_down = MR_list_tail(mr_down); */
+   /*       mr_up = MR_list_tail(mr_up); */
+   /*    } */
+
+   /*    /\* create first-order constraint *\/ */
+   /*    SCIP_CALL( SCIPcreateConsBasicFolinear(scip, &cons, clausename, varsinfolinear, (int) n_varsinfolinear, down, up) ); */
+   /*    SCIP_CALL( SCIPaddCons(scip, cons) ); */
+   /*    /\*SCIP_CALL( SCIPreleaseCons(scip, &cons) );*\/ */
 
 
-   /* create first-order constraint */
-   SCIP_CALL( SCIPcreateConsBasicFolinear(scip, &cons, "global_folinear", varsinfolinear, n_varsinfolinear, down, up) );
-   SCIP_CALL( SCIPaddCons(scip, cons) );
-   /*SCIP_CALL( SCIPreleaseCons(scip, &cons) );*/
+   /*    clausenames = MR_list_tail(clausenames); */
+   /* } */
 
-   SCIPfreeMemoryArray(scip,&varsinfolinear);
-   SCIPfreeMemoryArray(scip,&down);
-   SCIPfreeMemoryArray(scip,&up);
+   /* SCIPfreeMemoryArray(scip,&varsinfolinear); */
+   /* SCIPfreeMemoryArray(scip,&down); */
+   /* SCIPfreeMemoryArray(scip,&up); */
 
    /* solve the model */
    SCIP_CALL( SCIPsolve(scip) );

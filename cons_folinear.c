@@ -52,7 +52,6 @@
 /* TODO: fill in the necessary constraint data */
 
 /** constraint data for folinear constraints */
-/* not currently used since all information in probdata */
 struct SCIP_ConsData
 {
    SCIP_VAR** vars;
@@ -63,8 +62,8 @@ struct SCIP_ConsData
 
 /** constraint handler data */
 /* struct SCIP_ConshdlrData */
-/* { */
-/* }; */
+/* {  */
+/* };  */
 
 
 /*
@@ -73,35 +72,16 @@ struct SCIP_ConsData
 
 /* put your local methods here, and declare them static */
 
-SCIP_RETCODE addCoefFolinear(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< folinear constraint to add variable to */
-   SCIP_VAR*             var,                /**< variable of constraint entry */
-   int                   i,                  /**< index of variable of constraint entry */
-   MR_AtomStore          atom_store          /**< Mercury bimap between variables and their indices */
-   )
-{
+/* complete this later */
 
-   MR_Integer up;
-   MR_Integer down;
+/* SCIP_RETCODE sol2mercury( */
+/*    SCIP* scip, */
+/*    SCIP_VAR** vars, */
+/*    int nvars, */
+/*    SCIP_SOL* sol, */
+   
 
-   SCIP_Bool 	lockdown;
-   SCIP_Bool 	lockup; 
 
-   MR_consLock(atom_store, (MR_Integer) i, &up, &down);
-
-   lockdown = (down == 1) ? TRUE : FALSE;
-   lockup =   (up   == 1) ? TRUE : FALSE;
-
-   if( lockdown )
-       SCIPdebugMessage("adding down lock for variable <%s>\n", SCIPvarGetName(var));
-   if( lockup )
-      SCIPdebugMessage("adding up lock for variable <%s>\n", SCIPvarGetName(var));
-
-   SCIP_CALL( SCIPlockVarCons(scip, var, cons, lockdown, lockup) );
-            
-   return SCIP_OKAY;
-}
 
 
 
@@ -353,22 +333,11 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
    SCIP_Real val;
    int i;
 
-   MR_IntList indices = MR_list_empty();
-   MR_FloatList values = MR_list_empty();
+   MR_IntList indices;
+   MR_FloatList values;
 
-   MR_StringList names;
-   MR_FloatList lbs;
-   MR_IntList finlbs;
-   MR_FloatListList coeffss;
-   MR_IntListList varss;
-   MR_FloatList ubs;
-   MR_IntList finubs;
-
-   SCIP_PROBDATA* probdata = SCIPgetProbData(scip);
-
-   MR_RowStore new_row_store;
-   MR_IntList row_idents;
-   int row_ident;
+   SCIP_CONSDATA* consdata;
+   SCIP_PROBDATA* probdata;
 
    assert( scip != NULL );
    assert( conshdlr != NULL );
@@ -376,9 +345,9 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
    assert( conss != NULL );
    assert( result != NULL );
 
+   probdata = SCIPgetProbData(scip);
    assert( probdata != NULL );
    assert( probdata->atom_store != NULL );
-   assert( probdata->vars != NULL );
 
    /* loop through all constraints */
    for (c = 0; c < nconss; ++c)
@@ -387,129 +356,149 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
       assert( cons != NULL );
       SCIPdebugMessage("enforcing lp solution for first order linear constraint <%s>.\n", SCIPconsGetName(cons));
 
-      /* create Mercury-understandable version of the solution
-         only include variables (ie their indices) with non-zero values 
-      */
-      for( i = 0; i < probdata->nvars; ++i )
+      consdata = SCIPconsGetData(conss[c]);
+
+      assert( consdata != NULL );
+      assert( consdata->vars != NULL );
+
+      /* get solution values for the variables involved in this constraint */
+
+      indices = MR_list_empty();
+      values = MR_list_empty();
+
+      for( i = 0; i < consdata->nvars; ++i )
       {
-         var = probdata->vars[i];
+         var = consdata->vars[i];
          val = SCIPgetSolVal(scip, NULL, var);
-         if( !SCIPisZero(scip, val) )
+         if( !SCIPisZero(scip, val))
          {
             indices = MR_list_cons( i, indices);
             values = MR_list_cons( MR_float_to_word(val), values);
          }
       }
 
-      /* get cuts (if any ) from Mercury */
+      /* ask Mercury whether there exists a ground instance of this constraint
+         which does not satisfy the solution 
+      */
 
-      MR_cuts(probdata->atom_store,indices,values,probdata->row_store,probdata->nrows,&new_row_store,&row_idents,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs);
-      
-      /* update row store (only for later passing back to Mercury ) */
-
-      probdata->row_store = new_row_store;
-
-      /* add any cuts to SCIP */
-
-      while ( !MR_list_is_empty(lbs) )
+      if( MR_existscut(SCIPconsGetName(cons),probdata->atom_store,indices,values) )
       {
-         MR_FloatList coeffs;
-         MR_IntList vars;
+         *result = SCIP_INFEASIBLE;
+         return SCIP_OKAY;
+      }
 
-         MR_String name;
-         SCIP_Real lb;
-         int finlb;
-         SCIP_Real ub;
-         int finub;   
 
-         SCIP_ROW *row;
-         SCIP_Bool infeasible;
-         char s[SCIP_MAXSTRLEN];
+      /* all this stuff TODO */
 
-         coeffs = MR_list_head(coeffss);
-         vars = MR_list_head(varss);
-         name = (MR_String)  MR_list_head(names);
+/*       /\* get cuts (if any ) from Mercury *\/ */
 
-         finlb = MR_list_head(finlbs);
-         if( finlb )
-            lb = MR_word_to_float(MR_list_head(lbs));
-         else
-            lb = -SCIPinfinity(scip);
-
-         finub = MR_list_head(finubs);
-         if( finub )
-            ub = MR_word_to_float(MR_list_head(ubs));
-         else
-            ub = SCIPinfinity(scip);
-
-         row_ident = MR_list_head(row_idents);
-         
-         /* throw error if idents are not listed as 0,1,...n */
-         if( row_ident != probdata->nrows )
-         {
-            SCIPerrorMessage("Mercury did not return list of cutting plane indices  correctly.\n");
-            exit(1);
-         }      
-         /* make the cut */
+/*       MR_cuts(probdata->atom_store,indices,values,probdata->row_store,probdata->nrows,&new_row_store,&row_idents,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs); */
       
-         (void) SCIPsnprintf(s, SCIP_MAXSTRLEN, "%s", name);
+/*       /\* update row store (only for later passing back to Mercury ) *\/ */
 
-         /* note row is set to modifiable to allow priced-in variables to enter */
-         SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, s, lb, ub, FALSE, TRUE, TRUE) );
-         SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
+/*       probdata->row_store = new_row_store; */
 
-         while ( !MR_list_is_empty(coeffs) )
-         {
-            SCIP_Real coeff;
+/*       /\* add any cuts to SCIP *\/ */
+
+/*       while ( !MR_list_is_empty(lbs) ) */
+/*       { */
+/*          MR_FloatList coeffs; */
+/*          MR_IntList vars; */
+
+/*          MR_String name; */
+/*          SCIP_Real lb; */
+/*          int finlb; */
+/*          SCIP_Real ub; */
+/*          int finub;    */
+
+/*          SCIP_ROW *row; */
+/*          SCIP_Bool infeasible; */
+/*          char s[SCIP_MAXSTRLEN]; */
+
+/*          coeffs = MR_list_head(coeffss); */
+/*          vars = MR_list_head(varss); */
+/*          name = (MR_String)  MR_list_head(names); */
+
+/*          finlb = MR_list_head(finlbs); */
+/*          if( finlb ) */
+/*             lb = MR_word_to_float(MR_list_head(lbs)); */
+/*          else */
+/*             lb = -SCIPinfinity(scip); */
+
+/*          finub = MR_list_head(finubs); */
+/*          if( finub ) */
+/*             ub = MR_word_to_float(MR_list_head(ubs)); */
+/*          else */
+/*             ub = SCIPinfinity(scip); */
+
+/*          row_ident = MR_list_head(row_idents); */
+         
+/*          /\* throw error if idents are not listed as 0,1,...n *\/ */
+/*          if( row_ident != probdata->nrows ) */
+/*          { */
+/*             SCIPerrorMessage("Mercury did not return list of cutting plane indices  correctly.\n"); */
+/*             exit(1); */
+/*          }       */
+/*          /\* make the cut *\/ */
+      
+/*          (void) SCIPsnprintf(s, SCIP_MAXSTRLEN, "%s", name); */
+
+/*          /\* note row is set to modifiable to allow priced-in variables to enter *\/ */
+/*          SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, s, lb, ub, FALSE, TRUE, TRUE) ); */
+/*          SCIP_CALL( SCIPcacheRowExtensions(scip, row) ); */
+
+/*          while ( !MR_list_is_empty(coeffs) ) */
+/*          { */
+/*             SCIP_Real coeff; */
             
-            coeff = MR_word_to_float(MR_list_head(coeffs));
-            var = probdata->vars[MR_list_head(vars)];
-            SCIP_CALL( SCIPaddVarToRow(scip, row, var, coeff) );
-            coeffs = MR_list_tail(coeffs);
-            vars = MR_list_tail(vars);
-         }
+/*             coeff = MR_word_to_float(MR_list_head(coeffs)); */
+/*             var = probdata->vars[MR_list_head(vars)]; */
+/*             SCIP_CALL( SCIPaddVarToRow(scip, row, var, coeff) ); */
+/*             coeffs = MR_list_tail(coeffs); */
+/*             vars = MR_list_tail(vars); */
+/*          } */
          
-         SCIP_CALL( SCIPflushRowExtensions(scip, row) );
-#ifdef SCIP_DEBUG
-         SCIPdebug( SCIPprintRow(scip, row, NULL) );
-#endif
-         SCIP_CALL( SCIPaddCut(scip, NULL, row, FALSE, &infeasible) );
-         /*SCIP_CALL( SCIPreleaseRow(scip, &row));*/
-         ++nGen;
+/*          SCIP_CALL( SCIPflushRowExtensions(scip, row) ); */
+/* #ifdef SCIP_DEBUG */
+/*          SCIPdebug( SCIPprintRow(scip, row, NULL) ); */
+/* #endif */
+/*          SCIP_CALL( SCIPaddCut(scip, NULL, row, FALSE, &infeasible) ); */
+/*          /\*SCIP_CALL( SCIPreleaseRow(scip, &row));*\/ */
+/*          ++nGen; */
 
-         /* add row to probdata */
-         if( !(row_ident < probdata->rows_len) )
-         {
-            probdata->rows_len += VAR_BLOCKSIZE;
-            SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->rows), probdata->rows_len) );
-         }
-         probdata->rows[probdata->nrows++] = row;
+/*          /\* add row to probdata *\/ */
+/*          if( !(row_ident < probdata->rows_len) ) */
+/*          { */
+/*             probdata->rows_len += VAR_BLOCKSIZE; */
+/*             SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->rows), probdata->rows_len) ); */
+/*          } */
+/*          probdata->rows[probdata->nrows++] = row; */
          
-         if ( infeasible )
-         {
-            /* do not declare that the current subproblem is infeasible
-               since pricing may allow us to recover feasibility *
-               *result = SCIP_CUTOFF; */
-            *result = SCIP_INFEASIBLE;
-            return SCIP_OKAY;
-         }
+/*          if ( infeasible ) */
+/*          { */
+/*             /\* do not declare that the current subproblem is infeasible */
+/*                since pricing may allow us to recover feasibility * */
+/*                *result = SCIP_CUTOFF; *\/ */
+/*             *result = SCIP_INFEASIBLE; */
+/*             return SCIP_OKAY; */
+/*          } */
 
-         coeffss = MR_list_tail(coeffss);
-         varss = MR_list_tail(varss);
-         names = MR_list_tail(names);
-         lbs = MR_list_tail(lbs);
-         finlbs = MR_list_tail(finlbs);
-         ubs = MR_list_tail(ubs);
-         finubs = MR_list_tail(finubs);
-         row_idents = MR_list_tail(row_idents);
+/*          coeffss = MR_list_tail(coeffss); */
+/*          varss = MR_list_tail(varss); */
+/*          names = MR_list_tail(names); */
+/*          lbs = MR_list_tail(lbs); */
+/*          finlbs = MR_list_tail(finlbs); */
+/*          ubs = MR_list_tail(ubs); */
+/*          finubs = MR_list_tail(finubs); */
+/*          row_idents = MR_list_tail(row_idents); */
 
-      }
-      /* return as soon as we find a constraint which generated some cuts */
-      if (nGen > 0)
-      {
-	 *result = SCIP_SEPARATED;
-	 return SCIP_OKAY;
-      }
+/*       } */
+/*       /\* return as soon as we find a constraint which generated some cuts *\/ */
+/*       if (nGen > 0) */
+/*       { */
+/* 	 *result = SCIP_SEPARATED; */
+/* 	 return SCIP_OKAY; */
+/*       } */
    }
    SCIPdebugMessage("all first-order linear constraints are feasible.\n");
    *result = SCIP_FEASIBLE;
@@ -523,15 +512,16 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
 
    int c;
 
+   SCIP_CONSDATA* consdata;
+   SCIP_PROBDATA* probdata;
+
    SCIP_CONS* cons;
    SCIP_VAR* var; 
    SCIP_Real val;
    int i;
 
-   MR_IntList indices = MR_list_empty();
-   MR_FloatList values = MR_list_empty();
-
-   SCIP_PROBDATA*  probdata = SCIPgetProbData(scip);
+   MR_IntList indices;
+   MR_FloatList values;
 
    assert( scip != NULL );
    assert( conshdlr != NULL );
@@ -539,9 +529,9 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
    assert( conss != NULL );
    assert( result != NULL );
 
+   probdata = SCIPgetProbData(scip);
    assert( probdata != NULL );
    assert( probdata->atom_store != NULL );
-   assert( probdata->vars != NULL );
 
    /* loop through all constraints */
    for (c = 0; c < nconss; ++c)
@@ -550,12 +540,19 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
       assert( cons != NULL );
       SCIPdebugMessage("enforcing pseudo solution for first order linear constraint <%s>.\n", SCIPconsGetName(cons));
     
-      /* create Mercury-understandable version of the solution
-         only include variables (ie their indices) with non-zero values 
-      */
-      for( i = 0; i < probdata->nvars; ++i )
+      consdata = SCIPconsGetData(conss[c]);
+
+      assert( consdata != NULL );
+      assert( consdata->vars != NULL );
+
+      /* get solution values for the variables involved in this constraint */
+
+      indices = MR_list_empty();
+      values = MR_list_empty();
+
+      for( i = 0; i < consdata->nvars; ++i )
       {
-         var = probdata->vars[i];
+         var = consdata->vars[i];
          val = SCIPgetSolVal(scip, NULL, var);
          if( !SCIPisZero(scip, val))
          {
@@ -564,7 +561,11 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
          }
       }
 
-      if( MR_consFail(probdata->atom_store,indices,values) )
+      /* ask Mercury whether there exists a ground instance of this constraint
+         which does not satisfy the solution 
+      */
+
+      if( MR_existscut(SCIPconsGetName(cons),probdata->atom_store,indices,values) )
       {
          SCIPdebugMessage("constraint <%s> infeasible.\n", SCIPconsGetName(cons));
          *result = SCIP_INFEASIBLE;
@@ -594,15 +595,15 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
    /* int k; */
    /* int n; */
 
+   SCIP_CONSDATA* consdata;
+   SCIP_PROBDATA* probdata;
+   
    /* where to put these typedefs? */
    /* typedef MR_Word MR_IntList; */
    /* typedef MR_Word MR_FloatList; */
 
-   MR_IntList indices = MR_list_empty();
-   MR_FloatList values = MR_list_empty();
-
-   SCIP_PROBDATA*  probdata = SCIPgetProbData(scip);
-
+   MR_IntList indices;
+   MR_FloatList values;
 
    assert( scip != NULL );
    assert( conshdlr != NULL );
@@ -610,10 +611,10 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
    assert( conss != NULL );
    assert( result != NULL );
 
+   probdata = SCIPgetProbData(scip);
    assert( probdata != NULL );
    assert( probdata->atom_store != NULL );
-   assert( probdata->vars != NULL );
-
+   
    /* loop through all constraints */
    for (c = 0; c < nconss; ++c)
    {
@@ -621,7 +622,16 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
       assert( cons != NULL );
       SCIPdebugMessage("checking first order linear constraint <%s>.\n", SCIPconsGetName(cons));
 
-      
+      consdata = SCIPconsGetData(conss[c]);
+
+      assert( consdata != NULL );
+      assert( consdata->vars != NULL );
+
+      /* get solution values for the variables involved in this constraint */
+
+      indices = MR_list_empty();
+      values = MR_list_empty();
+
       for( i = 0; i < consdata->nvars; ++i )
       {
          var = consdata->vars[i];
@@ -633,7 +643,11 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
          }
       }
 
-      if( MR_consFail(probdata->atom_store,indices,values) )
+      /* ask Mercury whether there exists a ground instance of this constraint
+         which does not satisfy the solution 
+      */
+
+      if( MR_existscut(SCIPconsGetName(cons),probdata->atom_store,indices,values) )
       {
          *result = SCIP_INFEASIBLE;
          return SCIP_OKAY;
@@ -695,10 +709,11 @@ static
 SCIP_DECL_CONSLOCK(consLockFolinear)
 {  /*lint --e{715}*/
 
-   MR_Integer up;
-   MR_Integer down;
+   SCIP_CONSDATA* consdata;
+
    int i;
    SCIP_VAR* var;
+
 
    assert( scip != NULL );
    assert( conshdlr != NULL );
@@ -706,6 +721,8 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
    assert( cons != NULL );
 
    SCIPdebugMessage("locking first order linear constraint <%s>.\n", SCIPconsGetName(cons));
+
+   consdata = SCIPconsGetData(cons);
 
    assert( consdata != NULL );
    assert( consdata->down != NULL );
@@ -988,6 +1005,8 @@ SCIP_RETCODE SCIPcreateConsFolinear(
    SCIP_CONSHDLR* conshdlr;
    SCIP_CONSDATA* consdata;
 
+   int i;
+
    /* find the folinear constraint handler */
    conshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
    if( conshdlr == NULL )
@@ -1034,7 +1053,7 @@ SCIP_RETCODE SCIPcreateConsBasicFolinear(
    SCIP_Bool*            up                  /**< whether a variable is up locked */
    )
 {
-   SCIP_CALL( SCIPcreateConsFolinear(scip, cons, name, vars, nvars, down, up
+   SCIP_CALL( SCIPcreateConsFolinear(scip, cons, name, vars, nvars, down, up,
          TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
    return SCIP_OKAY;

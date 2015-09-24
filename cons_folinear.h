@@ -16,14 +16,6 @@
 extern "C" {
 #endif
 
-EXTERN
-SCIP_RETCODE addCoefFolinear(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< folinear constraint to add variable to */
-   SCIP_VAR*             var,                /**< variable of constraint entry */
-   int                   i,                   /**< index of variable of constraint entry */
-   MR_AtomStore          atom_store          /**< Mercury bimap between variables and their indices */
-   );
 
 
 /** creates the handler for folinear constraints and includes it in SCIP */
@@ -41,6 +33,10 @@ SCIP_RETCODE SCIPcreateConsFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
+   SCIP_VAR**            vars,               /**< vars in the constraint */
+   int                   nvars,              /**< number of vars in the constraint */
+   SCIP_Bool*            down,               /**< whether a variable is down locked */
+   SCIP_Bool*            up,                 /**< whether a variable is up locked */
    SCIP_Bool             initial,            /**< should the LP relaxation of constraint be in the initial LP?
                                               *   Usually set to TRUE. Set to FALSE for 'lazy constraints'. */
    SCIP_Bool             separate,           /**< should the constraint be separated during LP processing?
@@ -75,7 +71,11 @@ EXTERN
 SCIP_RETCODE SCIPcreateConsBasicFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
-   const char*           name               /**< name of constraint */
+   const char*           name,               /**< name of constraint */
+   SCIP_VAR**            vars,               /**< vars in the constraint */
+   int                   nvars,              /**< number of vars in the constraint */
+   SCIP_Bool*            down,               /**< whether a variable is down locked */
+   SCIP_Bool*            up                  /**< whether a variable is up locked */
    );
 
 #ifdef __cplusplus
