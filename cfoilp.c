@@ -86,7 +86,6 @@ int main(
    SCIP_CALL( SCIPcreateProb(scip, "folilp", NULL, NULL, NULL,
          NULL, NULL, NULL, probdata) );
 
-
    MR_initial_constraints(&atomstore,&objectives,&varnames,&consnames,&neglitss,&poslitss);
 
    /* initialise probdata */
@@ -177,7 +176,7 @@ int main(
          also involved in this delayed clause
       */
 
-      MR_varsinfolinear(clausename, probdata->nvars, probdata->atom_store, &vars_indices_infolinear, &n_varsinfolinear, &mr_down, &mr_up);
+      MR_varsinfolinear(clausename, probdata->atom_store, &vars_indices_infolinear, &n_varsinfolinear, &mr_down, &mr_up);
 
       for( i = 0; i < n_varsinfolinear; ++i )
       {

@@ -53,68 +53,6 @@
 
 
 %-----------------------------------------------------------------------------%
-
-%-----------------------------------------------------------------------------%
-%
-% Predicates for generating MIP variables
-%
-%-----------------------------------------------------------------------------%
-
-:- pragma foreign_export("C", foclausenames(out), "MR_delayed_clauses").
-
-:- pred foclausenames(list(string)::out) is det.
-
-foclausenames(Names) :-
-	solutions(prob.clause,Names).
-
-
-%-----------------------------------------------------------------------------%
-%
-% Predicates for calculating variable locks
-%
-%-----------------------------------------------------------------------------%
-
-:- pragma foreign_export("C", varsinfolinear(in,in,in,out,out,out,out), "MR_varsinfolinear").
-
-:- pred varsinfolinear(string::in,int::in,as_next::in,list(int)::out,int::out,list(int)::out,list(int)::out) is det.
-
-varsinfolinear(Name,N,as(AS,_),Vars,M,Down,Up) :-
-	varsinfolinear(Name,0,N,AS,Vars,Down,Up,0,M).
-
-:- pred varsinfolinear(string::in,int::in,int::in,atom_store::in,list(int)::out,list(int)::out,list(int)::out,int::in,int::out) is det.
-
-varsinfolinear(Name,I,N,AS,Vars,Down,Up,MIn,MOut) :-
-	(
-	  I < N ->
-	  bimap.lookup(AS,I,Atom),
-	  (
-	    % a positive literal is down-locked
-	    prob.poslit(Name,Atom) ->
-	    Vars = [I|T],
-	    Down = [1|DownT],
-	    (
-	      % a negative literal is up-locked
-	      prob.neglit(Name,Atom) ->
-	      Up = [1|UpT];
-	      Up = [0|UpT]
-	    ),
-	    varsinfolinear(Name,I+1,N,AS,T,DownT,UpT,MIn+1,MOut);
-	    (
-	      prob.neglit(Name,Atom) ->
-	      Vars = [I|T],
-	      Down = [0|DownT],
-	      Up = [1|UpT],
-	      varsinfolinear(Name,I+1,N,AS,T,DownT,UpT,MIn+1,MOut);
-	      varsinfolinear(Name,I+1,N,AS,Vars,Down,Up,MIn,MOut)
-	    ));
-	  Vars = [],
-	  Down = [],
-	  Up = [],
-	  MOut = MIn
-	).
-
-
-%-----------------------------------------------------------------------------%
 %
 % Predicates for generating initial constraints and variables
 %
@@ -128,9 +66,9 @@ varsinfolinear(Name,I,N,AS,Vars,Down,Up,MIn,MOut) :-
 
 :- pred makeclauses(as_next::out,                % atom store with all variables in the clauses
 		    list(float)::out,            % objective value for each variable in atom store
-		                                 % list is ordered, so first two entries are objective values
+		                                 % list is ordered, so e.g. first two entries are objective values
 		                                 % of variables 0 and 1.
-		    list(string)::out,           % names for each variable
+		    list(string)::out,           % a name for each variable
 		    list(string)::out,           % a name for each constraint
 		    list(list(int))::out,        % list of neg lit indices for each clause
 		    list(list(int))::out         % list of pos lit indices for each clause
@@ -144,8 +82,7 @@ varsinfolinear(Name,I,N,AS,Vars,Down,Up,MIn,MOut) :-
 makeclauses(AtomStoreNext,VarObjs,VarNames,ConsNames,NegLitss,PosLitss) :-
 	Call = (pred(named(Name,Lits)::out) is nondet :- prob.initial_clause(Name,lits([],[]),Lits)),
 	solutions(Call,AllNamedInitialClauses),
-	bimap.init(AS0),
-	list.map2_foldl(clause2indices,AllNamedInitialClauses,NegLitss,PosLitss,as(AS0,0),AtomStoreNext),
+	list.map2_foldl(clause2indices,AllNamedInitialClauses,NegLitss,PosLitss,as(bimap.init,0),AtomStoreNext),
 	AtomStoreNext = as(AS,Next),
 	allobjs(0,Next,AS,VarObjs,VarNames),
 	name_all(AllNamedInitialClauses,ConsNames,map.init,_).
@@ -212,15 +149,77 @@ name(X) = Name :-
 	Name = string.builder.to_string(State).
 
 
+%-----------------------------------------------------------------------------%
+%
+% Predicate for generating the names of first-order clauses
+%
+%-----------------------------------------------------------------------------%
+
+:- pragma foreign_export("C", foclausenames(out), "MR_delayed_clauses").
+
+:- pred foclausenames(list(string)::out) is det.
+
+foclausenames(Names) :-
+	solutions(prob.clause,Names).
+
 
 %-----------------------------------------------------------------------------%
 %
-% Predicates for checking solutions
+% Predicates for determining which existing variables are in a first-order clause
+% and how they are locked
 %
 %-----------------------------------------------------------------------------%
 
+:- pragma foreign_export("C", varsinfolinear(in,in,out,out,out,out), "MR_varsinfolinear").
 
+% Determines which existing variables are in a first-order clause
+% and how they are locked
 
+:- pred varsinfolinear(
+		       string::in,      % name of first-order clause
+		       as_next::in,     % existing variables (with their indices)
+		       list(int)::out,  % indices of variables in the constraint
+		       int::out,        % number of variables in the constraint
+		       list(int)::out,  % 0/1 indicator of down-locking for each variable in the constraint
+		       list(int)::out   % 0/1 indicator of up-locking for each variable in the constraint
+		      ) is det.
+
+% this just adds accumulators
+
+varsinfolinear(Name,as(AS,N),Vars,M,Down,Up) :-
+	varsinfolinear(Name,0,N,AS,Vars,Down,Up,0,M).
+
+:- pred varsinfolinear(string::in,int::in,int::in,atom_store::in,list(int)::out,list(int)::out,list(int)::out,int::in,int::out) is det.
+
+varsinfolinear(Name,I,N,AS,Vars,Down,Up,MIn,MOut) :-
+	(
+	  I < N ->
+	  bimap.lookup(AS,I,Atom),
+	  (
+	    % a positive literal is down-locked
+	    prob.poslit(Name,Atom) ->
+	    Vars = [I|T],
+	    Down = [1|DownT],
+	    (
+	      % a negative literal is up-locked
+	      prob.neglit(Name,Atom) ->
+	      Up = [1|UpT];
+	      Up = [0|UpT]
+	    ),
+	    varsinfolinear(Name,I+1,N,AS,T,DownT,UpT,MIn+1,MOut);
+	    (
+	      prob.neglit(Name,Atom) ->
+	      Vars = [I|T],
+	      Down = [0|DownT],
+	      Up = [1|UpT],
+	      varsinfolinear(Name,I+1,N,AS,T,DownT,UpT,MIn+1,MOut);
+	      varsinfolinear(Name,I+1,N,AS,Vars,Down,Up,MIn,MOut)
+	    ));
+	  Vars = [],
+	  Down = [],
+	  Up = [],
+	  MOut = MIn
+	).
 
 %-----------------------------------------------------------------------------%
 %
