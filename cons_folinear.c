@@ -74,16 +74,38 @@ struct SCIP_ConsData
 
 /* complete this later */
 
-/* SCIP_RETCODE sol2mercury( */
-/*    SCIP* scip, */
-/*    SCIP_VAR** vars, */
-/*    int nvars, */
-/*    SCIP_SOL* sol, */
-   
+static
+SCIP_RETCODE sol2mercury(
+   SCIP* scip,
+   int* varindices,
+   int nvars,
+   SCIP_VAR** vars,
+   SCIP_SOL* sol,
+   MR_IntList* indices_ptr,
+   MR_FloatList* values_ptr
+   )
+{
+   int i;
+   int varindex;
+   SCIP_VAR* var;
+   SCIP_Real val;
 
+   *indices_ptr = MR_list_empty();
+   *values_ptr = MR_list_empty();
 
-
-
+   for( i = 0; i < nvars; ++i )
+   {
+      varindex = varindices[i];
+      var = vars[varindex];
+      val = SCIPgetSolVal(scip, sol, var);
+      if( !SCIPisZero(scip, val))
+      {
+            *indices_ptr = MR_list_cons( varindex, *indices_ptr);
+            *values_ptr = MR_list_cons( MR_float_to_word(val), *values_ptr);
+      }
+   }
+   return SCIP_OKAY;
+}
 
 /*
  * Linear constraint upgrading
@@ -344,10 +366,6 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
    int nGen = 0;
 
    SCIP_CONS* cons;
-   int varindex;
-   SCIP_VAR* var; 
-   SCIP_Real val;
-   int i;
 
    MR_IntList indices;
    MR_FloatList values;
@@ -378,20 +396,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 
       /* get solution values for the variables involved in this constraint */
 
-      indices = MR_list_empty();
-      values = MR_list_empty();
-
-      for( i = 0; i < consdata->nvars; ++i )
-      {
-         varindex = consdata->varindices[i];
-         var = probdata->vars[varindex];
-         val = SCIPgetSolVal(scip, NULL, var);
-         if( !SCIPisZero(scip, val))
-         {
-            indices = MR_list_cons( varindex, indices);
-            values = MR_list_cons( MR_float_to_word(val), values);
-         }
-      }
+      sol2mercury(scip, consdata->varindices, consdata->nvars, probdata->vars, NULL, &indices, &values);
 
       /* ask Mercury whether there exists a ground instance of this constraint
          which does not satisfy the solution 
@@ -532,10 +537,6 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
    SCIP_PROBDATA* probdata;
 
    SCIP_CONS* cons;
-   int varindex;
-   SCIP_VAR* var; 
-   SCIP_Real val;
-   int i;
 
    MR_IntList indices;
    MR_FloatList values;
@@ -563,20 +564,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
 
       /* get solution values for the variables involved in this constraint */
 
-      indices = MR_list_empty();
-      values = MR_list_empty();
-
-      for( i = 0; i < consdata->nvars; ++i )
-      {
-         varindex = consdata->varindices[i];
-         var = probdata->vars[varindex];
-         val = SCIPgetSolVal(scip, NULL, var);
-         if( !SCIPisZero(scip, val))
-         {
-            indices = MR_list_cons( varindex, indices);
-            values = MR_list_cons( MR_float_to_word(val), values);
-         }
-      }
+      sol2mercury(scip, consdata->varindices, consdata->nvars, probdata->vars, NULL, &indices, &values);
 
       /* ask Mercury whether there exists a ground instance of this constraint
          which does not satisfy the solution 
@@ -605,10 +593,6 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
    int c;
 
    SCIP_CONS* cons;
-   int varindex;
-   SCIP_VAR* var; 
-   SCIP_Real val;
-   int i;
 
    SCIP_CONSDATA* consdata;
    SCIP_PROBDATA* probdata;
@@ -639,20 +623,7 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
 
       /* get solution values for the variables involved in this constraint */
 
-      indices = MR_list_empty();
-      values = MR_list_empty();
-
-      for( i = 0; i < consdata->nvars; ++i )
-      {
-         varindex = consdata->varindices[i];
-         var = probdata->vars[varindex];
-         val = SCIPgetSolVal(scip, sol, var);
-         if( !SCIPisZero(scip, val))
-         {
-            indices = MR_list_cons( varindex, indices);
-            values = MR_list_cons( MR_float_to_word(val), values);
-         }
-      }
+      sol2mercury(scip, consdata->varindices, consdata->nvars, probdata->vars, sol, &indices, &values);
 
       /* ask Mercury whether there exists a ground instance of this constraint
          which does not satisfy the solution 
