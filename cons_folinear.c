@@ -54,7 +54,7 @@
 /** constraint data for folinear constraints */
 struct SCIP_ConsData
 {
-   SCIP_VAR** vars;
+   int* varindices;
    SCIP_Real nvars;
    SCIP_Bool* down;
    SCIP_Bool* up;
@@ -258,14 +258,14 @@ SCIP_DECL_CONSDELETE(consDeleteFolinear)
    assert( cons != NULL );
    assert( consdata != NULL);
    assert( *consdata != NULL);
-   assert( (*consdata)->vars != NULL );
+   assert( (*consdata)->varindices != NULL );
    assert( (*consdata)->down != NULL );
    assert( (*consdata)->up != NULL );
 
    SCIPdebugMessage("deleting first order linear constraint <%s>.\n", SCIPconsGetName(cons));
 
    n = (*consdata)->nvars;
-   SCIPfreeBlockMemoryArray(scip, &((*consdata)->vars), n);
+   SCIPfreeBlockMemoryArray(scip, &((*consdata)->varindices), n);
    SCIPfreeBlockMemoryArray(scip, &((*consdata)->down), n);
    SCIPfreeBlockMemoryArray(scip, &((*consdata)->up), n);
    SCIPfreeBlockMemory(scip, consdata);
@@ -344,6 +344,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
    int nGen = 0;
 
    SCIP_CONS* cons;
+   int varindex;
    SCIP_VAR* var; 
    SCIP_Real val;
    int i;
@@ -373,7 +374,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
       consdata = SCIPconsGetData(conss[c]);
 
       assert( consdata != NULL );
-      assert( consdata->vars != NULL );
+      assert( consdata->varindices != NULL );
 
       /* get solution values for the variables involved in this constraint */
 
@@ -382,13 +383,12 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 
       for( i = 0; i < consdata->nvars; ++i )
       {
-         var = consdata->vars[i];
+         varindex = consdata->varindices[i];
+         var = probdata->vars[varindex];
          val = SCIPgetSolVal(scip, NULL, var);
          if( !SCIPisZero(scip, val))
          {
-            SCIP_CALL( SCIPprintVar(scip, var, NULL) );
-            printf("%f\n", val);
-            indices = MR_list_cons( i, indices);
+            indices = MR_list_cons( varindex, indices);
             values = MR_list_cons( MR_float_to_word(val), values);
          }
       }
@@ -399,7 +399,6 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 
       if( MR_existscut((MR_String) SCIPconsGetName(cons),probdata->atom_store,indices,values) )
       {
-         printf("Found a cut for %s\n", (MR_String) SCIPconsGetName(cons));
          *result = SCIP_INFEASIBLE;
          return SCIP_OKAY;
       }
@@ -533,6 +532,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
    SCIP_PROBDATA* probdata;
 
    SCIP_CONS* cons;
+   int varindex;
    SCIP_VAR* var; 
    SCIP_Real val;
    int i;
@@ -559,7 +559,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
       consdata = SCIPconsGetData(conss[c]);
 
       assert( consdata != NULL );
-      assert( consdata->vars != NULL );
+      assert( consdata->varindices != NULL );
 
       /* get solution values for the variables involved in this constraint */
 
@@ -568,11 +568,12 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
 
       for( i = 0; i < consdata->nvars; ++i )
       {
-         var = consdata->vars[i];
+         varindex = consdata->varindices[i];
+         var = probdata->vars[varindex];
          val = SCIPgetSolVal(scip, NULL, var);
          if( !SCIPisZero(scip, val))
          {
-            indices = MR_list_cons( i, indices);
+            indices = MR_list_cons( varindex, indices);
             values = MR_list_cons( MR_float_to_word(val), values);
          }
       }
@@ -604,6 +605,7 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
    int c;
 
    SCIP_CONS* cons;
+   int varindex;
    SCIP_VAR* var; 
    SCIP_Real val;
    int i;
@@ -633,7 +635,7 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
       consdata = SCIPconsGetData(conss[c]);
 
       assert( consdata != NULL );
-      assert( consdata->vars != NULL );
+      assert( consdata->varindices != NULL );
 
       /* get solution values for the variables involved in this constraint */
 
@@ -642,11 +644,12 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
 
       for( i = 0; i < consdata->nvars; ++i )
       {
-         var = consdata->vars[i];
+         varindex = consdata->varindices[i];
+         var = probdata->vars[varindex];
          val = SCIPgetSolVal(scip, sol, var);
          if( !SCIPisZero(scip, val))
          {
-            indices = MR_list_cons( i, indices);
+            indices = MR_list_cons( varindex, indices);
             values = MR_list_cons( MR_float_to_word(val), values);
          }
       }
@@ -718,8 +721,10 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
 {  /*lint --e{715}*/
 
    SCIP_CONSDATA* consdata;
+   SCIP_PROBDATA* probdata;
 
    int i;
+   int varindex;
    SCIP_VAR* var;
 
 
@@ -735,11 +740,15 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
    assert( consdata != NULL );
    assert( consdata->down != NULL );
    assert( consdata->up != NULL );
-   assert( consdata->vars != NULL );
+   assert( consdata->varindices != NULL );
+
+   probdata = SCIPgetProbData(scip);
+   assert( probdata != NULL );
 
    for( i = 0; i < consdata->nvars; ++i )
    {
-      var = consdata->vars[i];
+      varindex = consdata->varindices[i];
+      var = probdata->vars[varindex];
 
       if( consdata->up[i] )
       {
@@ -980,7 +989,7 @@ SCIP_RETCODE SCIPcreateConsFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
-   SCIP_VAR**            vars,               /**< vars in the constraint */
+   int*                  varindices,         /**< global indices of vars in the constraint */
    int                   nvars,              /**< number of vars in the constraint */
    SCIP_Bool*            down,               /**< whether a variable is down locked */
    SCIP_Bool*            up,                 /**< whether a variable is up locked */
@@ -1027,14 +1036,14 @@ SCIP_RETCODE SCIPcreateConsFolinear(
    
    SCIP_CALL( SCIPallocBlockMemory(scip, &consdata) );
 
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->vars, nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->varindices, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->up, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->down, nvars) );
 
    consdata->nvars = nvars;
    for( i = 0; i < nvars; ++i )
    {
-      consdata->vars[i] = vars[i];
+      consdata->varindices[i] = varindices[i];
       consdata->down[i] = down[i];
       consdata->up[i] = up[i];
    }
@@ -1055,7 +1064,7 @@ SCIP_RETCODE SCIPcreateConsBasicFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
-   SCIP_VAR**            vars,               /**< vars in the constraint */
+   int*                  varindices,         /**< global indices of vars in the constraint */
    int                   nvars,              /**< number of vars in the constraint */
    SCIP_Bool*            down,               /**< whether a variable is down locked */
    SCIP_Bool*            up                  /**< whether a variable is up locked */
@@ -1063,7 +1072,7 @@ SCIP_RETCODE SCIPcreateConsBasicFolinear(
 {
 
 
-   SCIP_CALL( SCIPcreateConsFolinear(scip, cons, name, vars, nvars, down, up,
+   SCIP_CALL( SCIPcreateConsFolinear(scip, cons, name, varindices, nvars, down, up,
          TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
    return SCIP_OKAY;

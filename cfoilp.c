@@ -58,9 +58,9 @@ int main(
 
    MR_IntList vars_indices_infolinear;
    MR_Integer n_varsinfolinear;
-   SCIP_VAR** varsinfolinear;
    MR_IntList mr_up;
    MR_IntList mr_down;
+   int* varindicesinfolinear;
    SCIP_Bool* up;
    SCIP_Bool* down;
 
@@ -150,7 +150,7 @@ int main(
 
       SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, consname, i, clausevars) );
       SCIP_CALL( SCIPaddCons(scip, cons) );
-      SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );
+      /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
       SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
       consnames = MR_list_tail(consnames);
@@ -163,7 +163,7 @@ int main(
 
    /* make temporary storage big enough */
 
-   SCIP_CALL( SCIPallocMemoryArray(scip, &varsinfolinear, probdata->nvars) );
+   SCIP_CALL( SCIPallocMemoryArray(scip, &varindicesinfolinear, probdata->nvars) );
    SCIP_CALL( SCIPallocMemoryArray(scip, &down, probdata->nvars) );
    SCIP_CALL( SCIPallocMemoryArray(scip, &up, probdata->nvars) );
 
@@ -181,16 +181,16 @@ int main(
 
       for( i = 0; i < n_varsinfolinear; ++i )
       {
-         varsinfolinear[i] = probdata->vars[(int) MR_list_head(vars_indices_infolinear)];
-         down[i] = MR_list_head(mr_down) == 1 ? TRUE : FALSE;
-         up[i] = MR_list_head(mr_up) == 1 ? TRUE : FALSE;
+         varindicesinfolinear[i] = (int) MR_list_head(vars_indices_infolinear);
+         down[i] = (int) MR_list_head(mr_down) == 1 ? TRUE : FALSE;
+         up[i] = (int) MR_list_head(mr_up) == 1 ? TRUE : FALSE;
          vars_indices_infolinear = MR_list_tail(vars_indices_infolinear);
          mr_down = MR_list_tail(mr_down);
          mr_up = MR_list_tail(mr_up);
       }
 
       /* create first-order constraint */
-      SCIP_CALL( SCIPcreateConsBasicFolinear(scip, &cons, clausename, varsinfolinear, (int) n_varsinfolinear, down, up) );
+      SCIP_CALL( SCIPcreateConsBasicFolinear(scip, &cons, clausename, varindicesinfolinear, (int) n_varsinfolinear, down, up) );
       SCIP_CALL( SCIPaddCons(scip, cons) );
       SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
@@ -198,7 +198,7 @@ int main(
       clausenames = MR_list_tail(clausenames);
    }
 
-   SCIPfreeMemoryArray(scip,&varsinfolinear);
+   SCIPfreeMemoryArray(scip,&varindicesinfolinear);
    SCIPfreeMemoryArray(scip,&down);
    SCIPfreeMemoryArray(scip,&up);
 

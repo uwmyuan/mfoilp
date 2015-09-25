@@ -79,8 +79,8 @@ initial_clause("data4") -->
 	initial_poslit(cancer(X)),
 	initial_poslit(c(X)).
 
-initial_clause("f") --> {person(X)}, initial_poslit(cb1(X)).
-initial_clause("g") --> {person(X), person(Y)}, initial_poslit(cb2(X,Y)).
+initial_clause("f") --> {person(X)}, initial_neglit(cb1(X)), initial_poslit(cb1(X)).
+initial_clause("g") --> {person(X), person(Y)}, initial_neglit(cb2(X,Y)), initial_poslit(cb2(X,Y)).
 
 
 clause("data3").
@@ -105,17 +105,17 @@ clause("fo2") -->
  poslit("fo2",cancer(_)).
  poslit("fo2",cb1(_)).
 
-% clause("fo3").
-% clause("fo3") -->
-% 	insol(smokes(X)),
-% 	neglit(smokes(X)),
-% 	insol(friends(X,Y)),
-% 	neglit(friends(X,Y)),
-% 	{X @<  Y},
-% 	poslit(smokes(Y)),
-% 	poslit(cb2(X,Y)).
-% neglit("fo3",smokes(_)).
-% neglit("fo3",friends(X,Y)) :- X @< Y.
-% neglit("fo3",smokes(_)). 
-% poslit("fo3",cb2(_,_)).
+clause("fo3").
+clause("fo3") -->
+	insol(smokes(X)),
+	neglit(smokes(X)),
+	insol(friends(X,Y)),
+	neglit(friends(X,Y)),
+	{X @<  Y},
+	poslit(smokes(Y)),
+	poslit(cb2(X,Y)).
+neglit("fo3",smokes(_)).
+neglit("fo3",friends(X,Y)) :- X @< Y.
+neglit("fo3",smokes(_)). 
+poslit("fo3",cb2(_,_)).
 

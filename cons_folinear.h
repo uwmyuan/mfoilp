@@ -33,7 +33,7 @@ SCIP_RETCODE SCIPcreateConsFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
-   SCIP_VAR**            vars,               /**< vars in the constraint */
+   int*                  varindices,         /**< global indices of vars in the constraint */
    int                   nvars,              /**< number of vars in the constraint */
    SCIP_Bool*            down,               /**< whether a variable is down locked */
    SCIP_Bool*            up,                 /**< whether a variable is up locked */
@@ -72,7 +72,7 @@ SCIP_RETCODE SCIPcreateConsBasicFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
-   SCIP_VAR**            vars,               /**< vars in the constraint */
+   int*                  varindices,         /**< global indices of vars in the constraint */
    int                   nvars,              /**< number of vars in the constraint */
    SCIP_Bool*            down,               /**< whether a variable is down locked */
    SCIP_Bool*            up                  /**< whether a variable is up locked */
