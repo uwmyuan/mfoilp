@@ -402,7 +402,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
          which does not satisfy the solution 
       */
 
-      if( MR_existscut((MR_String) SCIPconsGetName(cons),probdata->atom_store,indices,values) )
+      if( MR_existscut((MR_String) SCIPconsGetName(cons),indices,values,probdata->atom_store) )
       {
          *result = SCIP_INFEASIBLE;
          return SCIP_OKAY;
@@ -570,7 +570,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
          which does not satisfy the solution 
       */
 
-      if( MR_existscut((MR_String) SCIPconsGetName(cons),probdata->atom_store,indices,values) )
+      if( MR_existscut((MR_String) SCIPconsGetName(cons),indices,values,probdata->atom_store) )
       {
          SCIPdebugMessage("constraint <%s> infeasible.\n", SCIPconsGetName(cons));
          *result = SCIP_INFEASIBLE;
@@ -629,7 +629,7 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
          which does not satisfy the solution 
       */
 
-      if( MR_existscut((MR_String) SCIPconsGetName(cons),probdata->atom_store,indices,values) )
+      if( MR_existscut((MR_String) SCIPconsGetName(cons),indices,values,probdata->atom_store) )
       {
          *result = SCIP_INFEASIBLE;
          return SCIP_OKAY;

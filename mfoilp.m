@@ -235,11 +235,24 @@ varsinfolinear(Name,I,N,Array,Vars,Down,Up,MIn,MOut) :-
 
 :- pragma foreign_export("C", existscut(in,in,in,in), "MR_existscut").
 
-:- pred existscut(string::in,as_next::in,list(int)::in,list(float)::in) is semidet.
+:- pred existscut(string::in,list(int)::in,list(float)::in,as_next::in) is semidet.
 
-existscut(Name,as(Array,_,_),Indices,Values) :-
+existscut(Name,Indices,Values,as(Array,_,_)) :-
 	makesol(Indices,Values,Array,map.init,Sol),
 	clausal_cut(Name,Sol).
+
+% find cuts and return the cuts (as a list of indices of neg and pos literals)
+% together with the objectives and names of any new variables
+
+:- pred findcuts(string::in,list(int)::in,list(float)::in,list(list(int))::out,list(list(int))::out,list(float)::out,list(string)::out,as_next::in,as_next::out) is nondet.
+
+findcuts(Name,Indices,Values,NegLitss,PosLitss,VarObjs,VarNames,ASNIn,ASNOut) :-
+	ASNIn = as(ArrayIn,_,M),
+	makesol(Indices,Values,Array,map.init,Sol),
+	solutions(clausal_cut(Name,Sol),NamedCuts),
+	list.map2_foldl(clause2indices,NamedCuts,NegLitss,PosLitss,ASNIn,ASNout),
+	ASNOut = as(ArrayOut,_,N),
+	allobjs(M,N,ArrayOut,VarObjs,VarNames).
 
 :- pred makesol(list(int)::in,list(float)::in,array(atom)::in,sol::in,sol::out) is det.
 
@@ -270,18 +283,14 @@ solval(Sol,Atom) = Val :-
 :- pred clausal_cut(string::in,sol::in) is semidet.
 
 clausal_cut(Name,Sol) :-
-	StateIn = clause_cut(Sol,0.0,[],[]),
-	prob.clause(Name,StateIn,_StateOut).
+	prob.clause(Name,clause_cut(Sol,0.0,[],[]),_StateOut).
 
-% :- pred clausal_cut(string::in,sol::in,lincons::out) is nondet.
+% in this version we output the cut as a pair of lists of lits
 
-% clausal_cut(Name,Sol,Cut) :-
-% 	StateIn = clause_cut(Sol,0.0,[],[]),
-% 	prob.clause(Name,StateIn,StateOut),
-% 	StateOut = clause_cut(_Sol,_Val,NegLits,PosLits),
-% 	% actually just need to send back two sets of indices
-% 	% this is enough for SCIP
-% 	clause2lincons(NegLits,PosLits,Cut).
+:- pred clausal_cut(string::in,sol::in,named_clause_lits::out) is nondet.
+
+clausal_cut(Name,Sol,named("cut",lits(NegLits,PosLits)) :-
+ 	prob.clause(Name,clause_cut(Sol,0.0,[],[]),clause_cut(_Sol,_Val,NegLits,PosLits)).
 
 initial_poslit(Atom,lits(NegIn,PosIn),lits(NegIn,[Atom|PosIn])).
 initial_neglit(Atom,lits(NegIn,PosIn),lits([Atom|NegIn],PosIn)).
