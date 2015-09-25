@@ -34,11 +34,16 @@
 :- import_module stream.string_writer.
 :- import_module list.
 :- import_module float.
+:- import_module array.
 
 
-:- type atom_store == bimap(int,prob.atom).
+% :- type atom_store == bimap(int,prob.atom).
 % 2nd argument is the index of the next variable to be created
-:- type as_next ---> as(atom_store,int).
+:- type as_next ---> as(
+			array(atom),             % maps ints to atoms
+			map(atom,int),           % and vice-versa
+			int                      % number of atoms stored = next index
+		       ).
 
 :- type sol == map(atom,float).
 :- type clause_info ---> clause_cut(
@@ -82,9 +87,9 @@
 makeclauses(AtomStoreNext,VarObjs,VarNames,ConsNames,NegLitss,PosLitss) :-
 	Call = (pred(named(Name,Lits)::out) is nondet :- prob.initial_clause(Name,lits([],[]),Lits)),
 	solutions(Call,AllNamedInitialClauses),
-	list.map2_foldl(clause2indices,AllNamedInitialClauses,NegLitss,PosLitss,as(bimap.init,0),AtomStoreNext),
-	AtomStoreNext = as(AS,Next),
-	allobjs(0,Next,AS,VarObjs,VarNames),
+	list.map2_foldl(clause2indices,AllNamedInitialClauses,NegLitss,PosLitss,as(array.make_empty_array,map.init,0),AtomStoreNext),
+	AtomStoreNext = as(Array,_Map,Next),
+	allobjs(0,Next,Array,VarObjs,VarNames),
 	name_all(AllNamedInitialClauses,ConsNames,map.init,_).
 
 :- pred name_all(list(named_clause_lits)::in,list(string)::out,map(string,int)::in,map(string,int)::out) is det.
@@ -100,15 +105,15 @@ name_all([named(Name,_)|T],[NameNum|NT],In,Out) :-
 	),
 	name_all(T,NT,Mid,Out).
 
-:- pred allobjs(int::in,int::in,atom_store::in,list(float)::out,list(string)::out) is det.
+:- pred allobjs(int::in,int::in,array(atom)::in,list(float)::out,list(string)::out) is det.
 
-allobjs(I,Next,AS,VarObjs,VarNames) :-
+allobjs(I,Next,Array,VarObjs,VarNames) :-
 	(
 	  I < Next ->
-	  Atom = bimap.lookup(AS,I),
+	  array.lookup(Array,I,Atom),
 	  VarObjs = [prob.objective(Atom)|T],
 	  VarNames = [name(Atom)|VT],
-	  allobjs(I+1,Next,AS,T,VT);
+	  allobjs(I+1,Next,Array,T,VT);
 	  VarObjs = [],
 	  VarNames = []
 	).
@@ -130,14 +135,15 @@ clause2indices(named(_,lits(NegLits,PosLits)),NegLitIndices,PosLitIndices,!ASN) 
 
 lits2indices([],[],ASNIn,ASNIn).
 lits2indices([Lit|Lits],[LitIndex|LitIndices],ASNIn,ASNOut) :-
-	ASNIn = as(ASIn,Next),
+	ASNIn = as(Array,Map,Next),
 	(
-	  bimap.reverse_search(ASIn,LitIndex0,Lit) ->
+	  map.search(Map,Lit,LitIndex0) ->
 	  LitIndex = LitIndex0,
 	  lits2indices(Lits,LitIndices,ASNIn,ASNOut);
-	  bimap.det_insert(Next,Lit,ASIn,ASMid),
+	  map.det_insert(Lit,Next,Map,NewMap),
+	  array.resize(Next+1,Lit,Array,NewArray),
 	  LitIndex = Next,
-	  ASNMid = as(ASMid,Next+1),
+	  ASNMid = as(NewArray,NewMap,Next+1),
 	  lits2indices(Lits,LitIndices,ASNMid,ASNOut)
 	).
 
@@ -186,15 +192,15 @@ foclausenames(Names) :-
 
 % this just adds accumulators
 
-varsinfolinear(Name,as(AS,N),Vars,M,Down,Up) :-
-	varsinfolinear(Name,0,N,AS,Vars,Down,Up,0,M).
+varsinfolinear(Name,as(Array,_Map,N),Vars,M,Down,Up) :-
+	varsinfolinear(Name,0,N,Array,Vars,Down,Up,0,M).
 
-:- pred varsinfolinear(string::in,int::in,int::in,atom_store::in,list(int)::out,list(int)::out,list(int)::out,int::in,int::out) is det.
+:- pred varsinfolinear(string::in,int::in,int::in,array(atom)::in,list(int)::out,list(int)::out,list(int)::out,int::in,int::out) is det.
 
-varsinfolinear(Name,I,N,AS,Vars,Down,Up,MIn,MOut) :-
+varsinfolinear(Name,I,N,Array,Vars,Down,Up,MIn,MOut) :-
 	(
 	  I < N ->
-	  bimap.lookup(AS,I,Atom),
+	  array.lookup(Array,I,Atom),
 	  (
 	    % a positive literal is down-locked
 	    prob.poslit(Name,Atom) ->
@@ -206,14 +212,14 @@ varsinfolinear(Name,I,N,AS,Vars,Down,Up,MIn,MOut) :-
 	      Up = [1|UpT];
 	      Up = [0|UpT]
 	    ),
-	    varsinfolinear(Name,I+1,N,AS,T,DownT,UpT,MIn+1,MOut);
+	    varsinfolinear(Name,I+1,N,Array,T,DownT,UpT,MIn+1,MOut);
 	    (
 	      prob.neglit(Name,Atom) ->
 	      Vars = [I|T],
 	      Down = [0|DownT],
 	      Up = [1|UpT],
-	      varsinfolinear(Name,I+1,N,AS,T,DownT,UpT,MIn+1,MOut);
-	      varsinfolinear(Name,I+1,N,AS,Vars,Down,Up,MIn,MOut)
+	      varsinfolinear(Name,I+1,N,Array,T,DownT,UpT,MIn+1,MOut);
+	      varsinfolinear(Name,I+1,N,Array,Vars,Down,Up,MIn,MOut)
 	    ));
 	  Vars = [],
 	  Down = [],
@@ -231,20 +237,19 @@ varsinfolinear(Name,I,N,AS,Vars,Down,Up,MIn,MOut) :-
 
 :- pred existscut(string::in,as_next::in,list(int)::in,list(float)::in) is semidet.
 
-existscut(Name,ASN,Indices,Values) :-
-	ASN = as(AtomStore,_),
-	makesol(Indices,Values,AtomStore,map.init,Sol),
+existscut(Name,as(Array,_,_),Indices,Values) :-
+	makesol(Indices,Values,Array,map.init,Sol),
 	clausal_cut(Name,Sol).
 
-:- pred makesol(list(int)::in,list(float)::in,atom_store::in,sol::in,sol::out) is det.
+:- pred makesol(list(int)::in,list(float)::in,array(atom)::in,sol::in,sol::out) is det.
 
-makesol([],_Vals,_AtomStore,!Sol).
+makesol([],_Vals,_Array,!Sol).
 %next clause should never be called since should always be called with lists of the same length
-makesol([_H|_T],[],_AtomStore,!Sol).
-makesol([H|T],[VH|VT],AtomStore,!Sol) :-
-	bimap.lookup(AtomStore,H,Atom),
+makesol([_H|_T],[],_Array,!Sol).
+makesol([H|T],[VH|VT],Array,!Sol) :-
+	array.lookup(Array,H,Atom),
 	map.det_insert(Atom,VH,!Sol),
-	makesol(T,VT,AtomStore,!Sol).
+	makesol(T,VT,Array,!Sol).
 
 :- func solval(sol,atom) = float.
 solval(Sol,Atom) = Val :-
