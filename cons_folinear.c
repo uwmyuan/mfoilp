@@ -373,6 +373,22 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
    SCIP_CONSDATA* consdata;
    SCIP_PROBDATA* probdata;
 
+   MR_AtomStore atomstore;
+   MR_FloatList objectives;
+   MR_StringList varnames;
+   MR_IntListList neglitss;
+   MR_IntListList poslitss;
+   MR_IntList neglits;
+   MR_IntList poslits;
+
+   SCIP_VAR* var;
+
+   SCIP_VAR* clausevars[100];
+   int nvars;
+   SCIP_VAR* negvar;
+   SCIP_ROW* row;
+   SCIP_Bool cutoff;
+
    assert( scip != NULL );
    assert( conshdlr != NULL );
    assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
@@ -398,129 +414,90 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 
       sol2mercury(scip, consdata->varindices, consdata->nvars, probdata->vars, NULL, &indices, &values);
 
-      /* ask Mercury whether there exists a ground instance of this constraint
-         which does not satisfy the solution 
-      */
+      /* get cuts, if any, and any new variables */
 
-      if( MR_existscut((MR_String) SCIPconsGetName(cons),indices,values,probdata->atom_store) )
+      MR_findcuts((MR_String) SCIPconsGetName(cons), indices, values, &neglitss, &poslitss, &objectives, &varnames, probdata->atom_store, &atomstore); 
+      
+      /* update atom store */
+
+      probdata->atom_store = atomstore;
+
+      /* create any new binary variables in constraints using "objectives" list */
+      /* this same code occurs in cfoilp.c ! */
+
+      while ( !MR_list_is_empty(objectives) ) 
       {
-         *result = SCIP_INFEASIBLE;
-         return SCIP_OKAY;
+         SCIP_CALL( 
+            SCIPcreateVarBasic(scip, &var, 
+               (char *) MR_list_head(varnames), 
+               0.0, 1.0, 
+               (SCIP_Real) MR_word_to_float(MR_list_head(objectives)), 
+               SCIP_VARTYPE_BINARY) );
+         SCIP_CALL( SCIPaddVar(scip, var) );
+         
+         /* increase size of probdata->vars if necessary */
+         if( !(probdata->nvars < probdata->vars_len) )
+         {
+            probdata->vars_len += VAR_BLOCKSIZE;
+            SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
+         }
+
+         /* record variable in array */
+         /* value of probdata->nvars will correspond with that of Mercury's atomstore */
+         probdata->vars[probdata->nvars++] = var;
+
+         objectives = MR_list_tail(objectives);
+         varnames = MR_list_tail(varnames);
+         
       }
 
+      /* now add the cuts */
 
-      /* all this stuff TODO */
+      while ( !MR_list_is_empty(neglitss) )
+      {
+         neglits =  MR_list_head(neglitss);
+         poslits =  MR_list_head(poslitss);
 
-/*       /\* get cuts (if any ) from Mercury *\/ */
+         nvars = 0;
 
-/*       MR_cuts(probdata->atom_store,indices,values,probdata->row_store,probdata->nrows,&new_row_store,&row_idents,&names,&lbs,&finlbs,&coeffss,&varss,&ubs,&finubs); */
-      
-/*       /\* update row store (only for later passing back to Mercury ) *\/ */
+         while ( !MR_list_is_empty(neglits) )
+         {
+            var = probdata->vars[(int) MR_list_head(neglits)];
+            SCIP_CALL( SCIPgetNegatedVar(scip,var,&negvar) );
+            clausevars[nvars++] = negvar;
+            neglits =  MR_list_tail(neglits);
+         }
 
-/*       probdata->row_store = new_row_store; */
+         while ( !MR_list_is_empty(poslits) )
+         {
+            var = probdata->vars[(int) MR_list_head(poslits)];
+            clausevars[nvars++] = var;
+            poslits =  MR_list_tail(poslits);
+         }
 
-/*       /\* add any cuts to SCIP *\/ */
+         SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, "cut", 1.0, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+         SCIP_CALL( SCIPaddVarsToRowSameCoef(scip, row, nvars, clausevars, 1.0) );
+         SCIP_CALL( SCIPaddCut(scip, NULL, row, FALSE, &cutoff) );
+         SCIP_CALL( SCIPreleaseRow(scip, &row));
+         nGen++;
 
-/*       while ( !MR_list_is_empty(lbs) ) */
-/*       { */
-/*          MR_FloatList coeffs; */
-/*          MR_IntList vars; */
+         if ( cutoff )
+         {
+            *result = SCIP_CUTOFF;
+            return SCIP_OKAY;
+         }
 
-/*          MR_String name; */
-/*          SCIP_Real lb; */
-/*          int finlb; */
-/*          SCIP_Real ub; */
-/*          int finub;    */
-
-/*          SCIP_ROW *row; */
-/*          SCIP_Bool infeasible; */
-/*          char s[SCIP_MAXSTRLEN]; */
-
-/*          coeffs = MR_list_head(coeffss); */
-/*          vars = MR_list_head(varss); */
-/*          name = (MR_String)  MR_list_head(names); */
-
-/*          finlb = MR_list_head(finlbs); */
-/*          if( finlb ) */
-/*             lb = MR_word_to_float(MR_list_head(lbs)); */
-/*          else */
-/*             lb = -SCIPinfinity(scip); */
-
-/*          finub = MR_list_head(finubs); */
-/*          if( finub ) */
-/*             ub = MR_word_to_float(MR_list_head(ubs)); */
-/*          else */
-/*             ub = SCIPinfinity(scip); */
-
-/*          row_ident = MR_list_head(row_idents); */
-         
-/*          /\* throw error if idents are not listed as 0,1,...n *\/ */
-/*          if( row_ident != probdata->nrows ) */
-/*          { */
-/*             SCIPerrorMessage("Mercury did not return list of cutting plane indices  correctly.\n"); */
-/*             exit(1); */
-/*          }       */
-/*          /\* make the cut *\/ */
-      
-/*          (void) SCIPsnprintf(s, SCIP_MAXSTRLEN, "%s", name); */
-
-/*          /\* note row is set to modifiable to allow priced-in variables to enter *\/ */
-/*          SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, s, lb, ub, FALSE, TRUE, TRUE) ); */
-/*          SCIP_CALL( SCIPcacheRowExtensions(scip, row) ); */
-
-/*          while ( !MR_list_is_empty(coeffs) ) */
-/*          { */
-/*             SCIP_Real coeff; */
-            
-/*             coeff = MR_word_to_float(MR_list_head(coeffs)); */
-/*             var = probdata->vars[MR_list_head(vars)]; */
-/*             SCIP_CALL( SCIPaddVarToRow(scip, row, var, coeff) ); */
-/*             coeffs = MR_list_tail(coeffs); */
-/*             vars = MR_list_tail(vars); */
-/*          } */
-         
-/*          SCIP_CALL( SCIPflushRowExtensions(scip, row) ); */
-/* #ifdef SCIP_DEBUG */
-/*          SCIPdebug( SCIPprintRow(scip, row, NULL) ); */
-/* #endif */
-/*          SCIP_CALL( SCIPaddCut(scip, NULL, row, FALSE, &infeasible) ); */
-/*          /\*SCIP_CALL( SCIPreleaseRow(scip, &row));*\/ */
-/*          ++nGen; */
-
-/*          /\* add row to probdata *\/ */
-/*          if( !(row_ident < probdata->rows_len) ) */
-/*          { */
-/*             probdata->rows_len += VAR_BLOCKSIZE; */
-/*             SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->rows), probdata->rows_len) ); */
-/*          } */
-/*          probdata->rows[probdata->nrows++] = row; */
-         
-/*          if ( infeasible ) */
-/*          { */
-/*             /\* do not declare that the current subproblem is infeasible */
-/*                since pricing may allow us to recover feasibility * */
-/*                *result = SCIP_CUTOFF; *\/ */
-/*             *result = SCIP_INFEASIBLE; */
-/*             return SCIP_OKAY; */
-/*          } */
-
-/*          coeffss = MR_list_tail(coeffss); */
-/*          varss = MR_list_tail(varss); */
-/*          names = MR_list_tail(names); */
-/*          lbs = MR_list_tail(lbs); */
-/*          finlbs = MR_list_tail(finlbs); */
-/*          ubs = MR_list_tail(ubs); */
-/*          finubs = MR_list_tail(finubs); */
-/*          row_idents = MR_list_tail(row_idents); */
-
-/*       } */
-/*       /\* return as soon as we find a constraint which generated some cuts *\/ */
-/*       if (nGen > 0) */
-/*       { */
-/* 	 *result = SCIP_SEPARATED; */
-/* 	 return SCIP_OKAY; */
-/*       } */
+         neglitss = MR_list_tail(neglitss);
+         poslitss = MR_list_tail(poslitss);
+      }
    }
+   
+   if( nGen > 0 )
+   {
+      *result = SCIP_SEPARATED;
+      return SCIP_OKAY;
+   }
+
    SCIPdebugMessage("all first-order linear constraints are feasible.\n");
    *result = SCIP_FEASIBLE;
    return SCIP_OKAY;

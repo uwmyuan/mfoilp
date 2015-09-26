@@ -243,14 +243,27 @@ existscut(Name,Indices,Values,as(Array,_,_)) :-
 
 % find cuts and return the cuts (as a list of indices of neg and pos literals)
 % together with the objectives and names of any new variables
+% currently don't pass back the name of the cut
 
-:- pred findcuts(string::in,list(int)::in,list(float)::in,list(list(int))::out,list(list(int))::out,list(float)::out,list(string)::out,as_next::in,as_next::out) is nondet.
+:- pragma foreign_export("C", findcuts(in,in,in,out,out,out,out,in,out), "MR_findcuts").
+
+:- pred findcuts(
+		 string::in,             % name of the first-order clause for which cuts are sought
+		 list(int)::in,          % indices of variables with non-zero values in the (LP) solution
+		 list(float)::in,        % values of variables with non-zero values in the (LP) solution
+		 list(list(int))::out,   % list of neg lit indices for each cut
+		 list(list(int))::out,   % list of pos lit indices for each cut
+		 list(float)::out,       % list of objective values for new variables
+		 list(string)::out,      % list of names for new variables
+		 as_next::in,            % input atom store
+		 as_next::out            % output atom store
+		) is det.
 
 findcuts(Name,Indices,Values,NegLitss,PosLitss,VarObjs,VarNames,ASNIn,ASNOut) :-
 	ASNIn = as(ArrayIn,_,M),
-	makesol(Indices,Values,Array,map.init,Sol),
+	makesol(Indices,Values,ArrayIn,map.init,Sol),
 	solutions(clausal_cut(Name,Sol),NamedCuts),
-	list.map2_foldl(clause2indices,NamedCuts,NegLitss,PosLitss,ASNIn,ASNout),
+	list.map2_foldl(clause2indices,NamedCuts,NegLitss,PosLitss,ASNIn,ASNOut),
 	ASNOut = as(ArrayOut,_,N),
 	allobjs(M,N,ArrayOut,VarObjs,VarNames).
 
@@ -289,7 +302,7 @@ clausal_cut(Name,Sol) :-
 
 :- pred clausal_cut(string::in,sol::in,named_clause_lits::out) is nondet.
 
-clausal_cut(Name,Sol,named("cut",lits(NegLits,PosLits)) :-
+clausal_cut(Name,Sol,named("cut",lits(NegLits,PosLits))) :-
  	prob.clause(Name,clause_cut(Sol,0.0,[],[]),clause_cut(_Sol,_Val,NegLits,PosLits)).
 
 initial_poslit(Atom,lits(NegIn,PosIn),lits(NegIn,[Atom|PosIn])).
