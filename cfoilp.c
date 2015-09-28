@@ -22,7 +22,21 @@
 #include "mercury_stuff.h"
 
 
+/** delete problem data */
+static
+SCIP_DECL_PROBDELORIG(probdelorigFOILP)
+{  /*lint --e{831} */
 
+   assert( probdata != NULL );
+   assert( *probdata != NULL );
+
+   SCIPfreeMemoryArray(scip, &(*probdata)->vars);
+
+   /* free probdata */
+   SCIPfreeMemory(scip, probdata);
+
+   return SCIP_OKAY;
+}
 
 
 /** main function (just for testing at present ) */
@@ -69,7 +83,7 @@ int main(
    /* allocate memory */
    SCIP_CALL( SCIPallocMemory(scip, &probdata) );
 
-   SCIP_CALL( SCIPcreateProb(scip, "folilp", NULL, NULL, NULL,
+   SCIP_CALL( SCIPcreateProb(scip, "folilp", probdelorigFOILP, NULL, NULL,
          NULL, NULL, NULL, probdata) );
 
    MR_initial_constraints(&atomstore,&objectives,&varnames,&consnames,&neglitss,&poslitss);
@@ -170,11 +184,6 @@ int main(
    SCIP_CALL( SCIPprintBestSol(scip, NULL, FALSE) );
 
    /* SCIP_CALL( SCIPprintStatistics(scip, NULL) ); */
-
-   SCIPfreeMemoryArray(scip, &(probdata->vars));
-
-   /* free probdata */
-   SCIPfreeMemory(scip, &probdata);
 
    SCIP_CALL( SCIPfree(&scip) );
 

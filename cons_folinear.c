@@ -23,8 +23,8 @@
 
 /* optional constraint handler properties */
 /* TODO: remove properties which are never used because the corresponding routines are not supported */
-#define CONSHDLR_SEPAPRIORITY         0 /**< priority of the constraint handler for separation */
-#define CONSHDLR_SEPAFREQ            -1 /**< frequency for separating cuts; zero means to separate only in the root node */
+#define CONSHDLR_SEPAPRIORITY         100 /**< priority of the constraint handler for separation */
+#define CONSHDLR_SEPAFREQ             1 /**< frequency for separating cuts; zero means to separate only in the root node */
 #define CONSHDLR_DELAYSEPA        FALSE /**< should separation method be delayed, if other separators found cuts? */
 
 #define CONSHDLR_PROPFREQ            -1 /**< frequency for propagating domains; zero means only preprocessing propagation */
@@ -315,38 +315,8 @@ SCIP_DECL_CONSINITLP(consInitlpFolinear)
 
 
 /** separation method of constraint handler for LP solutions */
-#if 0
 static
 SCIP_DECL_CONSSEPALP(consSepalpFolinear)
-{  /*lint --e{715}*/
-   SCIPerrorMessage("method of folinear constraint handler not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
-
-   return SCIP_OKAY;
-}
-#else
-#define consSepalpFolinear NULL
-#endif
-
-
-/** separation method of constraint handler for arbitrary primal solutions */
-#if 0
-static
-SCIP_DECL_CONSSEPASOL(consSepasolFolinear)
-{  /*lint --e{715}*/
-   SCIPerrorMessage("method of folinear constraint handler not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
-
-   return SCIP_OKAY;
-}
-#else
-#define consSepasolFolinear NULL
-#endif
-
-
-/** constraint enforcing method of constraint handler for LP solutions */
-static
-SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 {  /*lint --e{715}*/
 
    int c;
@@ -369,6 +339,9 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 
    SCIP_VAR* var;
 
+   MR_Integer mr_down;
+   MR_Integer mr_up;
+
    SCIP_VAR* clausevars[100];
    int nvars;
    SCIP_VAR* negvar;
@@ -386,6 +359,8 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 
    /* get solution values for all problem variables */
 
+   *result = SCIP_DIDNOTRUN;
+
    sol2mercury(scip, NULL, &indices, &values);
 
    /* loop through all constraints */
@@ -393,7 +368,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
    {
       cons = conss[c];
       assert( cons != NULL );
-      SCIPdebugMessage("enforcing lp solution for first order linear constraint <%s>.\n", SCIPconsGetName(cons));
+      SCIPdebugMessage("separating LP solution for first order linear constraint <%s>.\n", SCIPconsGetName(cons));
 
       /* get cuts, if any, and any new variables */
 
@@ -409,18 +384,26 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
       while ( !MR_list_is_empty(objectives) ) 
       {
          SCIP_CALL( 
-            SCIPcreateVarBasic(scip, &var, 
+            SCIPcreateVar(scip, &var, 
                (char *) MR_list_head(varnames), 
                0.0, 1.0, 
                (SCIP_Real) MR_word_to_float(MR_list_head(objectives)), 
-               SCIP_VARTYPE_BINARY) );
+               SCIP_VARTYPE_BINARY, FALSE, FALSE, NULL, NULL, NULL, NULL, NULL) );
          SCIP_CALL( SCIPaddVar(scip, var) );
+
+         /* lock the variable */
+         
+         MR_locks( (MR_String) SCIPconsGetName(cons), probdata->atom_store, probdata->nvars, &mr_down, &mr_up);
+
+         SCIP_CALL( SCIPlockVarCons(scip, var, cons, (SCIP_Bool) mr_down, (SCIP_Bool) mr_up) ); 
 
 #ifdef SCIP_DEBUG
          SCIPdebugMessage("New variable:\n");
          SCIPdebug( SCIPprintVar(scip, var, NULL) );
+         SCIPdebugMessage("Down lock = <%d>, Up lock = <%d>\n", (SCIP_Bool) mr_down, (SCIP_Bool) mr_up);
 #endif
-         
+
+   
          /* increase size of probdata->vars if necessary */
          if( !(probdata->nvars < probdata->vars_len) )
          {
@@ -481,6 +464,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
 
          if ( cutoff )
          {
+            SCIPdebugMessage("Cut generated a cutoff.\n");
             *result = SCIP_CUTOFF;
             return SCIP_OKAY;
          }
@@ -492,6 +476,198 @@ SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
    
    if( nGen > 0 )
    {
+      SCIPdebugMessage("separated %d cuts.\n", nGen);
+      *result = SCIP_SEPARATED;
+      return SCIP_OKAY;
+   }
+
+   return SCIP_OKAY;
+
+}
+
+
+
+/** separation method of constraint handler for arbitrary primal solutions */
+#if 0
+static
+SCIP_DECL_CONSSEPASOL(consSepasolFolinear)
+{  /*lint --e{715}*/
+   SCIPerrorMessage("method of folinear constraint handler not implemented yet\n");
+   SCIPABORT(); /*lint --e{527}*/
+
+   return SCIP_OKAY;
+}
+#else
+#define consSepasolFolinear NULL
+#endif
+
+
+/** constraint enforcing method of constraint handler for LP solutions */
+static
+SCIP_DECL_CONSENFOLP(consEnfolpFolinear)
+{  /*lint --e{715}*/
+
+   int c;
+   int nGen = 0;
+
+   SCIP_CONS* cons;
+
+   MR_IntList indices;
+   MR_FloatList values;
+
+   SCIP_PROBDATA* probdata;
+
+   MR_AtomStore atomstore;
+   MR_FloatList objectives;
+   MR_StringList varnames;
+   MR_IntListList neglitss;
+   MR_IntListList poslitss;
+   MR_IntList neglits;
+   MR_IntList poslits;
+
+   SCIP_VAR* var;
+
+   MR_Integer mr_down;
+   MR_Integer mr_up;
+
+   SCIP_VAR* clausevars[100];
+   int nvars;
+   SCIP_VAR* negvar;
+   SCIP_ROW* row;
+   SCIP_Bool cutoff;
+
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
+   assert( conss != NULL );
+   assert( result != NULL );
+
+   probdata = SCIPgetProbData(scip);
+   assert( probdata != NULL );
+
+   /* get solution values for all problem variables */
+
+   sol2mercury(scip, NULL, &indices, &values);
+
+   /* loop through all constraints */
+   for (c = 0; c < nconss; ++c)
+   {
+      cons = conss[c];
+      assert( cons != NULL );
+      SCIPdebugMessage("enforcing lp solution for first order linear constraint <%s>.\n", SCIPconsGetName(cons));
+
+      /* get cuts, if any, and any new variables */
+
+      MR_findcuts((MR_String) SCIPconsGetName(cons), indices, values, &neglitss, &poslitss, &objectives, &varnames, probdata->atom_store, &atomstore); 
+      
+      /* update atom store */
+
+      probdata->atom_store = atomstore;
+
+      /* create any new binary variables in constraints using "objectives" list */
+      /* this same code occurs in cfoilp.c ! */
+
+      while ( !MR_list_is_empty(objectives) ) 
+      {
+         SCIP_CALL( 
+            SCIPcreateVar(scip, &var, 
+               (char *) MR_list_head(varnames), 
+               0.0, 1.0, 
+               (SCIP_Real) MR_word_to_float(MR_list_head(objectives)), 
+               SCIP_VARTYPE_BINARY, FALSE, FALSE, NULL, NULL, NULL, NULL, NULL) );
+         SCIP_CALL( SCIPaddVar(scip, var) );
+
+#ifdef SCIP_DEBUG
+         SCIPdebugMessage("New variable:\n");
+         SCIPdebug( SCIPprintVar(scip, var, NULL) );
+#endif
+      
+         /* lock the variable */
+         
+         MR_locks( (MR_String) SCIPconsGetName(cons), probdata->atom_store, probdata->nvars, &mr_down, &mr_up);
+
+         SCIP_CALL( SCIPlockVarCons(scip, var, cons, (SCIP_Bool) mr_down, (SCIP_Bool) mr_up) ); 
+
+#ifdef SCIP_DEBUG
+         SCIPdebugMessage("New variable:\n");
+         SCIPdebug( SCIPprintVar(scip, var, NULL) );
+         SCIPdebugMessage("Down lock = <%d>, Up lock = <%d>\n", (SCIP_Bool) mr_down, (SCIP_Bool) mr_up);
+#endif
+
+   
+         /* increase size of probdata->vars if necessary */
+         if( !(probdata->nvars < probdata->vars_len) )
+         {
+            probdata->vars_len += VAR_BLOCKSIZE;
+            SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
+         }
+
+         /* record variable in array */
+         /* value of probdata->nvars will correspond with that of Mercury's atomstore */
+         probdata->vars[probdata->nvars++] = var;
+
+         objectives = MR_list_tail(objectives);
+         varnames = MR_list_tail(varnames);
+         
+      }
+
+      /* now add the cuts */
+
+      while ( !MR_list_is_empty(neglitss) )
+      {
+         neglits =  MR_list_head(neglitss);
+         poslits =  MR_list_head(poslitss);
+
+         nvars = 0;
+
+         while ( !MR_list_is_empty(neglits) )
+         {
+            var = probdata->vars[(int) MR_list_head(neglits)];
+            SCIP_CALL( SCIPgetNegatedVar(scip,var,&negvar) );
+            clausevars[nvars++] = negvar;
+#ifdef SCIP_DEBUG
+            SCIPdebugMessage("Variable in cut:\n");
+            SCIPdebug( SCIPprintVar(scip, negvar, NULL) );
+#endif
+            neglits =  MR_list_tail(neglits);
+         }
+
+         while ( !MR_list_is_empty(poslits) )
+         {
+            var = probdata->vars[(int) MR_list_head(poslits)];
+            clausevars[nvars++] = var;
+#ifdef SCIP_DEBUG
+            SCIPdebugMessage("Variable in cut:\n");
+            SCIPdebug( SCIPprintVar(scip, var, NULL) );
+#endif
+
+            poslits =  MR_list_tail(poslits);
+         }
+
+         SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, "cut", 1.0, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+         SCIP_CALL( SCIPaddVarsToRowSameCoef(scip, row, nvars, clausevars, 1.0) );
+#ifdef SCIP_DEBUG
+         SCIPdebug( SCIPprintRow(scip, row, NULL) );
+#endif
+         SCIP_CALL( SCIPaddCut(scip, NULL, row, FALSE, &cutoff) );
+         SCIP_CALL( SCIPreleaseRow(scip, &row));
+         nGen++;
+
+         if ( cutoff )
+         {
+            SCIPdebugMessage("Cut generated a cutoff.\n");
+            *result = SCIP_CUTOFF;
+            return SCIP_OKAY;
+         }
+
+         neglitss = MR_list_tail(neglitss);
+         poslitss = MR_list_tail(poslitss);
+      }
+   }
+   
+   if( nGen > 0 )
+   {
+      SCIPdebugMessage("added %d cuts.\n", nGen);
       *result = SCIP_SEPARATED;
       return SCIP_OKAY;
    }
@@ -660,7 +836,7 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
 
    int i;
    SCIP_VAR* var;
-   char* consname;
+   const char* consname = SCIPconsGetName(cons);
 
    MR_Integer mr_down;
    MR_Integer mr_up;
@@ -669,8 +845,6 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
    assert( conshdlr != NULL );
    assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
    assert( cons != NULL );
-
-   consname = SCIPconsGetName(cons);
 
    SCIPdebugMessage("locking first order linear constraint <%s>.\n", consname);
 
@@ -683,7 +857,7 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
    for( i = 0; i < probdata->nvars; ++i )
    {
       var = probdata->vars[i];
-      MR_locks(consname, probdata->atom_store, i, &mr_down, &mr_up);
+      MR_locks((MR_String) consname, probdata->atom_store, i, &mr_down, &mr_up);
 
       if( (SCIP_Bool) mr_up )
       {
@@ -907,7 +1081,7 @@ SCIP_RETCODE SCIPincludeConshdlrFolinear(
    /* SCIP_CALL( SCIPsetConshdlrProp(scip, conshdlr, consPropFolinear, CONSHDLR_PROPFREQ, CONSHDLR_DELAYPROP, */
    /*       CONSHDLR_PROP_TIMING) ); */
    /* SCIP_CALL( SCIPsetConshdlrResprop(scip, conshdlr, consRespropFolinear) ); */
-   /* SCIP_CALL( SCIPsetConshdlrSepa(scip, conshdlr, consSepalpFolinear, consSepasolFolinear, CONSHDLR_SEPAFREQ, CONSHDLR_SEPAPRIORITY, CONSHDLR_DELAYSEPA) ); */
+   SCIP_CALL( SCIPsetConshdlrSepa(scip, conshdlr, consSepalpFolinear, consSepasolFolinear, CONSHDLR_SEPAFREQ, CONSHDLR_SEPAPRIORITY, CONSHDLR_DELAYSEPA) ); 
    /* SCIP_CALL( SCIPsetConshdlrTrans(scip, conshdlr, consTransFolinear) ); */
 
    /* add folinear constraint handler parameters */
