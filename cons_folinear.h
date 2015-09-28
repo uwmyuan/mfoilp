@@ -33,10 +33,6 @@ SCIP_RETCODE SCIPcreateConsFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
-   int*                  varindices,         /**< global indices of vars in the constraint */
-   int                   nvars,              /**< number of vars in the constraint */
-   SCIP_Bool*            down,               /**< whether a variable is down locked */
-   SCIP_Bool*            up,                 /**< whether a variable is up locked */
    SCIP_Bool             initial,            /**< should the LP relaxation of constraint be in the initial LP?
                                               *   Usually set to TRUE. Set to FALSE for 'lazy constraints'. */
    SCIP_Bool             separate,           /**< should the constraint be separated during LP processing?
@@ -71,11 +67,7 @@ EXTERN
 SCIP_RETCODE SCIPcreateConsBasicFolinear(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
-   const char*           name,               /**< name of constraint */
-   int*                  varindices,         /**< global indices of vars in the constraint */
-   int                   nvars,              /**< number of vars in the constraint */
-   SCIP_Bool*            down,               /**< whether a variable is down locked */
-   SCIP_Bool*            up                  /**< whether a variable is up locked */
+   const char*           name                /**< name of constraint */
    );
 
 #ifdef __cplusplus

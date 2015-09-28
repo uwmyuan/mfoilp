@@ -43,10 +43,6 @@ int main(
    MR_IntListList neglitss;
    MR_IntListList poslitss;
 
-   SCIP_Real obj;
-   MR_String varname;     /* SCIP happy to use the Mercury pointer directly */
-   char* consname;    /* SCIP happy to use the Mercury pointer directly */
-
    SCIP_VAR* var;
    
    MR_IntList neglits;
@@ -56,18 +52,9 @@ int main(
 
    SCIP_CONS* cons;
 
-   MR_IntList vars_indices_infolinear;
-   MR_Integer n_varsinfolinear;
-   MR_IntList mr_up;
-   MR_IntList mr_down;
-   int* varindicesinfolinear;
-   SCIP_Bool* up;
-   SCIP_Bool* down;
-
    int i;
 
    MR_StringList clausenames;
-   char* clausename;
 
    SCIP_VAR* clausevars[100];
 
@@ -81,7 +68,6 @@ int main(
 
    /* allocate memory */
    SCIP_CALL( SCIPallocMemory(scip, &probdata) );
-
 
    SCIP_CALL( SCIPcreateProb(scip, "folilp", NULL, NULL, NULL,
          NULL, NULL, NULL, probdata) );
@@ -100,9 +86,11 @@ int main(
 
    while ( !MR_list_is_empty(objectives) ) 
    {
-      obj = MR_word_to_float(MR_list_head(objectives));
-      varname =    (MR_String) MR_list_head(varnames);
-      SCIP_CALL( SCIPcreateVarBasic(scip, &var, varname, 0.0, 1.0, obj, SCIP_VARTYPE_BINARY) );
+      SCIP_CALL( SCIPcreateVarBasic(scip, &var, 
+            (char *) MR_list_head(varnames), 
+            0.0, 1.0, 
+            (SCIP_Real) MR_word_to_float(MR_list_head(objectives)), 
+            SCIP_VARTYPE_BINARY) );
       SCIP_CALL( SCIPaddVar(scip, var) );
 
       /* increase size of probdata->vars if necessary */
@@ -125,7 +113,6 @@ int main(
    
    while ( !MR_list_is_empty(consnames) )
    {
-      consname = (char *)  MR_list_head(consnames);
       neglits =  MR_list_head(neglitss);
       poslits =  MR_list_head(poslitss);
 
@@ -146,8 +133,9 @@ int main(
          poslits =  MR_list_tail(poslits);
       }
 
-
-      SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, consname, i, clausevars) );
+      SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, 
+            (char *)  MR_list_head(consnames), 
+            i, clausevars) );
       SCIP_CALL( SCIPaddCons(scip, cons) );
       /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
       SCIP_CALL( SCIPreleaseCons(scip, &cons) );
@@ -160,46 +148,21 @@ int main(
    /* include first-order linear constraint handler */
    SCIP_CALL( SCIPincludeConshdlrFolinear(scip) );
 
-   /* make temporary storage big enough */
-
-   SCIP_CALL( SCIPallocMemoryArray(scip, &varindicesinfolinear, probdata->nvars) );
-   SCIP_CALL( SCIPallocMemoryArray(scip, &down, probdata->nvars) );
-   SCIP_CALL( SCIPallocMemoryArray(scip, &up, probdata->nvars) );
-
+   /* get list of names of first-order clauses */
+   
    MR_delayed_clauses(&clausenames);
 
    while ( !MR_list_is_empty(clausenames) )
    {
-      clausename =  (char*) MR_list_head(clausenames);
-
-      /* find out which, if any, of the variables in the initial clauses are
-         also involved in this delayed clause
-      */
-
-      MR_varsinfolinear(clausename, probdata->atom_store, &vars_indices_infolinear, &n_varsinfolinear, &mr_down, &mr_up);
-
-      for( i = 0; i < n_varsinfolinear; ++i )
-      {
-         varindicesinfolinear[i] = (int) MR_list_head(vars_indices_infolinear);
-         down[i] = (int) MR_list_head(mr_down) == 1 ? TRUE : FALSE;
-         up[i] = (int) MR_list_head(mr_up) == 1 ? TRUE : FALSE;
-         vars_indices_infolinear = MR_list_tail(vars_indices_infolinear);
-         mr_down = MR_list_tail(mr_down);
-         mr_up = MR_list_tail(mr_up);
-      }
-
       /* create first-order constraint */
-      SCIP_CALL( SCIPcreateConsBasicFolinear(scip, &cons, clausename, varindicesinfolinear, (int) n_varsinfolinear, down, up) );
+      /* just need the name of the clause! */
+      SCIP_CALL( SCIPcreateConsBasicFolinear(scip, &cons, 
+            (char*) MR_list_head(clausenames)) );
       SCIP_CALL( SCIPaddCons(scip, cons) );
       SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
-
       clausenames = MR_list_tail(clausenames);
    }
-
-   SCIPfreeMemoryArray(scip,&varindicesinfolinear);
-   SCIPfreeMemoryArray(scip,&down);
-   SCIPfreeMemoryArray(scip,&up);
 
    /* solve the model */
    SCIP_CALL( SCIPsolve(scip) );

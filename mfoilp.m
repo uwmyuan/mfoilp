@@ -192,6 +192,26 @@ foclausenames(Names) :-
 
 % this just adds accumulators
 
+:- pragma foreign_export("C", locks(in,in,in,out,out), "MR_locks").
+
+:- pred locks(string::in,as_next::in,int::in,int::out,int::out) is det.
+
+locks(Name,as(Array,_Map,_N),I,Down,Up) :-
+	array.lookup(Array,I,Atom),
+	(
+	  % a positive literal is down-locked
+	  prob.poslit(Name,Atom) ->
+	  Down = 1;
+	  Down = 0
+	),
+	(
+	  % a negative literal is up-locked
+	  prob.neglit(Name,Atom) ->
+	  Up = 1;
+	  Up = 0
+	).
+
+
 varsinfolinear(Name,as(Array,_Map,N),Vars,M,Down,Up) :-
 	varsinfolinear(Name,0,N,Array,Vars,Down,Up,0,M).
 

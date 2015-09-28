@@ -73,21 +73,26 @@ initial_clause("data2") -->
 initial_clause("data3") -->
 	initial_neglit(smokes(ed)).
 
-initial_clause("data4") -->
-	{person(X)},
-	initial_neglit(smokes(X)),
-	initial_poslit(cancer(X)),
-	initial_poslit(c(X)).
-
-initial_clause("f") --> {person(X)}, initial_neglit(cb1(X)), initial_poslit(cb1(X)).
-initial_clause("g") --> {person(X), person(Y)}, initial_neglit(cb2(X,Y)), initial_poslit(cb2(X,Y)).
+initial_clause("foo3") -->
+	initial_neglit(cb1(bob)),
+	initial_poslit(cb1(bob)).
 
 
-clause("data3").
-clause("data3") -->
-	neglit(smokes(ed)).
-neglit("data2",smokes(ed)).
-poslit("data2",_) :- fail.
+%initial_clause("data4") -->
+%	{person(X)},
+%	initial_neglit(smokes(X)),
+%	initial_poslit(cancer(X)),
+%	initial_poslit(c(X)).
+
+%initial_clause("f") --> {person(X)}, initial_neglit(cb1(X)), initial_poslit(cb1(X)).
+%initial_clause("g") --> {person(X), person(Y)}, initial_neglit(cb2(X,Y)), initial_poslit(cb2(X,Y)).
+
+
+%clause("data3").
+%clause("data3") -->
+%	neglit(smokes(ed)).
+%neglit("data2",smokes(ed)).
+%poslit("data2",_) :- fail.
 
 % clause("fo1").
 % clause("fo1") -->
