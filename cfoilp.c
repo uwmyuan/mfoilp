@@ -80,6 +80,10 @@ int main(
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
+   /* read in parameters from scip.set */
+
+   SCIP_CALL( SCIPreadParams(scip, "scip.set") );
+
    /* allocate memory */
    SCIP_CALL( SCIPallocMemory(scip, &probdata) );
 

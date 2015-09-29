@@ -846,7 +846,7 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
    assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
    assert( cons != NULL );
 
-   SCIPdebugMessage("locking first order linear constraint <%s>.\n", consname);
+   SCIPdebugMessage("locking variables in first order linear constraint <%s>.\n", consname);
 
    probdata = SCIPgetProbData(scip);
    assert( probdata != NULL );
