@@ -1155,7 +1155,7 @@ SCIP_RETCODE SCIPcreateConsBasicFolinear(
 
 
    SCIP_CALL( SCIPcreateConsFolinear(scip, cons, name,
-         TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+         TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, TRUE, FALSE, FALSE, FALSE) );
 
    return SCIP_OKAY;
 }

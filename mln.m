@@ -73,9 +73,9 @@ initial_clause("data2") -->
 initial_clause("data3") -->
 	initial_neglit(smokes(ed)).
 
-initial_clause("foo3") -->
-	initial_neglit(cb1(bob)),
-	initial_poslit(cb1(bob)).
+%initial_clause("foo3") -->
+%	initial_neglit(cb1(bob)),
+%	initial_poslit(cb1(bob)).
 
 
 %initial_clause("data4") -->
