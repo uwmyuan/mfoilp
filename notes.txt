@@ -457,3 +457,7 @@ with no active pricers, we get into trouble here:
 (scip.c line 13908)
 
 since we get the wrong primal bound
+
+Wed Sep 30 15:43:35 BST 2015
+
+now appears to be working except getting this:
