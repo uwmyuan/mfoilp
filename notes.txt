@@ -446,3 +446,14 @@ locked by first-order clauses. If so, it is "added" to the folinear constraint
 So order is call initial_clauses. create variables and post clauses.
 if any of these variables are also in folinear, send them to folinear
 (with appropriate info) when it is created.
+
+Wed Sep 30 13:46:36 BST 2015
+
+with no active pricers, we get into trouble here:
+
+ /* if all variables are known, calculate a trivial primal bound by setting all variables to their worst bound */
+   if( scip->set->nactivepricers == 0 )
+
+(scip.c line 13908)
+
+since we get the wrong primal bound

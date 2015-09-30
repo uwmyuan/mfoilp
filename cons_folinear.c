@@ -4,7 +4,6 @@
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
-#define SCIP_DEBUG
 #include <assert.h>
 #include <string.h>
 
@@ -772,11 +771,13 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
 
       if( MR_existscut((MR_String) SCIPconsGetName(cons),indices,values,probdata->atom_store) )
       {
+         SCIPdebugMessage("first order linear constraint <%s> violated by solution.\n", SCIPconsGetName(cons));
          *result = SCIP_INFEASIBLE;
          return SCIP_OKAY;
       }
    }
    
+   SCIPdebugMessage("all first order linear constraint satisfied by solution.\n");
    *result = SCIP_FEASIBLE;
    return SCIP_OKAY;
 }

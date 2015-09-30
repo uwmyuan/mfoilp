@@ -7,7 +7,7 @@
 #include <scip/scipdefplugins.h>
 
 #include "cons_folinear.h"
-#include "pricer_fovars.h"
+#include "pricer_dummy.h"
 #include "cfoilp.h"
 /*#include "pricer_fovars.h"*/
 
@@ -80,6 +80,9 @@ int main(
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
+   /* include dummy pricer  */
+   SCIP_CALL( SCIPincludePricerDummy(scip) );
+
    /* read in parameters from scip.set */
 
    SCIP_CALL( SCIPreadParams(scip, "scip.set") );
@@ -89,6 +92,10 @@ int main(
 
    SCIP_CALL( SCIPcreateProb(scip, "folilp", probdelorigFOILP, NULL, NULL,
          NULL, NULL, NULL, probdata) );
+
+   /* activates dummy pricer  */
+   SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "dummy")) );
+
 
    MR_initial_constraints(&atomstore,&objectives,&varnames,&consnames,&neglitss,&poslitss);
 
