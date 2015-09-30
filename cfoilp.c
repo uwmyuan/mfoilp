@@ -9,7 +9,6 @@
 #include "cons_folinear.h"
 #include "pricer_dummy.h"
 #include "cfoilp.h"
-/*#include "pricer_fovars.h"*/
 
 
 /*
@@ -39,7 +38,7 @@ SCIP_DECL_PROBDELORIG(probdelorigFOILP)
 }
 
 
-/** main function (just for testing at present ) */
+/** main function */
 int main(
    int                        argc,          /**< number of arguments from the shell */
    char**                     argv           /**< array of shell arguments */
@@ -72,6 +71,8 @@ int main(
 
    SCIP_VAR* clausevars[100];
 
+   const char paramfile[] = "mfoilp.set";
+
    mercury_init(argc, argv, &stack_bottom);
 
    /* initialize SCIP */
@@ -83,9 +84,16 @@ int main(
    /* include dummy pricer  */
    SCIP_CALL( SCIPincludePricerDummy(scip) );
 
-   /* read in parameters from scip.set */
-
-   SCIP_CALL( SCIPreadParams(scip, "scip.set") );
+   /* read in parameters */
+   if( SCIPfileExists(paramfile) )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Reading parameter file <%s>.\n", paramfile);
+      SCIP_CALL( SCIPreadParams(scip, paramfile) );
+   }
+   else
+   {
+      SCIPwarningMessage(scip, "Parameter file <%s> not found - using default settings.\n", paramfile);
+   }
 
    /* allocate memory */
    SCIP_CALL( SCIPallocMemory(scip, &probdata) );

@@ -26,8 +26,6 @@
 :- import_module int.
 :- import_module string.
 :- import_module map.
-:- import_module bimap.
-:- import_module bool.
 :- import_module solutions.
 :- import_module io.
 :- import_module string.builder.
@@ -168,29 +166,12 @@ name(X) = Name :-
 foclausenames(Names) :-
 	solutions(prob.clause,Names).
 
-
 %-----------------------------------------------------------------------------%
 %
-% Predicates for determining which existing variables are in a first-order clause
-% and how they are locked
+% Predicate for computing variable locks due to first-order clauses
 %
 %-----------------------------------------------------------------------------%
 
-:- pragma foreign_export("C", varsinfolinear(in,in,out,out,out,out), "MR_varsinfolinear").
-
-% Determines which existing variables are in a first-order clause
-% and how they are locked
-
-:- pred varsinfolinear(
-		       string::in,      % name of first-order clause
-		       as_next::in,     % existing variables (with their indices)
-		       list(int)::out,  % indices of variables in the constraint
-		       int::out,        % number of variables in the constraint
-		       list(int)::out,  % 0/1 indicator of down-locking for each variable in the constraint
-		       list(int)::out   % 0/1 indicator of up-locking for each variable in the constraint
-		      ) is det.
-
-% this just adds accumulators
 
 :- pragma foreign_export("C", locks(in,in,in,out,out), "MR_locks").
 
@@ -209,42 +190,6 @@ locks(Name,as(Array,_Map,_N),I,Down,Up) :-
 	  prob.neglit(Name,Atom) ->
 	  Up = 1;
 	  Up = 0
-	).
-
-
-varsinfolinear(Name,as(Array,_Map,N),Vars,M,Down,Up) :-
-	varsinfolinear(Name,0,N,Array,Vars,Down,Up,0,M).
-
-:- pred varsinfolinear(string::in,int::in,int::in,array(atom)::in,list(int)::out,list(int)::out,list(int)::out,int::in,int::out) is det.
-
-varsinfolinear(Name,I,N,Array,Vars,Down,Up,MIn,MOut) :-
-	(
-	  I < N ->
-	  array.lookup(Array,I,Atom),
-	  (
-	    % a positive literal is down-locked
-	    prob.poslit(Name,Atom) ->
-	    Vars = [I|T],
-	    Down = [1|DownT],
-	    (
-	      % a negative literal is up-locked
-	      prob.neglit(Name,Atom) ->
-	      Up = [1|UpT];
-	      Up = [0|UpT]
-	    ),
-	    varsinfolinear(Name,I+1,N,Array,T,DownT,UpT,MIn+1,MOut);
-	    (
-	      prob.neglit(Name,Atom) ->
-	      Vars = [I|T],
-	      Down = [0|DownT],
-	      Up = [1|UpT],
-	      varsinfolinear(Name,I+1,N,Array,T,DownT,UpT,MIn+1,MOut);
-	      varsinfolinear(Name,I+1,N,Array,Vars,Down,Up,MIn,MOut)
-	    ));
-	  Vars = [],
-	  Down = [],
-	  Up = [],
-	  MOut = MIn
 	).
 
 %-----------------------------------------------------------------------------%

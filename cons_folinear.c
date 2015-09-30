@@ -33,17 +33,6 @@
 #define CONSHDLR_MAXPREROUNDS        -1 /**< maximal number of presolving rounds the constraint handler participates in (-1: no limit) */
 #define CONSHDLR_DELAYPRESOL      FALSE /**< should presolving method be delayed, if other presolvers found reductions? */
 
-
-
-/* TODO: (optional) enable linear or nonlinear constraint upgrading */
-#if 0
-#include "scip/cons_linear.h"
-#include "scip/cons_nonlinear.h"
-#define LINCONSUPGD_PRIORITY          0 /**< priority of the constraint handler for upgrading of linear constraints */
-#define NONLINCONSUPGD_PRIORITY       0 /**< priority of the constraint handler for upgrading of nonlinear constraints */
-#endif
-
-
 /*
  * Data structures
  */
@@ -105,41 +94,6 @@ SCIP_RETCODE sol2mercury(
    }
    return SCIP_OKAY;
 }
-
-/*
- * Linear constraint upgrading
- */
-
-#ifdef LINCONSUPGD_PRIORITY
-/** tries to upgrade a linear constraint into a folinear constraint */
-static
-SCIP_DECL_LINCONSUPGD(linconsUpgdFolinear)
-{  /*lint --e{715}*/
-   SCIP_Bool upgrade;
-
-   assert(upgdcons != NULL);
-
-   /* check, if linear constraint can be upgraded to folinear constraint */
-   upgrade = FALSE;
-   /* TODO: put the constraint's properties here, in terms of the statistics given by nposbin, nnegbin, ... */
-
-   if( upgrade )
-   {
-      SCIPdebugMessage("upgrading constraint <%s> to folinear constraint\n", SCIPconsGetName(cons));
-
-      /* create the bin Folinear constraint (an automatically upgraded constraint is always unmodifiable) */
-      assert(!SCIPconsIsModifiable(cons));
-      SCIP_CALL( SCIPcreateConsFolinear(scip, upgdcons, SCIPconsGetName(cons), nvars, vars, vals, lhs, rhs,
-            SCIPconsIsInitial(cons), SCIPconsIsSeparated(cons), SCIPconsIsEnforced(cons),
-            SCIPconsIsChecked(cons), SCIPconsIsPropagated(cons), SCIPconsIsLocal(cons),
-            SCIPconsIsModifiable(cons), SCIPconsIsDynamic(cons), SCIPconsIsRemovable(cons),
-            SCIPconsIsStickingAtNode(cons)) );
-   }
-
-   return SCIP_OKAY;
-}
-#endif
-
 
 /*
  * Callback methods of constraint handler
