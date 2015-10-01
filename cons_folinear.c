@@ -10,6 +10,7 @@
 #include <cons_folinear.h>
 #include <cfoilp.h>
 
+#define DEFAULT_NEWVARSINITIAL TRUE
 
 /* fundamental constraint handler properties */
 #define CONSHDLR_NAME          "folinear"
@@ -43,9 +44,10 @@
 /* }; */
 
 /** constraint handler data */
-/* struct SCIP_ConshdlrData */
-/* {  */
-/* };  */
+struct SCIP_ConshdlrData
+{
+SCIP_Bool newvarsinitial;
+};
 
 
 /*
@@ -130,12 +132,18 @@ SCIP_RETCODE FOLinearSeparate(
    SCIP_VAR* negvar;
    SCIP_ROW* row;
 
+   SCIP_CONSHDLRDATA* conshdlrdata;
+
    assert( scip != NULL );
    assert( nGen != NULL );
    assert( cutoff != NULL );
 
    probdata = SCIPgetProbData(scip);
    assert( probdata != NULL );
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
+
 
    *cutoff = FALSE;
 
@@ -157,7 +165,7 @@ SCIP_RETCODE FOLinearSeparate(
             (char *) MR_list_head(varnames), 
             0.0, 1.0, 
             (SCIP_Real) MR_word_to_float(MR_list_head(objectives)), 
-            SCIP_VARTYPE_BINARY, FALSE, FALSE, NULL, NULL, NULL, NULL, NULL) );
+            SCIP_VARTYPE_BINARY, conshdlrdata->newvarsinitial, FALSE, NULL, NULL, NULL, NULL, NULL) );
       SCIP_CALL( SCIPaddVar(scip, var) );
       
       /* lock the variable */
@@ -263,18 +271,22 @@ SCIP_DECL_CONSHDLRCOPY(conshdlrCopyFolinear)
 #endif
 
 /** destructor of constraint handler to free constraint handler data (called when SCIP is exiting) */
-#if 0
 static
 SCIP_DECL_CONSFREE(consFreeFolinear)
 {  /*lint --e{715}*/
-   SCIPerrorMessage("method of folinear constraint handler not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
+
+    SCIP_CONSHDLRDATA* conshdlrdata;
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert(conshdlrdata != NULL);
+
+   SCIPfreeMemory(scip, &conshdlrdata);
+
+   SCIPconshdlrSetData(conshdlr, NULL);
 
    return SCIP_OKAY;
 }
-#else
-#define consFreeFolinear NULL
-#endif
+
 
 
 /** initialization method of constraint handler (called after problem was transformed) */
@@ -946,10 +958,11 @@ SCIP_RETCODE SCIPincludeConshdlrFolinear(
    SCIP*                 scip                /**< SCIP data structure */
    )
 {
-
+SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_CONSHDLR* conshdlr;
 
    conshdlr = NULL;
+SCIP_CALL( SCIPallocMemory(scip, &conshdlrdata) );
 
    /* include constraint handler */
 
@@ -959,7 +972,7 @@ SCIP_RETCODE SCIPincludeConshdlrFolinear(
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLR_NAME, CONSHDLR_DESC,
          CONSHDLR_ENFOPRIORITY, CONSHDLR_CHECKPRIORITY, CONSHDLR_EAGERFREQ, CONSHDLR_NEEDSCONS,
          consEnfolpFolinear, consEnfopsFolinear, consCheckFolinear, consLockFolinear,
-         NULL) );
+         conshdlrdata) );
    assert(conshdlr != NULL);
 
    /* set non-fundamental callbacks via specific setter functions */
@@ -973,7 +986,7 @@ SCIP_RETCODE SCIPincludeConshdlrFolinear(
    /* SCIP_CALL( SCIPsetConshdlrExit(scip, conshdlr, consExitFolinear) ); */
    /* SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreFolinear) ); */
    /* SCIP_CALL( SCIPsetConshdlrExitsol(scip, conshdlr, consExitsolFolinear) ); */
-   /* SCIP_CALL( SCIPsetConshdlrFree(scip, conshdlr, consFreeFolinear) ); */
+   SCIP_CALL( SCIPsetConshdlrFree(scip, conshdlr, consFreeFolinear) ); 
    /* SCIP_CALL( SCIPsetConshdlrGetVars(scip, conshdlr, consGetVarsFolinear) ); */
    /* SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsFolinear) ); */
    /* SCIP_CALL( SCIPsetConshdlrInit(scip, conshdlr, consInitFolinear) ); */
@@ -991,6 +1004,12 @@ SCIP_RETCODE SCIPincludeConshdlrFolinear(
 
    /* add folinear constraint handler parameters */
    /* TODO: (optional) add constraint handler specific parameters with SCIPaddTypeParam() here */
+
+   SCIP_CALL(SCIPaddBoolParam(scip,
+         "constraints/"CONSHDLR_NAME"/newvarsinitial",
+         "whether new variables should be 'initial'",
+         &conshdlrdata->newvarsinitial, TRUE, DEFAULT_NEWVARSINITIAL, NULL, NULL));
+
 
    return SCIP_OKAY;
 }
