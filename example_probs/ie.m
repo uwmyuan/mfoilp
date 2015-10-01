@@ -66,7 +66,7 @@ weight(Token,venue,Cost) :- ft_weight(Token,"venue",Cost).
 :- pragma fact_table(similartitle/6,"similartitles").
 
 :- pred jntinfcandidate(bib::out,pos::out,bib::out) is multi.
-:- pragma fact_table(jntinfcandidate/3,"jntinfcandidate").
+:- pragma fact_table(jntinfcandidate/3,"jntinfcandidates").
 
 
 :- pred year_prefix(string::out) is multi.

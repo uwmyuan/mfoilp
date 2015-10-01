@@ -1,0 +1,44 @@
+mfoilp
+======
+
+Installation:
+=============
+
+To run mfoilp you first need to install both SCIP and Mercury.
+SCIP is available here: http://scip.zib.de/
+Mercury is available here: https://mercurylang.org/
+
+mfoilp has only been tested with the most recent versions of both
+systems: SCIP3.2.0 and Mercury 14.01.1. It has only been tested using
+Linux.
+
+You should ensure that the Mercury compiler "mmc" is on your path. All
+mfoilp source files should be put in the same directory. In that
+directory you should create a symbolic link called "scip" which points
+to wherever you have installed SCIP. For example:
+
+ln -s /usr/userfs/j/jc33/local/src/scipoptsuite-3.2.0/scip-3.2.0 scip
+
+Solving with mfoilp:
+====================
+
+To solve a problem instance, you need to (1) create a Mercury source file
+which defines the problem (2) save this file with the name "prob.m" in
+the same directory as the mfoilp files and (3) type "make solution" at
+the command line.
+
+If you have CPLEX installed you can do "make solution LPS=cpx" so that
+CPLEX is used to solve the LPs.
+
+Example problem instances
+=========================
+
+Four problem instances can be found in the directory
+example_probs. The problem instance "ie.m" uses the 5 files
+jntinfcandidates, similartitles, similarvenues, tokens and weights
+which define data for the problem.
+
+To get started copy one of these problem instances to "prob.m" in the
+mfoilp directory (for ie.m copy also its 5 accpompanying files) and do
+"make solution". (If something goes wrong, try doing a "make clean"
+first.)
