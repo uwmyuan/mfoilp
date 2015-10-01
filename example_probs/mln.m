@@ -33,7 +33,6 @@
 	friends(person,person)
 	; smokes(person)
 	; cancer(person)
-	; c(person)
 	; cb1(person)
 	; cb2(person,person).
 
@@ -50,7 +49,6 @@ person(fre).
 
 objective(cb1(_),2.0).
 objective(cb2(_,_),3.0).
-objective(c(_),10.0).
 
 
 initial_clause("data1") -->
