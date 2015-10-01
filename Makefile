@@ -46,7 +46,9 @@ GCCWARN		=	-Wno-long-long -Wall -W -Wpointer-arith -Wcast-align -Wwrite-strings 
 # Mercury stuff
 
 MMC = mmc
-GRADEOPT = 
+GRADEOPT =
+MMCFLAGS = 
+#MMCFLAGS = --inhibit-warnings --no-warn-target-code
 MERCURY_LINKAGE = --mercury-linkage static
 MERCURY_LIB_LDFLAGS = libmfoilp.a
 # next line commented out, use default C compiler
@@ -169,7 +171,7 @@ else
 endif
 
 mfoilp.init: mfoilp.m prob.m
-	$(MMC) $(GRADEOPT) --make  libmfoilp
+	$(MMC) $(MMCFLAGS) $(GRADEOPT) --make  libmfoilp
 
 # The following rule creates the stand-alone interface to the mfoilp
 # library, Mercury standard library and Mercury runtime.  Since we haven't

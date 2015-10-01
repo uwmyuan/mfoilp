@@ -15,7 +15,7 @@
 :- pred neglit(string::in,atom::in) is semidet.
 :- pred poslit(string::in,atom::in) is semidet.
 
-:- func objective(atom) = float.
+:- pred objective(atom::in,float::out) is semidet.
 
 %----------------------------------------------------------------------%
 
@@ -46,22 +46,11 @@ person(dean).
 person(ed).
 person(fre).
 
-% provide objective for each atom-variable
+% provide non-zero objective values for each atom-variable
 
-objective(Atom) = Cost :-
-	(
-	  Atom = cb1(_) ->
-	  Cost = 2.0;
-	  (
-	    Atom = cb2(_,_) ->
-	    Cost = 3.0;
-	    (
-	      Atom = c(_) ->
-	      Cost = 10.0;
-	      Cost = 0.0
-	    )
-	  )
-	).
+objective(cb1(_),2.0).
+objective(cb2(_,_),3.0).
+objective(c(_),10.0).
 
 
 initial_clause("data1") -->

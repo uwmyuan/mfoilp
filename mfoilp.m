@@ -109,7 +109,12 @@ allobjs(I,Next,Array,VarObjs,VarNames) :-
 	(
 	  I < Next ->
 	  array.lookup(Array,I,Atom),
-	  VarObjs = [prob.objective(Atom)|T],
+	  (
+	    prob.objective(Atom,Obj0) ->
+	    Obj = Obj0;
+	    Obj = 0.0
+	  ),
+	  VarObjs = [Obj|T],
 	  VarNames = [name(Atom)|VT],
 	  allobjs(I+1,Next,Array,T,VT);
 	  VarObjs = [],

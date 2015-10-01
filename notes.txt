@@ -461,3 +461,63 @@ since we get the wrong primal bound
 Wed Sep 30 15:43:35 BST 2015
 
 now appears to be working except getting this:
+
+working on translation from rockit:
+want to say 
+initial_clause("obs_similarvalue") --> {obs_similarvenue(X,Y)}, initial_poslit(obs_similarvenue(X,Y)).
+				   
+
+can create a rational IE example. Things which are know can just be
+normal facts, not variables.
+
+:- type field ---> author ; title ; venue.
+:- type bib == int.
+:- type pos == int.
+
+:- type atom ---> infield(bib,field,pos)
+   	     	  ; isdate(string)
+                  ; isdigit(string)
+                  ; cb(string,field,bib,pos).
+
+token(string,pos,bib).
+
+objective(Atom) = Cost :-
+    (
+    Atom = cb(Token,Field,_Bib,_Pos) ->
+    weight(Token,Field,Cost);
+    Cost = 0.0
+    ).
+
+
+weight(Token,author,Cost) :- ft_weight(Token,"author",Cost).
+weight(Token,title,Cost) :- ft_weight(Token,"title",Cost).
+weight(Token,venue,Cost) :- ft_weight(Token,"venue",Cost).
+
+clause("exclusion1") -->
+		     insol(infield(Bib,author,Pos)),
+		     neglit(infield(Bib,author,Pos)),		     
+		     neglit(infield(Bib,title,Pos)).
+
+clause("exclusion2") -->
+		     insol(infield(Bib,author,Pos)),
+		     neglit(infield(Bib,author,Pos)),		     
+		     neglit(infield(Bib,venue,Pos)).
+
+clause("exclusion3") -->
+		     insol(infield(Bib,title,Pos)),
+		     neglit(infield(Bib,title,Pos)),		     
+		     neglit(infield(Bib,venue,Pos)).
+
+
+clause("main") -->
+		   {token(Token,Pos,Bib)},
+		   poslit(isdate(Token)),
+		   poslit(isdigit(Token)),
+		   poslit(infield(Bib,Field,Pos)),
+                   poslit(cb(Token,Field,Bib,Pos)).		 
+
+Thu Oct  1 10:46:31 BST 2015
+
+can do this to get rid of annoying error mesages
+
+make solution OPT=dbg |& grep -v 'used but never defined'
