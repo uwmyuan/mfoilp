@@ -127,15 +127,14 @@ SCIP_RETCODE FOLinearSeparate(
    MR_Integer mr_down;
    MR_Integer mr_up;
 
-   SCIP_VAR* clausevars[100];
+   SCIP_VAR* clausevars[MAX_CLAUSELENGTH];
    int nvars;
-   SCIP_VAR* negvar;
    SCIP_ROW* row;
 
    SCIP_CONSHDLRDATA* conshdlrdata;
 
    int oldnvars;
-   int i;
+   int varindex;
 
    assert( scip != NULL );
    assert( nGen != NULL );
@@ -150,25 +149,24 @@ SCIP_RETCODE FOLinearSeparate(
    *cutoff = FALSE;
 
    /* get cuts, if any, and any new variables */
-
    MR_findcuts((MR_String) consname, indices, values, &neglitss, &poslitss, &objectives, &varnames, probdata->atom_store, &atomstore); 
    
    /* update atom store */
-   
    probdata->atom_store = atomstore;
 
-   /* create any new binary variables in constraints using "objectives" list */
-
+   /* record existing number of variables in problem */
    oldnvars = probdata->nvars;
 
-   SCIP_CALL( addNewVars(scip, objectives, varnames, 
+   /* create any new binary variables in constraints using "objectives" list */
+   SCIP_CALL( addNewVars(scip, probdata, objectives, varnames, 
          conshdlrdata->newvarsinitial) );
 
-   for( i = oldnvars; i < probdata->nvars; ++i )
+   /* lock new variables */
+   for( varindex = oldnvars; varindex < probdata->nvars; ++varindex )
    {
-      /* lock variable i */
-      var = probdata->vars[i];
-      MR_locks( (MR_String) consname, probdata->atom_store, i, &mr_down, &mr_up);
+      /* lock variable */
+      var = probdata->vars[varindex];
+      MR_locks( (MR_String) consname, probdata->atom_store, varindex, &mr_down, &mr_up);
       
       SCIP_CALL( SCIPlockVarCons(scip, var, cons, (SCIP_Bool) mr_down, (SCIP_Bool) mr_up) ); 
       
@@ -179,38 +177,13 @@ SCIP_RETCODE FOLinearSeparate(
 #endif
    }
    
-   /* now add the cuts */
-   
+   /* add the cuts, if any */
    while ( !MR_list_is_empty(neglitss)  )
    {
       neglits =  MR_list_head(neglitss);
       poslits =  MR_list_head(poslitss);
       
-      nvars = 0;
-      
-      while ( !MR_list_is_empty(neglits) )
-      {
-         var = probdata->vars[(int) MR_list_head(neglits)];
-         SCIP_CALL( SCIPgetNegatedVar(scip,var,&negvar) );
-         clausevars[nvars++] = negvar;
-#ifdef SCIP_DEBUG
-         SCIPdebugMessage("Variable in cut:\n");
-         SCIPdebug( SCIPprintVar(scip, negvar, NULL) );
-#endif
-         neglits =  MR_list_tail(neglits);
-      }
-
-      while ( !MR_list_is_empty(poslits) )
-      {
-         var = probdata->vars[(int) MR_list_head(poslits)];
-         clausevars[nvars++] = var;
-#ifdef SCIP_DEBUG
-         SCIPdebugMessage("Variable in cut:\n");
-         SCIPdebug( SCIPprintVar(scip, var, NULL) );
-#endif
-         
-         poslits =  MR_list_tail(poslits);
-      }
+      SCIP_CALL( makeclause(scip, probdata, neglits, poslits, &nvars, clausevars) );
 
       SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, "cut", 1.0, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
       SCIP_CALL( SCIPaddVarsToRowSameCoef(scip, row, nvars, clausevars, 1.0) );

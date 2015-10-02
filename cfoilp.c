@@ -37,9 +37,49 @@ SCIP_DECL_PROBDELORIG(probdelorigFOILP)
    return SCIP_OKAY;
 }
 
+SCIP_RETCODE makeclause(
+   SCIP* scip,                /**< SCIP pointer */
+   SCIP_PROBDATA*  probdata,  /**< problem data */
+   MR_IntList neglits,        /**< indices for negative literals */
+   MR_IntList poslits,        /**< indices for positive literals */
+   int* nvars,                /**< pointer to number of literals in the clause */
+   SCIP_VAR** clausevars      /**< temporary storage for SCIP variables in clause */
+   )
+{
+   SCIP_VAR* var;
+   SCIP_VAR* negvar;
+   
+   (*nvars) = 0;
+
+   while ( !MR_list_is_empty(neglits) )
+   {
+      var = probdata->vars[(int) MR_list_head(neglits)];
+      SCIP_CALL( SCIPgetNegatedVar(scip,var,&negvar) );
+      clausevars[(*nvars)++] = negvar;
+#ifdef SCIP_DEBUG
+      SCIPdebugMessage("Variable in cut:\n");
+      SCIPdebug( SCIPprintVar(scip, negvar, NULL) );
+#endif
+      neglits =  MR_list_tail(neglits);
+   }
+
+   while ( !MR_list_is_empty(poslits) )
+   {
+      var = probdata->vars[(int) MR_list_head(poslits)];
+      clausevars[(*nvars)++] = var;
+#ifdef SCIP_DEBUG
+      SCIPdebugMessage("Variable in cut:\n");
+      SCIPdebug( SCIPprintVar(scip, var, NULL) );
+#endif
+      
+      poslits =  MR_list_tail(poslits);
+   }
+   return SCIP_OKAY;
+}
 
 SCIP_RETCODE addNewVars(
    SCIP*           scip,               /**< SCIP pointer */
+   SCIP_PROBDATA*  probdata,           /**< problem data */
    MR_FloatList    objectives,         /**< objectives values for new variables */
    MR_StringList   varnames,           /**< names for new variables */
    SCIP_Bool       initial             /**< whether new variables should be 'initial' */
@@ -47,11 +87,6 @@ SCIP_RETCODE addNewVars(
 {
 
    SCIP_VAR* var;
-   SCIP_PROBDATA* probdata;
-
-   probdata = SCIPgetProbData(scip);
-   assert( probdata != NULL );
-   assert( probdata->vars != NULL );
 
    /* create binary variables in constraints using "objectives" list */
 
@@ -103,27 +138,22 @@ int main(
    MR_StringList consnames;
    MR_IntListList neglitss;
    MR_IntListList poslitss;
-
-   SCIP_VAR* var;
-   
    MR_IntList neglits;
    MR_IntList poslits;
 
-   SCIP_VAR* negvar;
-
    SCIP_CONS* cons;
 
-   int i;
-
    MR_StringList clausenames;
-
    SCIP_VAR* clausevars[100];
 
    const char paramfile[] = "mfoilp.set";
 
+   int nvars;
+
+   /* initialise Mercury runtime */
    mercury_init(argc, argv, &stack_bottom);
 
-   /* initialize SCIP */
+   /* initialise SCIP */
    SCIP_CALL( SCIPcreate(&scip) );
 
    /* include default SCIP plugins */
@@ -131,6 +161,9 @@ int main(
 
    /* include dummy pricer  */
    SCIP_CALL( SCIPincludePricerDummy(scip) );
+
+   /* include first-order linear constraint handler */
+   SCIP_CALL( SCIPincludeConshdlrFolinear(scip) );
 
    /* read in parameters */
    if( SCIPfileExists(paramfile) )
@@ -143,57 +176,42 @@ int main(
       SCIPwarningMessage(scip, "Parameter file <%s> not found - using default settings.\n", paramfile);
    }
 
-   /* allocate memory */
+   /* allocate memory for probdata */
    SCIP_CALL( SCIPallocMemory(scip, &probdata) );
 
-   SCIP_CALL( SCIPcreateProb(scip, "folilp", probdelorigFOILP, NULL, NULL,
+   /* initialise probdata */
+   probdata->nvars = 0;
+   probdata->vars = NULL;
+   probdata->vars_len = VAR_BLOCKSIZE;
+   SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
+
+   /* create problem */
+   SCIP_CALL( SCIPcreateProb(scip, "mfoilp", probdelorigFOILP, NULL, NULL,
          NULL, NULL, NULL, probdata) );
 
    /* activates dummy pricer  */
    SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "dummy")) );
 
-
+   /* get initial constraints and variables from Mercury */
    MR_initial_constraints(&atomstore,&objectives,&varnames,&consnames,&neglitss,&poslitss);
 
-   /* initialise probdata */
-
-   probdata->nvars = 0;
-   probdata->vars = NULL;
-   probdata->vars_len = VAR_BLOCKSIZE;
-   SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
+   /* initialise SCIP's atom store */
    probdata->atom_store = atomstore;
 
    /* create initial binary variables in constraints  */
-
-   SCIP_CALL( addNewVars(scip, objectives, varnames, TRUE) );
+   SCIP_CALL( addNewVars(scip, probdata, objectives, varnames, TRUE) );
 
    /* now add the initial constraints */
-   
    while ( !MR_list_is_empty(consnames) )
    {
       neglits =  MR_list_head(neglitss);
       poslits =  MR_list_head(poslitss);
 
-      i = 0;
-
-      while ( !MR_list_is_empty(neglits) )
-      {
-         var = probdata->vars[(int) MR_list_head(neglits)];
-         SCIP_CALL( SCIPgetNegatedVar(scip,var,&negvar) );
-         clausevars[i++] = negvar;
-         neglits =  MR_list_tail(neglits);
-      }
-
-      while ( !MR_list_is_empty(poslits) )
-      {
-         var = probdata->vars[(int) MR_list_head(poslits)];
-         clausevars[i++] = var;
-         poslits =  MR_list_tail(poslits);
-      }
+      SCIP_CALL( makeclause(scip, probdata, neglits, poslits, &nvars, clausevars) );
 
       SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, 
             (char *)  MR_list_head(consnames), 
-            i, clausevars) );
+            nvars, clausevars) );
       SCIP_CALL( SCIPaddCons(scip, cons) );
       /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
       SCIP_CALL( SCIPreleaseCons(scip, &cons) );
@@ -203,13 +221,10 @@ int main(
       poslitss = MR_list_tail(poslitss);
    }
 
-   /* include first-order linear constraint handler */
-   SCIP_CALL( SCIPincludeConshdlrFolinear(scip) );
-
-   /* get list of names of first-order clauses */
-   
+   /* get list of names of first-order clauses from Mercury */
    MR_delayed_clauses(&clausenames);
 
+   /* create all first-order linear constraints */
    while ( !MR_list_is_empty(clausenames) )
    {
       /* create first-order constraint */
@@ -222,13 +237,16 @@ int main(
       clausenames = MR_list_tail(clausenames);
    }
 
-   /* solve the model */
+   /* solve the problem instance */
    SCIP_CALL( SCIPsolve(scip) );
 
+   /* print the solution to standard output */
    SCIP_CALL( SCIPprintBestSol(scip, NULL, FALSE) );
 
+   /* print solving statistics */
    /* SCIP_CALL( SCIPprintStatistics(scip, NULL) ); */
 
+   /* and tidy up */
    SCIP_CALL( SCIPfree(&scip) );
 
    BMScheckEmptyMemory();

@@ -1,4 +1,5 @@
-#define VAR_BLOCKSIZE 10;
+#define VAR_BLOCKSIZE 10
+#define MAX_CLAUSELENGTH 100
 
 struct SCIP_ProbData
 {
@@ -11,10 +12,20 @@ struct SCIP_ProbData
 EXTERN
 SCIP_RETCODE addNewVars(
    SCIP*           scip,               /**< SCIP pointer */
-   MR_FloatList    objectives,
-   MR_StringList   varnames,
-   SCIP_Bool       initial
+   SCIP_PROBDATA*  probdata,           /**< problem data */
+   MR_FloatList    objectives,         /**< objectives values for new variables */
+   MR_StringList   varnames,           /**< names for new variables */
+   SCIP_Bool       initial             /**< whether new variables should be 'initial' */
    );
 
+EXTERN
+SCIP_RETCODE makeclause(
+   SCIP* scip,                /**< SCIP pointer */
+   SCIP_PROBDATA*  probdata,  /**< problem data */
+   MR_IntList neglits,        /**< indices for negative literals */
+   MR_IntList poslits,        /**< indices for positive literals */
+   int* nvars,                /**< pointer to number of literals in the clause */
+   SCIP_VAR** clausevars      /**< temporary storage for SCIP variables in clause */
+   );
 
 
