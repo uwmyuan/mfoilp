@@ -38,6 +38,54 @@ SCIP_DECL_PROBDELORIG(probdelorigFOILP)
 }
 
 
+SCIP_RETCODE addNewVars(
+   SCIP*           scip,               /**< SCIP pointer */
+   MR_FloatList    objectives,         /**< objectives values for new variables */
+   MR_StringList   varnames,           /**< names for new variables */
+   SCIP_Bool       initial             /**< whether new variables should be 'initial' */
+   )
+{
+
+   SCIP_VAR* var;
+   SCIP_PROBDATA* probdata;
+
+   probdata = SCIPgetProbData(scip);
+   assert( probdata != NULL );
+   assert( probdata->vars != NULL );
+
+   /* create binary variables in constraints using "objectives" list */
+
+   while ( !MR_list_is_empty(objectives) ) 
+   {
+      SCIP_CALL( SCIPcreateVar(scip, &var, 
+            (char *) MR_list_head(varnames), 
+            0.0, 1.0, 
+            (SCIP_Real) MR_word_to_float(MR_list_head(objectives)), 
+            SCIP_VARTYPE_BINARY, initial, FALSE, NULL, NULL, NULL, NULL, NULL) );
+      SCIP_CALL( SCIPaddVar(scip, var) );
+
+#ifdef SCIP_DEBUG
+      SCIPdebugMessage("New variable:\n");
+      SCIPdebug( SCIPprintVar(scip, var, NULL) );
+#endif
+
+      /* increase size of probdata->vars if necessary */
+      if( !(probdata->nvars < probdata->vars_len) )
+      {
+         probdata->vars_len += VAR_BLOCKSIZE;
+         SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
+      }
+
+      /* record variable in array */
+      /* value of probdata->nvars will correspond with that of Mercury's atomstore */
+      probdata->vars[probdata->nvars++] = var;
+
+      objectives = MR_list_tail(objectives);
+      varnames = MR_list_tail(varnames);
+   }
+   return SCIP_OKAY;
+}
+
 /** main function */
 int main(
    int                        argc,          /**< number of arguments from the shell */
@@ -115,32 +163,9 @@ int main(
    SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
    probdata->atom_store = atomstore;
 
-   /* create binary variables in constraints using "objectives" list */
+   /* create initial binary variables in constraints  */
 
-   while ( !MR_list_is_empty(objectives) ) 
-   {
-      SCIP_CALL( SCIPcreateVarBasic(scip, &var, 
-            (char *) MR_list_head(varnames), 
-            0.0, 1.0, 
-            (SCIP_Real) MR_word_to_float(MR_list_head(objectives)), 
-            SCIP_VARTYPE_BINARY) );
-      SCIP_CALL( SCIPaddVar(scip, var) );
-
-      /* increase size of probdata->vars if necessary */
-      if( !(probdata->nvars < probdata->vars_len) )
-      {
-         probdata->vars_len += VAR_BLOCKSIZE;
-         SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
-      }
-
-      /* record variable in array */
-      /* value of probdata->nvars will correspond with that of Mercury's atomstore */
-      probdata->vars[probdata->nvars++] = var;
-
-      objectives = MR_list_tail(objectives);
-      varnames = MR_list_tail(varnames);
-
-   }
+   SCIP_CALL( addNewVars(scip, objectives, varnames, TRUE) );
 
    /* now add the initial constraints */
    

@@ -1,3 +1,5 @@
+#define VAR_BLOCKSIZE 10;
+
 struct SCIP_ProbData
 {
    SCIP_VAR**   vars;          /**< variables in the problem */
@@ -6,5 +8,13 @@ struct SCIP_ProbData
    MR_AtomStore atom_store;    /**< Mercury bimap (+ next index) between atoms and their indices */
 };
 
+EXTERN
+SCIP_RETCODE addNewVars(
+   SCIP*           scip,               /**< SCIP pointer */
+   MR_FloatList    objectives,
+   MR_StringList   varnames,
+   SCIP_Bool       initial
+   );
 
-#define VAR_BLOCKSIZE 10;
+
+

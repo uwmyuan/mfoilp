@@ -134,6 +134,9 @@ SCIP_RETCODE FOLinearSeparate(
 
    SCIP_CONSHDLRDATA* conshdlrdata;
 
+   int oldnvars;
+   int i;
+
    assert( scip != NULL );
    assert( nGen != NULL );
    assert( cutoff != NULL );
@@ -143,7 +146,6 @@ SCIP_RETCODE FOLinearSeparate(
 
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
-
 
    *cutoff = FALSE;
 
@@ -156,44 +158,25 @@ SCIP_RETCODE FOLinearSeparate(
    probdata->atom_store = atomstore;
 
    /* create any new binary variables in constraints using "objectives" list */
-   /* this same code occurs in cfoilp.c ! */
 
-   while ( !MR_list_is_empty(objectives) ) 
+   oldnvars = probdata->nvars;
+
+   SCIP_CALL( addNewVars(scip, objectives, varnames, 
+         conshdlrdata->newvarsinitial) );
+
+   for( i = oldnvars; i < probdata->nvars; ++i )
    {
-      SCIP_CALL( 
-         SCIPcreateVar(scip, &var, 
-            (char *) MR_list_head(varnames), 
-            0.0, 1.0, 
-            (SCIP_Real) MR_word_to_float(MR_list_head(objectives)), 
-            SCIP_VARTYPE_BINARY, conshdlrdata->newvarsinitial, FALSE, NULL, NULL, NULL, NULL, NULL) );
-      SCIP_CALL( SCIPaddVar(scip, var) );
-      
-      /* lock the variable */
-      
-      MR_locks( (MR_String) consname, probdata->atom_store, probdata->nvars, &mr_down, &mr_up);
+      /* lock variable i */
+      var = probdata->vars[i];
+      MR_locks( (MR_String) consname, probdata->atom_store, i, &mr_down, &mr_up);
       
       SCIP_CALL( SCIPlockVarCons(scip, var, cons, (SCIP_Bool) mr_down, (SCIP_Bool) mr_up) ); 
       
 #ifdef SCIP_DEBUG
-      SCIPdebugMessage("New variable:\n");
+      SCIPdebugMessage("Locks for:\n");
       SCIPdebug( SCIPprintVar(scip, var, NULL) );
       SCIPdebugMessage("Down lock = <%d>, Up lock = <%d>\n", (SCIP_Bool) mr_down, (SCIP_Bool) mr_up);
 #endif
-      
-      /* increase size of probdata->vars if necessary */
-      if( !(probdata->nvars < probdata->vars_len) )
-      {
-         probdata->vars_len += VAR_BLOCKSIZE;
-         SCIP_CALL( SCIPreallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
-      }
-      
-      /* record variable in array */
-      /* value of probdata->nvars will correspond with that of Mercury's atomstore */
-      probdata->vars[probdata->nvars++] = var;
-      
-      objectives = MR_list_tail(objectives);
-      varnames = MR_list_tail(varnames);
-      
    }
    
    /* now add the cuts */
