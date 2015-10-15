@@ -43,29 +43,40 @@ SCIP_RETCODE makeclause(
    MR_IntList neglits,        /**< indices for negative literals */
    MR_IntList poslits,        /**< indices for positive literals */
    int* nvars,                /**< pointer to number of literals in the clause */
-   SCIP_VAR** clausevars      /**< temporary storage for SCIP variables in clause */
+   SCIP_VAR** clausevars,     /**< temporary storage for SCIP variables in clause */
+   int* once_only             /**< if either lit 0 is positive and marked as occuring only in 
+                                   this clause then = 0; else if lit 1 is positive and so marked = 1; else = -1 */
    )
 {
    SCIP_VAR* var;
    SCIP_VAR* negvar;
+   int varindex;
    
    (*nvars) = 0;
+   (*once_only) = -1;
 
    while ( !MR_list_is_empty(neglits) )
    {
-      var = probdata->vars[(int) MR_list_head(neglits)];
+      varindex = (int) MR_list_head(neglits);
+      var = probdata->vars[varindex];
       SCIP_CALL( SCIPgetNegatedVar(scip,var,&negvar) );
       clausevars[(*nvars)++] = negvar;
 #ifdef SCIP_DEBUG
       SCIPdebugMessage("Variable in cut:\n");
       SCIPdebug( SCIPprintVar(scip, negvar, NULL) );
 #endif
+
       neglits =  MR_list_tail(neglits);
    }
 
    while ( !MR_list_is_empty(poslits) )
    {
-      var = probdata->vars[(int) MR_list_head(poslits)];
+      varindex = (int) MR_list_head(poslits);
+      
+      if( (*once_only) == -1 && (*nvars) < 2 && MR_once_only(probdata->atom_store,varindex) )
+         *once_only = *nvars;
+
+      var = probdata->vars[varindex];
       clausevars[(*nvars)++] = var;
 #ifdef SCIP_DEBUG
       SCIPdebugMessage("Variable in cut:\n");
@@ -149,6 +160,12 @@ int main(
    const char paramfile[] = "mfoilp.set";
 
    int nvars;
+   int once_only;
+   
+   
+   SCIP_Real vals[2] = {1.0, 1.0};
+   int i;
+   SCIP_VAR* var;
 
    /* initialise Mercury runtime */
    mercury_init(argc, argv, &stack_bottom);
@@ -207,19 +224,59 @@ int main(
       neglits =  MR_list_head(neglitss);
       poslits =  MR_list_head(poslitss);
 
-      SCIP_CALL( makeclause(scip, probdata, neglits, poslits, &nvars, clausevars) );
+      SCIP_CALL( makeclause(scip, probdata, neglits, poslits, &nvars, clausevars, &once_only) );
 
-      SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, 
-            (char *)  MR_list_head(consnames), 
-            nvars, clausevars) );
-      SCIP_CALL( SCIPaddCons(scip, cons) );
-      /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
-      SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+      if( once_only == -1 )
+      {
+         /* add a ground clause */
+         SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, 
+               (char *)  MR_list_head(consnames), 
+               nvars, clausevars) );
+         SCIP_CALL( SCIPaddCons(scip, cons) );
+         /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
+         SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+      }
+      else
+      {
+         /* add an equation */
+         SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons,
+               (char *)  MR_list_head(consnames), 2, clausevars, vals, 1.0, 1.0) );
+         SCIP_CALL( SCIPaddCons(scip, cons) );
+         /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
+         SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
+         /* encourage the 'right' one to be aggregated */
+         if( once_only == 0 )
+            SCIP_CALL( SCIPmarkDoNotMultaggrVar(scip, clausevars[1]) );
+         else
+            SCIP_CALL( SCIPmarkDoNotMultaggrVar(scip, clausevars[0]) );
+      }
       consnames = MR_list_tail(consnames);
       neglitss = MR_list_tail(neglitss);
       poslitss = MR_list_tail(poslitss);
    }
+
+
+   /* create variable and constraint for branching on sum of active vars */
+   /* prevents aggregations, so not currently used */
+
+   /* SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, "sumcons", 0, NULL, NULL, 0.0, 0.0) ); */
+   /* nvars = 0; */
+   /* for( i = 0; i < probdata->nvars; ++i) */
+   /*    if( !MR_once_only(probdata->atom_store,i) ) */
+   /*    { */
+   /*       SCIP_CALL( SCIPaddCoefLinear(scip, cons, probdata->vars[i], 1) ); */
+   /*       nvars++; */
+   /*    } */
+   
+   /* SCIP_CALL( SCIPcreateVarBasic(scip, &var, "atomcount", 0.0, nvars, 0.0, SCIP_VARTYPE_INTEGER) ); */
+   /* SCIP_CALL( SCIPaddVar(scip, var) ); */
+   /* SCIP_CALL( SCIPmarkDoNotMultaggrVar(scip, var) ); */
+   /* SCIP_CALL( SCIPchgVarBranchPriority(scip, var, 10) ); */
+   /* SCIP_CALL( SCIPaddCoefLinear(scip, cons,  var, -1) ); */
+   /* SCIP_CALL( SCIPaddCons(scip, cons) ); */
+   /* /\*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*\/ */
+   /* SCIP_CALL( SCIPreleaseCons(scip, &cons) ); */
 
    /* get list of names of first-order clauses from Mercury */
    MR_delayed_clauses(&clausenames);

@@ -61,6 +61,13 @@
 %
 %-----------------------------------------------------------------------------%
 
+:- pragma foreign_export("C", once_only(in,in), "MR_once_only").
+
+:- pred once_only(as_next::in,int::in) is semidet.
+
+once_only(as(Array,_,_),I) :-
+	array.lookup(Array,I,Atom),
+	prob.once_only(Atom).
 
 :- pragma foreign_export("C", makeclauses(out,out,out,out,out,out), "MR_initial_constraints").
 

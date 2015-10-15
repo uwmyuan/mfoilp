@@ -135,6 +135,7 @@ SCIP_RETCODE FOLinearSeparate(
 
    int oldnvars;
    int varindex;
+   int once_only;
 
    assert( scip != NULL );
    assert( nGen != NULL );
@@ -183,7 +184,7 @@ SCIP_RETCODE FOLinearSeparate(
       neglits =  MR_list_head(neglitss);
       poslits =  MR_list_head(poslitss);
       
-      SCIP_CALL( makeclause(scip, probdata, neglits, poslits, &nvars, clausevars) );
+      SCIP_CALL( makeclause(scip, probdata, neglits, poslits, &nvars, clausevars, &once_only) );
 
       SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, "cut", 1.0, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
       SCIP_CALL( SCIPaddVarsToRowSameCoef(scip, row, nvars, clausevars, 1.0) );

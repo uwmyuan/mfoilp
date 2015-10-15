@@ -25,7 +25,10 @@ SCIP_RETCODE makeclause(
    MR_IntList neglits,        /**< indices for negative literals */
    MR_IntList poslits,        /**< indices for positive literals */
    int* nvars,                /**< pointer to number of literals in the clause */
-   SCIP_VAR** clausevars      /**< temporary storage for SCIP variables in clause */
+   SCIP_VAR** clausevars,     /**< temporary storage for SCIP variables in clause */
+   int* once_only             /**< if clause is of length < 3 and a lit is marked as occuring only in 
+                                   this clause then its index in clausevars, else -1 
+                                   if two such lits the index of the first is given */
    );
 
 
