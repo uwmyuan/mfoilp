@@ -36,7 +36,7 @@ SCIP_DECL_PROBDELORIG(probdelorigFOILP)
 
    return SCIP_OKAY;
 }
-
+      
 SCIP_RETCODE makeclause(
    SCIP* scip,                /**< SCIP pointer */
    SCIP_PROBDATA*  probdata,  /**< problem data */
@@ -163,9 +163,8 @@ int main(
    int once_only;
    
    
-   SCIP_Real vals[2] = {1.0, 1.0};
-   int i;
-   SCIP_VAR* var;
+   SCIP_VAR* delvar;
+   SCIP_Bool deleted;
 
    /* initialise Mercury runtime */
    mercury_init(argc, argv, &stack_bottom);
@@ -226,7 +225,34 @@ int main(
 
       SCIP_CALL( makeclause(scip, probdata, neglits, poslits, &nvars, clausevars, &once_only) );
 
-      if( once_only == -1 )
+      if( nvars == 2 && once_only != -1 )
+      {
+         delvar = clausevars[once_only];
+         assert( delvar != NULL );
+         assert( once_only == 0 || once_only == 1);
+
+         /* if no neglits, both must be poslits */
+         if( MR_list_is_empty(neglits) )
+         {
+            if( once_only == 1 )
+               /* one to keep is first in list */
+               SCIP_CALL( SCIPaddVarObj(scip, probdata->vars[(int) MR_list_head(poslits)], -SCIPvarGetObj(delvar)) );
+            else
+               /* one to keep is second in list */
+               SCIP_CALL( SCIPaddVarObj(scip, probdata->vars[(int) MR_list_head(MR_list_tail(poslits))], -SCIPvarGetObj(delvar)) );
+         }
+         else
+            SCIP_CALL( SCIPaddVarObj(scip, probdata->vars[(int) MR_list_head(neglits)], SCIPvarGetObj(delvar)) );         
+
+         SCIP_CALL( SCIPdelVar(scip, delvar, &deleted) );
+
+         if( !deleted )
+         {
+            SCIPerrorMessage("Could not delete variable.\n");
+            SCIPABORT();
+         }
+      }
+      else
       {
          /* add a ground clause */
          SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, 
@@ -236,21 +262,7 @@ int main(
          /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
          SCIP_CALL( SCIPreleaseCons(scip, &cons) );
       }
-      else
-      {
-         /* add an equation */
-         SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons,
-               (char *)  MR_list_head(consnames), 2, clausevars, vals, 1.0, 1.0) );
-         SCIP_CALL( SCIPaddCons(scip, cons) );
-         /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
-         SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
-         /* encourage the 'right' one to be aggregated */
-         if( once_only == 0 )
-            SCIP_CALL( SCIPmarkDoNotMultaggrVar(scip, clausevars[1]) );
-         else
-            SCIP_CALL( SCIPmarkDoNotMultaggrVar(scip, clausevars[0]) );
-      }
       consnames = MR_list_tail(consnames);
       neglitss = MR_list_tail(neglitss);
       poslitss = MR_list_tail(poslitss);
