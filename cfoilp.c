@@ -161,20 +161,24 @@ int main(
 
    int nvars;
    int once_only;
-   
-   
+
    SCIP_VAR* delvar;
    SCIP_Bool deleted;
 
+   SCIP_VAR* var;
+   SCIP_VAR** vars;
+   SCIP_Real* vals;
+   int i;
+
    /* initialise Mercury runtime */
    mercury_init(argc, argv, &stack_bottom);
-
+   
    /* initialise SCIP */
    SCIP_CALL( SCIPcreate(&scip) );
 
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
-
+   
    /* include dummy pricer  */
    SCIP_CALL( SCIPincludePricerDummy(scip) );
 
@@ -191,46 +195,46 @@ int main(
    {
       SCIPwarningMessage(scip, "Parameter file <%s> not found - using default settings.\n", paramfile);
    }
-
+   
    /* allocate memory for probdata */
    SCIP_CALL( SCIPallocMemory(scip, &probdata) );
-
+   
    /* initialise probdata */
    probdata->nvars = 0;
    probdata->vars = NULL;
    probdata->vars_len = VAR_BLOCKSIZE;
    SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
-
+   
    /* create problem */
    SCIP_CALL( SCIPcreateProb(scip, "mfoilp", probdelorigFOILP, NULL, NULL,
          NULL, NULL, NULL, probdata) );
-
+   
    /* activates dummy pricer  */
    SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "dummy")) );
-
+   
    /* get initial constraints and variables from Mercury */
    MR_initial_constraints(&atomstore,&objectives,&varnames,&consnames,&neglitss,&poslitss);
 
    /* initialise SCIP's atom store */
    probdata->atom_store = atomstore;
-
+   
    /* create initial binary variables in constraints  */
    SCIP_CALL( addNewVars(scip, probdata, objectives, varnames, TRUE) );
-
+   
    /* now add the initial constraints */
    while ( !MR_list_is_empty(consnames) )
    {
       neglits =  MR_list_head(neglitss);
       poslits =  MR_list_head(poslitss);
-
+      
       SCIP_CALL( makeclause(scip, probdata, neglits, poslits, &nvars, clausevars, &once_only) );
-
+      
       if( nvars == 2 && once_only != -1 )
       {
          delvar = clausevars[once_only];
          assert( delvar != NULL );
          assert( once_only == 0 || once_only == 1);
-
+         
          /* if no neglits, both must be poslits */
          if( MR_list_is_empty(neglits) )
          {
@@ -243,9 +247,9 @@ int main(
          }
          else
             SCIP_CALL( SCIPaddVarObj(scip, probdata->vars[(int) MR_list_head(neglits)], SCIPvarGetObj(delvar)) );         
-
+         
          SCIP_CALL( SCIPdelVar(scip, delvar, &deleted) );
-
+         
          if( !deleted )
          {
             SCIPerrorMessage("Could not delete variable.\n");
@@ -262,33 +266,48 @@ int main(
          /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
          SCIP_CALL( SCIPreleaseCons(scip, &cons) );
       }
-
+      
       consnames = MR_list_tail(consnames);
       neglitss = MR_list_tail(neglitss);
       poslitss = MR_list_tail(poslitss);
    }
 
+   
+   SCIP_CALL( SCIPpresolve(scip) );	
+
 
    /* create variable and constraint for branching on sum of active vars */
-   /* prevents aggregations, so not currently used */
-
-   /* SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, "sumcons", 0, NULL, NULL, 0.0, 0.0) ); */
-   /* nvars = 0; */
-   /* for( i = 0; i < probdata->nvars; ++i) */
-   /*    if( !MR_once_only(probdata->atom_store,i) ) */
-   /*    { */
-   /*       SCIP_CALL( SCIPaddCoefLinear(scip, cons, probdata->vars[i], 1) ); */
-   /*       nvars++; */
-   /*    } */
    
-   /* SCIP_CALL( SCIPcreateVarBasic(scip, &var, "atomcount", 0.0, nvars, 0.0, SCIP_VARTYPE_INTEGER) ); */
-   /* SCIP_CALL( SCIPaddVar(scip, var) ); */
-   /* SCIP_CALL( SCIPmarkDoNotMultaggrVar(scip, var) ); */
+
+   SCIP_CALL( SCIPallocMemoryArray(scip, &vars, SCIPgetNVars(scip)+1) );
+   SCIP_CALL( SCIPallocMemoryArray(scip, &vals, SCIPgetNVars(scip)+1) );
+
+   nvars = 0;
+   for( i = 0; i < probdata->nvars; ++i)
+   {  
+      var = probdata->vars[i];
+      if( SCIPvarIsActive(var) && !MR_once_only(probdata->atom_store,i) )
+      {
+         vars[nvars] = var;
+         vals[nvars++] = 1.0;
+      }
+   }
+   
+   SCIP_CALL( SCIPcreateVarBasic(scip, &var, "atomcount", 0.0, nvars, 0.0, SCIP_VARTYPE_INTEGER) );
+   SCIP_CALL( SCIPaddVar(scip, var) );
+   /* should not need this next line since presolving already done */
+   SCIP_CALL( SCIPmarkDoNotMultaggrVar(scip, var) );
    /* SCIP_CALL( SCIPchgVarBranchPriority(scip, var, 10) ); */
-   /* SCIP_CALL( SCIPaddCoefLinear(scip, cons,  var, -1) ); */
-   /* SCIP_CALL( SCIPaddCons(scip, cons) ); */
-   /* /\*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*\/ */
-   /* SCIP_CALL( SCIPreleaseCons(scip, &cons) ); */
+   vars[nvars] = var;
+   vals[nvars++] = -1.0;
+
+   SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, "sumcons", nvars, vars, vals, 0.0, 0.0) );
+   SCIP_CALL( SCIPaddCons(scip, cons) );
+   /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
+   SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+
+   SCIPfreeMemoryArray(scip, &vars);
+   SCIPfreeMemoryArray(scip, &vals);
 
    /* get list of names of first-order clauses from Mercury */
    MR_delayed_clauses(&clausenames);
@@ -310,7 +329,7 @@ int main(
    SCIP_CALL( SCIPsolve(scip) );
 
    /* print the solution to standard output */
-   SCIP_CALL( SCIPprintBestSol(scip, NULL, FALSE) );
+   /*SCIP_CALL( SCIPprintBestSol(scip, NULL, FALSE) );*/
 
    /* print solving statistics */
    /* SCIP_CALL( SCIPprintStatistics(scip, NULL) ); */
