@@ -11,6 +11,9 @@
 #include "cfoilp.h"
 
 
+#define DEFAULT_AGGRWATOMS TRUE
+#define DEFAULT_GROUNDOUT FALSE
+
 /*
 ** This header file is part of the stand-alone interface.
 ** It contains declarations for mercury_init() and mercury_terminate(),
@@ -143,6 +146,9 @@ int main(
    SCIP* scip = NULL;
    SCIP_PROBDATA*  probdata = NULL;
 
+   SCIP_Bool aggrwatoms;   
+   SCIP_Bool groundout;
+
    MR_AtomStore atomstore;
    MR_FloatList objectives;
    MR_StringList varnames;
@@ -185,11 +191,27 @@ int main(
    /* include first-order linear constraint handler */
    SCIP_CALL( SCIPincludeConshdlrFolinear(scip) );
 
+   /* create parameters  */
+   SCIP_CALL(SCIPaddBoolParam(scip,
+         "mfoilp/aggrwatoms",
+         "whether mfoilp should avoid creating constraints if there is only one 'normal' atom",
+         &aggrwatoms, TRUE, DEFAULT_AGGRWATOMS, NULL, NULL));
+
+   SCIP_CALL(SCIPaddBoolParam(scip,
+         "mfoilp/groundout",
+         "whether mfoilp should ground out the entire problem",
+         &groundout, TRUE, DEFAULT_GROUNDOUT, NULL, NULL));
+
+
    /* read in parameters */
    if( SCIPfileExists(paramfile) )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Reading parameter file <%s>.\n", paramfile);
       SCIP_CALL( SCIPreadParams(scip, paramfile) );
+
+      SCIP_CALL( SCIPgetBoolParam(scip, "mfoilp/aggrwatoms", &aggrwatoms) );
+      SCIP_CALL( SCIPgetBoolParam(scip, "mfoilp/groundout", &groundout) );
+
    }
    else
    {
@@ -209,8 +231,9 @@ int main(
    SCIP_CALL( SCIPcreateProb(scip, "mfoilp", probdelorigFOILP, NULL, NULL,
          NULL, NULL, NULL, probdata) );
    
-   /* activates dummy pricer  */
-   SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "dummy")) );
+   /* activates dummy pricer if not grounding out */
+   if( !groundout)
+      SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "dummy")) ); 
    
    /* get initial constraints and variables from Mercury */
    MR_initial_constraints(&atomstore,&objectives,&varnames,&consnames,&neglitss,&poslitss);
@@ -229,7 +252,7 @@ int main(
       
       SCIP_CALL( makeclause(scip, probdata, neglits, poslits, &nvars, clausevars, &once_only) );
       
-      if( nvars == 2 && once_only != -1 )
+      if( aggrwatoms && nvars == 2 && once_only != -1 )
       {
          delvar = clausevars[once_only];
          assert( delvar != NULL );
