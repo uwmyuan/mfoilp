@@ -13,6 +13,7 @@
 
 #define DEFAULT_AGGRWATOMS TRUE
 #define DEFAULT_GROUNDOUT FALSE
+#define DEFAULT_ANDCONS TRUE
 
 /*
 ** This header file is part of the stand-alone interface.
@@ -33,15 +34,69 @@ SCIP_DECL_PROBDELORIG(probdelorigFOILP)
    assert( *probdata != NULL );
 
    SCIPfreeMemoryArray(scip, &(*probdata)->vars);
-
+   
    /* free probdata */
    SCIPfreeMemory(scip, probdata);
-
+   
    return SCIP_OKAY;
 }
-      
-SCIP_RETCODE makeclause(
+
+static
+SCIP_RETCODE makeandcons(
    SCIP* scip,                /**< SCIP pointer */
+   SCIP_PROBDATA*  probdata,  /**< problem data */
+   MR_IntList neglits,        /**< indices for negative literals */
+   MR_IntList poslits,        /**< indices for positive literals */
+   int* nvars,                /**< pointer to number of literals on RHS of and constraint */
+   SCIP_VAR** vars,           /**< temporary storage for SCIP variables on RHS of and constraint */
+   SCIP_VAR** resvar          /**< resultant var of and constraint */
+   )
+{
+
+   SCIP_VAR* var;
+   SCIP_VAR* negvar;
+   int varindex;
+
+   (*nvars) = 0;
+
+   while ( !MR_list_is_empty(neglits) )
+   {
+      varindex = (int) MR_list_head(neglits);
+      var = probdata->vars[varindex];
+      vars[(*nvars)++] = var;
+#ifdef SCIP_DEBUG
+      SCIPdebugMessage("Variable in cut:\n");
+      SCIPdebug( SCIPprintVar(scip, var, NULL) );
+#endif
+      neglits =  MR_list_tail(neglits);
+   }
+
+
+   while ( !MR_list_is_empty(poslits) )
+   {
+      varindex = (int) MR_list_head(poslits);
+      var = probdata->vars[varindex];
+      
+      if( MR_once_only(probdata->atom_store,varindex) )
+         (*resvar) = var;
+      else
+      {
+         SCIP_CALL( SCIPgetNegatedVar(scip,var,&negvar) );
+         vars[(*nvars)++] = negvar;
+#ifdef SCIP_DEBUG
+      SCIPdebugMessage("Variable in cut:\n");
+      SCIPdebug( SCIPprintVar(scip, negvar, NULL) );
+#endif
+      }
+      poslits =  MR_list_tail(poslits);
+   }
+      
+      return SCIP_OKAY;
+}      
+
+
+SCIP_RETCODE makeclause(
+SCIP* scip,                /**< SCIP pointer */
    SCIP_PROBDATA*  probdata,  /**< problem data */
    MR_IntList neglits,        /**< indices for negative literals */
    MR_IntList poslits,        /**< indices for positive literals */
@@ -132,7 +187,7 @@ SCIP_RETCODE addNewVars(
       objectives = MR_list_tail(objectives);
       varnames = MR_list_tail(varnames);
    }
-   return SCIP_OKAY;
+      return SCIP_OKAY;
 }
 
 /** main function */
@@ -148,6 +203,7 @@ int main(
 
    SCIP_Bool aggrwatoms;   
    SCIP_Bool groundout;
+   SCIP_Bool andcons;
 
    MR_AtomStore atomstore;
    MR_FloatList objectives;
@@ -161,18 +217,20 @@ int main(
    SCIP_CONS* cons;
 
    MR_StringList clausenames;
-   SCIP_VAR* clausevars[100];
+   SCIP_VAR* vars[100];
 
    const char paramfile[] = "mfoilp.set";
 
    int nvars;
    int once_only;
 
+   SCIP_VAR* resvar = NULL;
+
    SCIP_VAR* delvar;
    SCIP_Bool deleted;
 
    SCIP_VAR* var;
-   SCIP_VAR** vars;
+   SCIP_VAR** acvars;
    SCIP_Real* vals;
    int i;
 
@@ -202,6 +260,11 @@ int main(
          "whether mfoilp should ground out the entire problem",
          &groundout, TRUE, DEFAULT_GROUNDOUT, NULL, NULL));
 
+   SCIP_CALL(SCIPaddBoolParam(scip,
+         "mfoilp/andcons",
+         "whether weighted clauses should be translated to 'and' constraints",
+         &andcons, TRUE, DEFAULT_ANDCONS, NULL, NULL));
+
 
    /* read in parameters */
    if( SCIPfileExists(paramfile) )
@@ -211,6 +274,7 @@ int main(
 
       SCIP_CALL( SCIPgetBoolParam(scip, "mfoilp/aggrwatoms", &aggrwatoms) );
       SCIP_CALL( SCIPgetBoolParam(scip, "mfoilp/groundout", &groundout) );
+      SCIP_CALL( SCIPgetBoolParam(scip, "mfoilp/andcons", &andcons) );
 
    }
    else
@@ -249,12 +313,15 @@ int main(
    {
       neglits =  MR_list_head(neglitss);
       poslits =  MR_list_head(poslitss);
-      
-      SCIP_CALL( makeclause(scip, probdata, neglits, poslits, &nvars, clausevars, &once_only) );
+
+      if( andcons )
+         SCIP_CALL( makeandcons(scip, probdata, neglits, poslits, &nvars, vars, &resvar) );
+      else
+         SCIP_CALL( makeclause(scip, probdata, neglits, poslits, &nvars, vars, &once_only) );
       
       if( aggrwatoms && nvars == 2 && once_only != -1 )
       {
-         delvar = clausevars[once_only];
+         delvar = vars[once_only];
          assert( delvar != NULL );
          assert( once_only == 0 || once_only == 1);
          
@@ -281,10 +348,17 @@ int main(
       }
       else
       {
-         /* add a ground clause */
-         SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, 
-               (char *)  MR_list_head(consnames), 
-               nvars, clausevars) );
+         if( andcons )
+            /* add a ground and constraint */
+         SCIP_CALL( SCIPcreateConsBasicAnd(scip, &cons, 
+               (char *)  MR_list_head(consnames), resvar, 
+               nvars, vars) );
+         else
+            /* add a ground clause */
+            SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, 
+                  (char *)  MR_list_head(consnames), 
+                  nvars, vars) );
+         
          SCIP_CALL( SCIPaddCons(scip, cons) );
          /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
          SCIP_CALL( SCIPreleaseCons(scip, &cons) );
@@ -302,7 +376,7 @@ int main(
    /* create variable and constraint for branching on sum of active vars */
    
 
-   SCIP_CALL( SCIPallocMemoryArray(scip, &vars, SCIPgetNVars(scip)+1) );
+   SCIP_CALL( SCIPallocMemoryArray(scip, &acvars, SCIPgetNVars(scip)+1) );
    SCIP_CALL( SCIPallocMemoryArray(scip, &vals, SCIPgetNVars(scip)+1) );
 
    nvars = 0;
@@ -311,25 +385,25 @@ int main(
       var = probdata->vars[i];
       if( SCIPvarIsActive(var) && !MR_once_only(probdata->atom_store,i) )
       {
-         vars[nvars] = var;
+         acvars[nvars] = var;
          vals[nvars++] = 1.0;
       }
    }
    
-   SCIP_CALL( SCIPcreateVarBasic(scip, &var, "atomcount", 0.0, nvars, 0.0, SCIP_VARTYPE_INTEGER) );
+   SCIP_CALL( SCIPcreateVarBasic(scip, &var, "atomcount", 0, nvars, 0.0, SCIP_VARTYPE_INTEGER) );
    SCIP_CALL( SCIPaddVar(scip, var) );
    /* should not need this next line since presolving already done */
    SCIP_CALL( SCIPmarkDoNotMultaggrVar(scip, var) );
-   /* SCIP_CALL( SCIPchgVarBranchPriority(scip, var, 10) ); */
-   vars[nvars] = var;
+   SCIP_CALL( SCIPchgVarBranchPriority(scip, var, 10) ); 
+   acvars[nvars] = var;
    vals[nvars++] = -1.0;
 
-   SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, "sumcons", nvars, vars, vals, 0.0, 0.0) );
+   SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, "sumcons", nvars, acvars, vals, 0.0, 0.0) );
    SCIP_CALL( SCIPaddCons(scip, cons) );
    /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
    SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
-   SCIPfreeMemoryArray(scip, &vars);
+   SCIPfreeMemoryArray(scip, &acvars);
    SCIPfreeMemoryArray(scip, &vals);
 
    /* get list of names of first-order clauses from Mercury */
@@ -355,7 +429,7 @@ int main(
    /*SCIP_CALL( SCIPprintBestSol(scip, NULL, FALSE) );*/
 
    /* print solving statistics */
-   /* SCIP_CALL( SCIPprintStatistics(scip, NULL) ); */
+   SCIP_CALL( SCIPprintStatistics(scip, NULL) ); 
 
    /* and tidy up */
    SCIP_CALL( SCIPfree(&scip) );

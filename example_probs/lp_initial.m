@@ -23,6 +23,7 @@
 :- implementation.
 
 :- import_module int.
+:- import_module float.
 
 %----------------------------------------------------------------------%
 
@@ -86,8 +87,10 @@ objective(c19(_,_,_),0.337329).
 objective(c20(_,_),0.515549).
 objective(c21(_,_),0.954782).
 objective(c22(_,_),2.89681).
-objective(c23(_,_),0.709057).
-objective(c24(_,_,_),0.384788).
+%objective(c23(_,_),0.709057).
+objective(c23(_,_),2.0*0.709057).
+%objective(c24(_,_,_),0.384788).
+objective(c24(_,_,_),2.0*0.384788).
 
 clause(_,_,_) :- fail.
 clause(_) :- fail.
@@ -301,16 +304,17 @@ initial_clause("22") -->
 	initial_poslit(c22(A1,A2)).
 
 %0.709057  !advisedBy(a1,a2) v !advisedBy(a2,a1)
+% cheat by doubling penalty and reducing number of instances
 initial_clause("23") -->
-	{person(A1), person(A2)},
+	{person(A1), person(A2), A1 @< A2},
 	initial_neglit(advisedBy(A1,A2)),
 	initial_neglit(advisedBy(A2,A1)),
 	initial_poslit(c23(A1,A2)).
 
 %0.384788  !advisedBy(a1,a2) v !advisedBy(a1,a3) v samePerson(a2,a3)
-
+% cheat by doubling penalty and reducing number of instances
 initial_clause("24") -->
-	{ person(A1), person(A2), person(A3), not A2 = A3 },
+	{ person(A1), person(A2), person(A3), A2 @< A3 },
 	initial_neglit(advisedBy(A1,A2)),
 	initial_neglit(advisedBy(A1,A3)),
 	initial_poslit(c24(A1,A2,A3)).
