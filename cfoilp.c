@@ -376,8 +376,8 @@ int main(
    /* create variable and constraint for branching on sum of active vars */
    
 
-   SCIP_CALL( SCIPallocMemoryArray(scip, &acvars, SCIPgetNVars(scip)+1) );
-   SCIP_CALL( SCIPallocMemoryArray(scip, &vals, SCIPgetNVars(scip)+1) );
+   SCIP_CALL( SCIPallocMemoryArray(scip, &acvars, SCIPgetNOrigVars(scip)+1) );
+   SCIP_CALL( SCIPallocMemoryArray(scip, &vals, SCIPgetNOrigVars(scip)+1) );
 
    nvars = 0;
    for( i = 0; i < probdata->nvars; ++i)
