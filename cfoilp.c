@@ -11,9 +11,9 @@
 #include "cfoilp.h"
 
 
-#define DEFAULT_AGGRWATOMS TRUE
+#define DEFAULT_AGGRWATOMS FALSE
 #define DEFAULT_GROUNDOUT FALSE
-#define DEFAULT_ANDCONS TRUE
+#define DEFAULT_ANDCONS FALSE
 
 /*
 ** This header file is part of the stand-alone interface.
@@ -319,7 +319,7 @@ int main(
       else
          SCIP_CALL( makeclause(scip, probdata, neglits, poslits, &nvars, vars, &once_only) );
       
-      if( aggrwatoms && nvars == 2 && once_only != -1 )
+      if( !andcons && aggrwatoms && nvars == 2 && once_only != -1 )
       {
          delvar = vars[once_only];
          assert( delvar != NULL );
@@ -381,7 +381,7 @@ int main(
 
    nvars = 0;
    for( i = 0; i < probdata->nvars; ++i)
-   {  
+   {
       var = probdata->vars[i];
       if( SCIPvarIsActive(var) && !MR_once_only(probdata->atom_store,i) )
       {
@@ -394,7 +394,7 @@ int main(
    SCIP_CALL( SCIPaddVar(scip, var) );
    /* should not need this next line since presolving already done */
    SCIP_CALL( SCIPmarkDoNotMultaggrVar(scip, var) );
-   SCIP_CALL( SCIPchgVarBranchPriority(scip, var, 10) ); 
+   SCIP_CALL( SCIPchgVarBranchPriority(scip, var, 10) );
    acvars[nvars] = var;
    vals[nvars++] = -1.0;
 
