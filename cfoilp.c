@@ -392,8 +392,6 @@ int main(
    
    SCIP_CALL( SCIPcreateVarBasic(scip, &var, "atomcount", 0, nvars, 0.0, SCIP_VARTYPE_INTEGER) );
    SCIP_CALL( SCIPaddVar(scip, var) );
-   /* should not need this next line since presolving already done */
-   SCIP_CALL( SCIPmarkDoNotMultaggrVar(scip, var) );
    SCIP_CALL( SCIPchgVarBranchPriority(scip, var, 10) );
    acvars[nvars] = var;
    vals[nvars++] = -1.0;
