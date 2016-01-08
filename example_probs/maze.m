@@ -99,7 +99,7 @@ clause("moveinv") -->
 	neglit(move(I-1,D)),
 	{makemove(D,X,Y,NewX,NewY)},
 	poslit(position(I-1,X,Y)).
-neglit("moveinv",position(_,_,_)).
+neglit("moveinv",position(I,_,_)) :- not I = 0.
 neglit("moveinv",move(_,_)).
 poslit("moveinv",position(_,_,_)).
 
@@ -120,5 +120,5 @@ initial_clause("start") -->
 	initial_poslit(position(0,0,0)).
 
 initial_clause("end") -->
-	initial_poslit(position(10,3,4)).
+	initial_poslit(position(4,2,2)).
 
