@@ -27,7 +27,7 @@
 
 %----------------------------------------------------------------------%
 
-:- type direction ---> l ; r ; u ;  d.
+:- type direction ---> l ; r ; u ;  d ; s.
 
 % define atom type
 
@@ -57,6 +57,7 @@ makemove(l,X,Y,X-1,Y).
 makemove(r,X,Y,X+1,Y).
 makemove(u,X,Y,X,Y+1).
 makemove(d,X,Y,X,Y-1).
+makemove(s,X,Y,X,Y).
 
 % at most one move at any time point
 
@@ -86,6 +87,7 @@ clause("oneway") -->
 	poslit(move(I-1,l)),
 	poslit(move(I-1,r)),
 	poslit(move(I-1,u)),
+	poslit(move(I-1,s)),
 	poslit(move(I-1,d)).
 neglit("oneway",position(_,_,_)).
 poslit("oneway",move(_,_)).
@@ -120,5 +122,5 @@ initial_clause("start") -->
 	initial_poslit(position(0,0,0)).
 
 initial_clause("end") -->
-	initial_poslit(position(8,6,2)).
+	initial_poslit(position(6,4,2)).
 
