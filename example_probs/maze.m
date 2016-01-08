@@ -120,5 +120,5 @@ initial_clause("start") -->
 	initial_poslit(position(0,0,0)).
 
 initial_clause("end") -->
-	initial_poslit(position(4,2,2)).
+	initial_poslit(position(8,6,2)).
 

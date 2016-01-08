@@ -4,7 +4,7 @@
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
-#define SCIP_DEBUG
+/*#define SCIP_DEBUG*/
 #include <assert.h>
 #include <string.h>
 
@@ -15,7 +15,7 @@
 /* fundamental constraint handler properties */
 #define CONSHDLR_NAME          "folinear"
 #define CONSHDLR_DESC          "first order linear constraint handler"
-#define CONSHDLR_ENFOPRIORITY         10 /**< priority of the constraint handler for constraint enforcing */
+#define CONSHDLR_ENFOPRIORITY         0 /**< priority of the constraint handler for constraint enforcing */
 #define CONSHDLR_CHECKPRIORITY        0 /**< priority of the constraint handler for checking feasibility */
 #define CONSHDLR_EAGERFREQ          100 /**< frequency for using all instead of only the useful constraints in separation,
                                               *   propagation and enforcement, -1 for no eager evaluations, 0 for first only */
