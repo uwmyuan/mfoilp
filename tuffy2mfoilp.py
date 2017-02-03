@@ -26,6 +26,7 @@ header = '''
 :- type atom.
 
 :- pred clause(string::in,clause_info::in,clause_info::out) is nondet.
+:- pred initial_clause(string::out,clause_lits::in,clause_lits::out) is nondet.
 
 :- pred clause(string::out) is multi.
 
@@ -77,23 +78,27 @@ def to_lp(lit):
     return "{0}({1})".format(match.group(1),','.join(outargs))
             
 current_predicate = None
-fobj = None
 fact_table_decl = []
+fobjs = {}
 for line in evidence:
     match = fact_pattern.match(line)
     if match:
         this_predicate = match.group(1)
         args = ['"'+x+'"' for x in match.group(2).replace(' ','').split(',')]
         if this_predicate != current_predicate:
-            if fobj is not None:
-                fobj.close()
+            try:
+                fobj = fobjs[this_predicate]
+            except KeyError:
+                fobj = open(this_predicate,'a')
+                fobjs[this_predicate] = fobj
+                decl_args = ','.join(['string::out']*len(args))
+                fact_table_decl.append(':- pred {0}({1}) is multi.'.format(this_predicate,decl_args))
+                fact_table_decl.append(':- pragma fact_table({0}/{1},"{0}").'.format(this_predicate,len(args)))
             current_predicate = this_predicate
-            fobj = open(current_predicate,'w')
-            decl_args = ','.join(['string::out']*len(args))
-            fact_table_decl.append(':- pred {0}({1}) is multi.'.format(this_predicate,decl_args))
-            fact_table_decl.append(':- pragma fact_table({0}/{1},"{0}").'.format(this_predicate,len(args)))
         print('{0}({1}).'.format(this_predicate,','.join(args)),file=fobj)
-fobj.close()
+for fobj in fobjs.values():
+    fobj.close()
+evidence.close()
 
 cwa = set()
 noncwa = set()
@@ -197,11 +202,11 @@ for line in mln:
 #print(atom_types)
 
 print(header)
-print('% define atotm type')
-print(':- type -->')
+print('% define atom type')
+print(':- type atom --->')
 atom_types = sorted(atom_types)
 for at in atom_types[:-1]:
-    print('  {0}'.format(at))
+    print('  {0};'.format(at))
 print('  {0}.'.format(atom_types[-1]))
 print()
 print('% provide non-zero objective values for each atom-variable')
@@ -212,6 +217,8 @@ print('% predicates defined in fact tables')
 for f in fact_table_decl:
     print(f)
 print()
+print('% no initial clauses')
+print('initial_clause(_,_,_) :- fail.')
 print('% clauses')
 for c in clauses:
     print(c)
@@ -229,3 +236,7 @@ print()
 for x in nl:
     print(x)
 print()
+
+print('% dummy definition, will be removed')
+print(':- pred person(string::out) is nondet.')
+print('person(_) :- fail.')
