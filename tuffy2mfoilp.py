@@ -110,7 +110,7 @@ clauses = []
 cl1 = []
 pl = []
 nl = []
-
+modes = {}
 for line in mln:
     line = line.rstrip()
 
@@ -160,6 +160,17 @@ for line in mln:
             for neglit in neglits:
                 if is_cwa(neglit):
                     mc_lits.append('{{{0}}}'.format(neglit))
+                    inout = []
+                    match = fact_pattern.match(neglit)
+                    for a in match.group(2).split(','):
+                        if a[0].isupper() and a not in grounded:
+                            inout.append('out')
+                        else:
+                            inout.append('in')
+                    try:
+                        modes[getpred(neglit)].add(tuple(inout))
+                    except KeyError:
+                        modes[getpred(neglit)] = set([tuple(inout)])
                     grounded.update(getargs(neglit))
             for poslit in poslits:
                 if is_cwa(poslit):
@@ -168,11 +179,13 @@ for line in mln:
                     args = match.group(2).split(',')
                     for i, arg in enumerate(args):
                         if arg[0].isupper() and arg not in grounded:
-                            #print(type_dkt)
-                            #print(predsym)
-                            #print(i)
                             mc_lits.append('{{{0}({1})}}'.format(type_dkt[predsym][i],arg))
                     mc_lits.append('{{not {0}}}'.format(poslit))
+                    inout = ['in']*len(args)
+                    try:
+                        modes[getpred(poslit)].add(tuple(inout))
+                    except KeyError:
+                        modes[getpred(poslit)] = set([tuple(inout)])
                     grounded.update(getargs(poslit))
             for poslit in poslits:
                 if not is_cwa(poslit):
@@ -214,8 +227,13 @@ for obj in objectives:
     print(obj)
 print()
 print('% predicates defined in fact tables') 
-for f in fact_table_decl:
-    print(f)
+for pred, modes in modes.items():
+    l = len(list(modes)[0])
+    decl_args = ','.join(['string']*l)
+    print(':- pred {0}({1}).'.format(pred,decl_args))
+    for mode in modes:
+        print(':- mode {0}({1}) is nondet.'.format(pred,','.join(mode)))
+    print(':- pragma fact_table({0}/{1},"{0}").'.format(pred,l))
 print()
 print('% no initial clauses')
 print('initial_clause(_,_,_) :- fail.')
@@ -240,3 +258,5 @@ print()
 print('% dummy definition, will be removed')
 print(':- pred person(string::out) is nondet.')
 print('person(_) :- fail.')
+
+
