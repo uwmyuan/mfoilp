@@ -164,7 +164,7 @@ def process_clause(neglits,poslits,foclausenum,cblit):
         return this_clause, cblit
 
 current_predicate = None
-fact_table_decl = []
+#fact_table_decl = []
 fobjs = {}
 for line in evidence:
     match = fact_pattern.match(line)
@@ -178,8 +178,8 @@ for line in evidence:
                 fobj = open(this_predicate,'a')
                 fobjs[this_predicate] = fobj
                 decl_args = ','.join(['string::out']*len(args))
-                fact_table_decl.append(':- pred {0}({1}) is multi.'.format(this_predicate,decl_args))
-                fact_table_decl.append(':- pragma fact_table({0}/{1},"{0}").'.format(this_predicate,len(args)))
+                #fact_table_decl.append(':- pred {0}({1}) is multi.'.format(this_predicate,decl_args))
+                #fact_table_decl.append(':- pragma fact_table({0}/{1},"{0}").'.format(this_predicate,len(args)))
             current_predicate = this_predicate
         print('{0}({1}).'.format(this_predicate,','.join(args)),file=fobj)
 for fobj in fobjs.values():
@@ -287,7 +287,12 @@ for pred, modes in modes.items():
     print(':- pred {0}({1}).'.format(pred,decl_args))
     for mode in modes:
         print(':- mode {0}({1}) is nondet.'.format(pred,','.join(mode)))
-    print(':- pragma fact_table({0}/{1},"{0}").'.format(pred,l))
+    #print(':- pragma fact_table({0}/{1},"{0}").'.format(pred,l))
+    fobj = open(pred)
+    for line in fobj:
+        print(line)
+    fobj.close()
+    print()
 print()
 print('% no initial clauses')
 print('initial_clause(_,_,_) :- fail.')
