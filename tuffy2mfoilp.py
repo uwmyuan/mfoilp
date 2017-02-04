@@ -242,12 +242,26 @@ for line in mln:
         elif weight < 0:
             # use this to get the cblit
             clause, cblit = process_clause(neglits,poslits,foclausenum,None)
+            cwa_neglits = []
+            noncwa_neglits = []
             for neglit in neglits:
-                clause, cblit = process_clause([],[neglit],foclausenum,cblit)
+                if is_cwa(neglit):
+                    cwa_neglits.append(neglit)
+                else:
+                    noncwa_neglits.append(neglit)
+            cwa_poslits = []
+            noncwa_poslits = []
+            for poslit in poslits:
+                if is_cwa(poslit):
+                    cwa_poslits.append(poslit)
+                else:
+                    noncwa_poslits.append(poslit)
+            for neglit in noncwa_neglits:
+                clause, junk = process_clause(cwa_neglits+[neglit],cwa_poslits,foclausenum,cblit)
                 clauses.append(clause)
                 foclausenum += 1
-            for poslit in poslits:
-                clause, cblit = process_clause([poslit],[],foclausenum,cblit)
+            for poslit in noncwa_poslits:
+                clause, junk = process_clause(cwa_neglits,cwa_poslits+[poslit],foclausenum,cblit)
                 clauses.append(clause)
                 foclausenum += 1
             objectives.append('objective({0},{1}).'.format(cblit,-weight))
@@ -288,10 +302,13 @@ for pred, modes in modes.items():
     for mode in modes:
         print(':- mode {0}({1}) is nondet.'.format(pred,','.join(mode)))
     #print(':- pragma fact_table({0}/{1},"{0}").'.format(pred,l))
-    fobj = open(pred)
-    for line in fobj:
-        print(line)
-    fobj.close()
+    if pred.startswith('same'):
+        print('{0}(X,X).'.format(pred))
+    else:
+        fobj = open(pred)
+        for line in fobj:
+            print(line,end="")
+        fobj.close()
     print()
 print()
 print('% no initial clauses')
