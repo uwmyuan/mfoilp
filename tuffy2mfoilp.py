@@ -53,12 +53,13 @@ def getpred(lit):
     match = fact_pattern.match(lit)
     return match.group(1)
 
-def update_grounded(grounded,lit):
+def update_grounded(grounded,cblitvars,lit):
     match = fact_pattern.match(lit)
     predsym = match.group(1)
     for i, x in enumerate(match.group(2).split(',')):
-        if x not in grounded and x[0].isupper():
+        if x[0].isupper():
             grounded[x] = type_dkt[predsym][i]
+            cblitvars.add(x)
 
 def getargs(lit):
     match = fact_pattern.match(lit)
@@ -87,8 +88,10 @@ def to_lp(lit):
 
 def process_clause(neglits,poslits,foclausenum,cblit):
         mc_lits = ['clause("{0}")'.format(foclausenum)]
+        guard_body_lits = []
         # 'grounded' maps each variable to its type
         grounded = {}
+        cblitvars = set()
         cl1.append('clause("{0}").'.format(foclausenum))
         for neglit in neglits:
             if not is_cwa(neglit):
@@ -97,10 +100,12 @@ def process_clause(neglits,poslits,foclausenum,cblit):
                 mc_lits.append('neglit({0})'.format(neglit))
                 nl.append('neglit("{0}",{1}).'.format(foclausenum,neglit))
                 atom_types.add('{0}({1})'.format(getpred(neglit),','.join(['string']*nargs(neglit))))
-                update_grounded(grounded,neglit)
+                update_grounded(grounded,cblitvars,neglit)
         for neglit in neglits:
             if is_cwa(neglit):
+                # evidence variables have their sign flipped
                 mc_lits.append('{{{0}}}'.format(neglit))
+                guard_body_lits.append(neglit),
                 inout = []
                 match = fact_pattern.match(neglit)
                 for a in match.group(2).split(','):
@@ -112,22 +117,25 @@ def process_clause(neglits,poslits,foclausenum,cblit):
                     modes[getpred(neglit)].add(tuple(inout))
                 except KeyError:
                     modes[getpred(neglit)] = set([tuple(inout)])
-                update_grounded(grounded,neglit)
+                update_grounded(grounded,set(),neglit)
         for poslit in poslits:
             if is_cwa(poslit):
+                # evidence variables have their sign flipped
                 match = fact_pattern.match(poslit)
                 predsym = match.group(1)
                 args = match.group(2).split(',')
                 for i, arg in enumerate(args):
                     if arg[0].isupper() and arg not in grounded:
                         mc_lits.append('{{{0}({1})}}'.format(type_dkt[predsym][i],arg))
+                        guard_body_lits.append('{0}({1})'.format(type_dkt[predsym][i],arg))
                 mc_lits.append('{{not {0}}}'.format(poslit))
+                guard_body_lits.append('not {0}'.format(poslit))
                 inout = ['in']*len(args)
                 try:
                     modes[getpred(poslit)].add(tuple(inout))
                 except KeyError:
                     modes[getpred(poslit)] = set([tuple(inout)])
-                update_grounded(grounded,poslit)
+                update_grounded(grounded,set(),poslit)
         for poslit in poslits:
             if not is_cwa(poslit):
                 match = fact_pattern.match(poslit)
@@ -139,14 +147,13 @@ def process_clause(neglits,poslits,foclausenum,cblit):
                 mc_lits.append('poslit({0})'.format(poslit))
                 pl.append('poslit("{0}",{1}).'.format(foclausenum,poslit))
                 atom_types.add('{0}({1})'.format(getpred(poslit),','.join(['string']*nargs(poslit))))
-                update_grounded(grounded,poslit)
-        sorted_grounded = sorted(grounded)
+                update_grounded(grounded,cblitvars,poslit)
+        cblitargs = sorted(cblitvars)
         if cblit is None:
-            cblitargs = sorted_grounded
             cblit = 'cb({0},{1})'.format(foclausenum,','.join(cblitargs))
-            atom_types.add('cb(int,{0})'.format(','.join(['string']*len(grounded))))
+            atom_types.add('cb(int,{0})'.format(','.join(['string']*len(cblitargs))))
             # this is wrong, need to get the correct types!!
-            type_dkt['cb{0}'.format(foclausenum)] = [grounded[x] for x in sorted_grounded]
+            type_dkt['cb{0}'.format(foclausenum)] = [grounded[x] for x in cblitargs]
         else:
             match = fact_pattern.match(cblit)
             args = match.group(2).split(',')
@@ -161,7 +168,8 @@ def process_clause(neglits,poslits,foclausenum,cblit):
         for lit in mc_lits[1:-1]:
               this_clause += '  {0},\n'.format(lit)
         this_clause += '  {0}.\n'.format(mc_lits[-1])
-        return this_clause, cblit
+        guard_head = 'guard({0},{1},[{2}])'.format(foclausenum,','.join(cblitargs),','.join(sorted(set(grounded)-cblitvars)))
+        return this_clause, cblit, [guard_head]+guard_body_lits
 
 current_predicate = None
 #fact_table_decl = []
@@ -193,6 +201,7 @@ type_dkt = {}
 atom_types = set()
 objectives = []
 clauses = []
+guards = []
 cl1 = []
 pl = []
 nl = []
@@ -235,13 +244,14 @@ for line in mln:
         #print(line,poslits,neglits)
         weight = float(match.group(1))
         if weight > 0:
-            clause, cblit = process_clause(neglits,poslits,foclausenum,None)
+            clause, cblit, guard_body_lits = process_clause(neglits,poslits,foclausenum,None)
             clauses.append(clause)
+            guards.append(guard_body_lits)
             foclausenum += 1
             objectives.append('objective({0},{1}).'.format(cblit,weight))
         elif weight < 0:
             # use this to get the cblit
-            clause, cblit = process_clause(neglits,poslits,foclausenum,None)
+            clause, cblit, guard_body_lits = process_clause(neglits,poslits,foclausenum,None)
             cwa_neglits = []
             noncwa_neglits = []
             for neglit in neglits:
@@ -257,12 +267,14 @@ for line in mln:
                 else:
                     noncwa_poslits.append(poslit)
             for neglit in noncwa_neglits:
-                clause, junk = process_clause(cwa_neglits+[neglit],cwa_poslits,foclausenum,cblit)
+                clause, junk, guard_body_lits = process_clause(cwa_neglits+[neglit],cwa_poslits,foclausenum,cblit)
                 clauses.append(clause)
+                guards.append(guard_body_lits)
                 foclausenum += 1
             for poslit in noncwa_poslits:
-                clause, junk = process_clause(cwa_neglits,cwa_poslits+[poslit],foclausenum,cblit)
+                clause, junk, guard_body_lits = process_clause(cwa_neglits,cwa_poslits+[poslit],foclausenum,cblit)
                 clauses.append(clause)
+                guards.append(guard_body_lits)
                 foclausenum += 1
             objectives.append('objective({0},{1}).'.format(cblit,-weight))
             
@@ -338,3 +350,13 @@ for typ, konstants in constants.items():
     for k in sorted(konstants):
         print('{0}("{1}").'.format(typ,k.strip()))
     print()
+
+for guard in guards:
+    if len(guard) == 1:
+        print('{0}.'.format(guard[0]))
+    else:
+        print('{0} :-'.format(guard[0]))
+        for lit in guard[1:-1]:
+            print('  {0},'.format(lit))
+        print('  {0}.'.format(guard[-1]))
+                  
