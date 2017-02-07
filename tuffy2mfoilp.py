@@ -42,6 +42,8 @@ header = '''
 :- import_module float.
 :- import_module string.
 :- import_module int.
+:- import_module solutions.
+:- import_module list.
 '''
 
 def updatetypes(match):
@@ -244,14 +246,19 @@ for line in mln:
         #print(line,poslits,neglits)
         weight = float(match.group(1))
         if weight > 0:
-            clause, cblit, guard_body_lits = process_clause(neglits,poslits,foclausenum,None)
+            clause, cblit, guard = process_clause(neglits,poslits,foclausenum,None)
             clauses.append(clause)
-            guards.append(guard_body_lits)
+            if fact_pattern.match(guard[0]).group(2).split(',')[-1] != '[]':
+                guards.append(guard)
+                ho = re.sub(r',\[.*\]','',guard[0])
+                objectives.append(
+                    'objective({0},float(Count) * {1}) :-\n  solutions({2},Sols),\n  length(Sols,Count).'.format(cblit,weight,ho))
+            else:
+                objectives.append('objective({0},{1}).'.format(cblit,weight))
             foclausenum += 1
-            objectives.append('objective({0},{1}).'.format(cblit,weight))
         elif weight < 0:
             # use this to get the cblit
-            clause, cblit, guard_body_lits = process_clause(neglits,poslits,foclausenum,None)
+            clause, cblit, guard = process_clause(neglits,poslits,foclausenum,None)
             cwa_neglits = []
             noncwa_neglits = []
             for neglit in neglits:
@@ -267,16 +274,19 @@ for line in mln:
                 else:
                     noncwa_poslits.append(poslit)
             for neglit in noncwa_neglits:
-                clause, junk, guard_body_lits = process_clause(cwa_neglits+[neglit],cwa_poslits,foclausenum,cblit)
+                clause, junk, guard = process_clause(cwa_neglits+[neglit],cwa_poslits,foclausenum,cblit)
                 clauses.append(clause)
-                guards.append(guard_body_lits)
                 foclausenum += 1
             for poslit in noncwa_poslits:
-                clause, junk, guard_body_lits = process_clause(cwa_neglits,cwa_poslits+[poslit],foclausenum,cblit)
+                clause, junk, guard = process_clause(cwa_neglits,cwa_poslits+[poslit],foclausenum,cblit)
                 clauses.append(clause)
-                guards.append(guard_body_lits)
                 foclausenum += 1
-            objectives.append('objective({0},{1}).'.format(cblit,-weight))
+            if fact_pattern.match(guard[0]).group(2).split(',')[-1] != '[]':
+                guards.append(guard)
+                ho = re.sub(r',\[.*\]','',guard[0])
+                objectives.append('objective({0},float(Count) * {1}) :-\n  solutions({2},Sols),\n  length(Sols,Count).'.format(cblit,-weight,ho))
+            else:
+                objectives.append('objective({0},{1}).'.format(cblit,-weight))
             
 # now collect constants of various types
 
@@ -351,6 +361,9 @@ for typ, konstants in constants.items():
         print('{0}("{1}").'.format(typ,k.strip()))
     print()
 
+# following line a hack,in general there will need to be several guard predicates of varying arities
+
+print(':- pred guard(int::in,string::in,string::in,list(string)::out) is nondet.\n')
 for guard in guards:
     if len(guard) == 1:
         print('{0}.'.format(guard[0]))
