@@ -274,11 +274,11 @@ for line in mln:
                 else:
                     noncwa_poslits.append(poslit)
             for neglit in noncwa_neglits:
-                clause, junk, guard = process_clause(cwa_neglits+[neglit],cwa_poslits,foclausenum,cblit)
+                clause, junk, guard = process_clause(cwa_neglits,cwa_poslits+[neglit],foclausenum,cblit)
                 clauses.append(clause)
                 foclausenum += 1
             for poslit in noncwa_poslits:
-                clause, junk, guard = process_clause(cwa_neglits,cwa_poslits+[poslit],foclausenum,cblit)
+                clause, junk, guard = process_clause(cwa_neglits+[poslit],cwa_poslits,foclausenum,cblit)
                 clauses.append(clause)
                 foclausenum += 1
             if fact_pattern.match(guard[0]).group(2).split(',')[-1] != '[]':
