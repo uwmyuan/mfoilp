@@ -73,6 +73,9 @@ int main(
 
    const char paramfile[] = "mfoilp.set";
 
+   SCIP_Bool pricer;
+   SCIP_Bool write_presolved;
+   
    mercury_init(argc, argv, &stack_bottom);
 
    /* initialize SCIP */
@@ -81,8 +84,8 @@ int main(
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
-   /* include dummy pricer  */
-   SCIP_CALL( SCIPincludePricerDummy(scip) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "mfoilp/pricer", "is there a pricer?", &pricer, FALSE, TRUE, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "mfoilp/write_presolved", "whether to write out presolved problem", &write_presolved, FALSE, FALSE, NULL, NULL) );
 
    /* read in parameters */
    if( SCIPfileExists(paramfile) )
@@ -95,6 +98,11 @@ int main(
       SCIPwarningMessage(scip, "Parameter file <%s> not found - using default settings.\n", paramfile);
    }
 
+   /* include dummy pricer  */
+   /* SCIP_CALL( SCIPgetBoolParam(scip, "mfoilp/pricer", &pricer) );  */
+   if( pricer )
+      SCIP_CALL( SCIPincludePricerDummy(scip) );
+   
    /* allocate memory */
    SCIP_CALL( SCIPallocMemory(scip, &probdata) );
 
@@ -102,7 +110,8 @@ int main(
          NULL, NULL, NULL, probdata) );
 
    /* activates dummy pricer  */
-   SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "dummy")) );
+   if( pricer )
+      SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "dummy")) );
 
 
    MR_initial_constraints(&atomstore,&objectives,&varnames,&consnames,&neglitss,&poslitss);
@@ -198,6 +207,13 @@ int main(
    }
 
    /* solve the model */
+
+   if( write_presolved )
+   {
+      SCIPpresolve(scip);
+      SCIP_CALL( SCIPwriteTransProblem(scip, "prob.lp", NULL, FALSE) );
+   }
+   
    SCIP_CALL( SCIPsolve(scip) );
 
    SCIP_CALL( SCIPprintBestSol(scip, NULL, FALSE) );
