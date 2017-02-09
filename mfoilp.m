@@ -183,6 +183,9 @@ foclausenames(Names) :-
 :- pred locks(string::in,as_next::in,int::in,int::out,int::out) is det.
 
 locks(Name,as(Array,_Map,_N),I,Down,Up) :-
+    (
+	prob.equality(Name) ->
+	Down=1,Up=1;
 	array.lookup(Array,I,Atom),
 	(
 	  % a positive literal is down-locked
@@ -195,7 +198,8 @@ locks(Name,as(Array,_Map,_N),I,Down,Up) :-
 	  prob.neglit(Name,Atom) ->
 	  Up = 1;
 	  Up = 0
-	).
+	)
+    ).
 
 %-----------------------------------------------------------------------------%
 %
@@ -215,27 +219,29 @@ existscut(Name,Indices,Values,as(Array,_,_)) :-
 % together with the objectives and names of any new variables
 % currently don't pass back the name of the cut
 
-:- pragma foreign_export("C", findcuts(in,in,in,out,out,out,out,in,out), "MR_findcuts").
+:- pragma foreign_export("C", findcuts(in,out,in,in,out,out,out,out,in,out), "MR_findcuts").
 
 :- pred findcuts(
-		 string::in,             % name of the first-order clause for which cuts are sought
-		 list(int)::in,          % indices of variables with non-zero values in the (LP) solution
-		 list(float)::in,        % values of variables with non-zero values in the (LP) solution
-		 list(list(int))::out,   % list of neg lit indices for each cut
-		 list(list(int))::out,   % list of pos lit indices for each cut
-		 list(float)::out,       % list of objective values for new variables
-		 list(string)::out,      % list of names for new variables
-		 as_next::in,            % input atom store
-		 as_next::out            % output atom store
-		) is det.
+	    string::in,             % name of the first-order clause for which cuts are sought
+	    int::out,               % = 1 if these are 'equality clauses', otherwise 0
+	    list(int)::in,          % indices of variables with non-zero values in the (LP) solution
+	    list(float)::in,        % values of variables with non-zero values in the (LP) solution
+	    list(list(int))::out,   % list of neg lit indices for each cut
+	    list(list(int))::out,   % list of pos lit indices for each cut
+	    list(float)::out,       % list of objective values for new variables
+	    list(string)::out,      % list of names for new variables
+	    as_next::in,            % input atom store
+	    as_next::out            % output atom store
+	) is det.
 
-findcuts(Name,Indices,Values,NegLitss,PosLitss,VarObjs,VarNames,ASNIn,ASNOut) :-
-	ASNIn = as(ArrayIn,_,M),
-	makesol(Indices,Values,ArrayIn,map.init,Sol),
-	solutions(clausal_cut(Name,Sol),NamedCuts),
-	list.map2_foldl(clause2indices,NamedCuts,NegLitss,PosLitss,ASNIn,ASNOut),
-	ASNOut = as(ArrayOut,_,N),
-	allobjs(M,N,ArrayOut,VarObjs,VarNames).
+findcuts(Name,Equality,Indices,Values,NegLitss,PosLitss,VarObjs,VarNames,ASNIn,ASNOut) :-
+    (prob.equality(Name) -> Equality=1 ; Equality=0),
+    ASNIn = as(ArrayIn,_,M),
+    makesol(Indices,Values,ArrayIn,map.init,Sol),
+    solutions(clausal_cut(Name,Sol),NamedCuts),
+    list.map2_foldl(clause2indices,NamedCuts,NegLitss,PosLitss,ASNIn,ASNOut),
+    ASNOut = as(ArrayOut,_,N),
+    allobjs(M,N,ArrayOut,VarObjs,VarNames).
 
 :- pred makesol(list(int)::in,list(float)::in,array(atom)::in,sol::in,sol::out) is det.
 
@@ -266,7 +272,12 @@ solval(Sol,Atom) = Val :-
 :- pred clausal_cut(string::in,sol::in) is semidet.
 
 clausal_cut(Name,Sol) :-
-	prob.clause(Name,clause_cut(Sol,0.0,[],[]),_StateOut).
+    (
+	prob.clause(Name,clause_cut(Sol,0.0,[],[]),_StateOut) ->
+	true;
+	prob.equality(Name),
+	fail %replace with search for cut due to being 'too true'
+    ).
 
 % in this version we output the cut as a pair of lists of lits
 

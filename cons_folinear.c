@@ -121,6 +121,8 @@ SCIP_RETCODE FOLinearSeparate(
    MR_IntList neglits;
    MR_IntList poslits;
 
+   MR_Integer equality;
+      
    SCIP_VAR* var;
 
    MR_Integer mr_down;
@@ -142,7 +144,7 @@ SCIP_RETCODE FOLinearSeparate(
 
    /* get cuts, if any, and any new variables */
 
-   MR_findcuts((MR_String) consname, indices, values, &neglitss, &poslitss, &objectives, &varnames, probdata->atom_store, &atomstore); 
+   MR_findcuts((MR_String) consname, &equality, indices, values, &neglitss, &poslitss, &objectives, &varnames, probdata->atom_store, &atomstore); 
    
    /* update atom store */
    
@@ -162,11 +164,10 @@ SCIP_RETCODE FOLinearSeparate(
       SCIP_CALL( SCIPaddVar(scip, var) );
       
       /* lock the variable */
-      
+
       MR_locks( (MR_String) consname, probdata->atom_store, probdata->nvars, &mr_down, &mr_up);
-      
       SCIP_CALL( SCIPlockVarCons(scip, var, cons, (SCIP_Bool) mr_down, (SCIP_Bool) mr_up) ); 
-      
+
 #ifdef SCIP_DEBUG
       SCIPdebugMessage("New variable:\n");
       SCIPdebug( SCIPprintVar(scip, var, NULL) );
@@ -222,7 +223,7 @@ SCIP_RETCODE FOLinearSeparate(
          poslits =  MR_list_tail(poslits);
       }
 
-      SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, "cut", 1.0, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+      SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, "cut", 1.0, (SCIP_Bool) equality ? 1.0 : SCIPinfinity(scip), FALSE, FALSE, TRUE) );
       SCIP_CALL( SCIPaddVarsToRowSameCoef(scip, row, nvars, clausevars, 1.0) );
 #ifdef SCIP_DEBUG
       SCIPdebug( SCIPprintRow(scip, row, NULL) );

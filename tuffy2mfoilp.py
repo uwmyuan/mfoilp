@@ -29,6 +29,7 @@ header = '''
 :- pred initial_clause(string::out,clause_lits::in,clause_lits::out) is nondet.
 
 :- pred clause(string::out) is multi.
+:- pred equality(string::in) is semidet.
 
 :- pred neglit(string::in,atom::in) is semidet.
 :- pred poslit(string::in,atom::in) is semidet.
@@ -88,13 +89,15 @@ def to_lp(lit):
     return "{0}({1})".format(match.group(1),','.join(outargs))
 
 
-def process_clause(neglits,poslits,foclausenum,cblit):
+def process_clause(neglits,poslits,foclausenum,cblit,dummy_run=False):
         mc_lits = ['clause("{0}")'.format(foclausenum)]
         guard_body_lits = []
         # 'grounded' maps each variable to its type
         grounded = {}
         cblitvars = set()
-        cl1.append('clause("{0}").'.format(foclausenum))
+        n_noncwas = 0
+        if not dummy_run:
+            cl1.append('clause("{0}").'.format(foclausenum))
         for neglit in neglits:
             if not is_cwa(neglit):
                 if not getargs(neglit).issubset(grounded):
@@ -103,11 +106,12 @@ def process_clause(neglits,poslits,foclausenum,cblit):
                 nl.append('neglit("{0}",{1}).'.format(foclausenum,neglit))
                 atom_types.add('{0}({1})'.format(getpred(neglit),','.join(['string']*nargs(neglit))))
                 update_grounded(grounded,cblitvars,neglit)
+                n_noncwas += 1
         for neglit in neglits:
             if is_cwa(neglit):
                 # evidence variables have their sign flipped
                 mc_lits.append('{{{0}}}'.format(neglit))
-                guard_body_lits.append(neglit),
+                guard_body_lits.append(neglit)
                 inout = []
                 match = fact_pattern.match(neglit)
                 for a in match.group(2).split(','):
@@ -150,6 +154,7 @@ def process_clause(neglits,poslits,foclausenum,cblit):
                 pl.append('poslit("{0}",{1}).'.format(foclausenum,poslit))
                 atom_types.add('{0}({1})'.format(getpred(poslit),','.join(['string']*nargs(poslit))))
                 update_grounded(grounded,cblitvars,poslit)
+                n_noncwas += 1
         cblitargs = sorted(cblitvars)
         if cblit is None:
             cblit = 'cb({0},{1})'.format(foclausenum,','.join(cblitargs))
@@ -171,7 +176,7 @@ def process_clause(neglits,poslits,foclausenum,cblit):
               this_clause += '  {0},\n'.format(lit)
         this_clause += '  {0}.\n'.format(mc_lits[-1])
         guard_head = 'guard({0},{1},[{2}])'.format(foclausenum,','.join(cblitargs),','.join(sorted(set(grounded)-cblitvars)))
-        return this_clause, cblit, [guard_head]+guard_body_lits
+        return this_clause, cblit, [guard_head]+guard_body_lits, (n_noncwas==1)
 
 current_predicate = None
 #fact_table_decl = []
@@ -208,6 +213,7 @@ cl1 = []
 pl = []
 nl = []
 modes = {}
+equalities = []
 for line in mln:
     line = line.rstrip()
 
@@ -246,7 +252,9 @@ for line in mln:
         #print(line,poslits,neglits)
         weight = float(match.group(1))
         if weight > 0:
-            clause, cblit, guard = process_clause(neglits,poslits,foclausenum,None)
+            clause, cblit, guard, eq = process_clause(neglits,poslits,foclausenum,None)
+            if eq:
+                equalities.append(foclausenum)
             clauses.append(clause)
             if fact_pattern.match(guard[0]).group(2).split(',')[-1] != '[]':
                 guards.append(guard)
@@ -258,7 +266,7 @@ for line in mln:
             foclausenum += 1
         elif weight < 0:
             # use this to get the cblit
-            clause, cblit, guard = process_clause(neglits,poslits,foclausenum,None)
+            clause, cblit, guard, eq = process_clause(neglits,poslits,foclausenum,None,dummy_run=True)
             cwa_neglits = []
             noncwa_neglits = []
             for neglit in neglits:
@@ -274,11 +282,15 @@ for line in mln:
                 else:
                     noncwa_poslits.append(poslit)
             for neglit in noncwa_neglits:
-                clause, junk, guard = process_clause(cwa_neglits,cwa_poslits+[neglit],foclausenum,cblit)
+                clause, junk, guard, eq = process_clause(cwa_neglits,cwa_poslits+[neglit],foclausenum,cblit)
+                if eq:
+                    equalities.append(foclausenum)
                 clauses.append(clause)
                 foclausenum += 1
             for poslit in noncwa_poslits:
-                clause, junk, guard = process_clause(cwa_neglits+[poslit],cwa_poslits,foclausenum,cblit)
+                clause, junk, guard, eq = process_clause(cwa_neglits+[poslit],cwa_poslits,foclausenum,cblit)
+                if eq:
+                    equalities.append(foclausenum)
                 clauses.append(clause)
                 foclausenum += 1
             if fact_pattern.match(guard[0]).group(2).split(',')[-1] != '[]':
@@ -352,6 +364,9 @@ print()
 for x in nl:
     print(x)
 print()
+
+for x in equalities:
+    print('equality("{0}").'.format(x))
 
 for typ, konstants in constants.items():
     print(':- pred {0}(string).'.format(typ))
