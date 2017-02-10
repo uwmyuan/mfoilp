@@ -33,6 +33,7 @@
 :- import_module list.
 :- import_module float.
 :- import_module array.
+:- import_module require.
 
 
 % :- type atom_store == bimap(int,prob.atom).
@@ -86,7 +87,8 @@ makeclauses(AtomStoreNext,VarObjs,VarNames,ConsNames,NegLitss,PosLitss) :-
     Call = (pred(named(Name,Lits)::out) is nondet :- prob.initial_clause(Name,lits([],[]),Lits)),
     solutions(Call,AllNamedInitialClauses),
     list.map2_foldl3(clause2indices,AllNamedInitialClauses,NegLitss,PosLitss,map.init,Map,[],NewLits,0,Next),
-    ( NewLits = [Lit|_] -> array.init(Next,Lit,InitArray); make_empty_array(InitArray) ),
+	 ( NewLits = [Lit|_] -> array.init(Next,Lit,InitArray); make_empty_array(InitArray) ),
+	 (max(InitArray) > -2 -> true; error("failoxo")),
     setall(NewLits,Next-1,InitArray,Array),
     AtomStoreNext = as(Array,Map,Next),
     allobjs(0,Next,Array,VarObjs,VarNames),
@@ -109,7 +111,8 @@ name_all([named(Name,_)|T],[NameNum|NT],In,Out) :-
 
 allobjs(I,Next,Array,VarObjs,VarNames) :-
 	(
-	  I < Next ->
+	    I < Next ->
+		(max(Array) > -2 -> true; error("failb")),
 	  array.lookup(Array,I,Atom),
 	  (
 	    prob.objective(Atom,Obj0) ->
@@ -192,7 +195,8 @@ foclausenames(Names) :-
 locks(Name,as(Array,_Map,_N),I,Down,Up) :-
     (
 	prob.equality(Name) ->
-	Down=1,Up=1;
+		 Down=1,Up=1;
+	             (max(Array) > -2 -> true; error("failc")),
 	array.lookup(Array,I,Atom),
 	(
 	  % a positive literal is down-locked
@@ -219,6 +223,7 @@ locks(Name,as(Array,_Map,_N),I,Down,Up) :-
 :- pred existscut(string::in,list(int)::in,list(float)::in,as_next::in) is semidet.
 
 existscut(Name,Indices,Values,as(Array,_,_)) :-
+    (max(Array) > -2 -> true; error("failz")),
 	makesol(Indices,Values,Array,map.init,Sol),
 	clausal_cut(Name,Sol).
 
@@ -244,6 +249,8 @@ existscut(Name,Indices,Values,as(Array,_,_)) :-
 findcuts(Name,Equality,Indices,Values,NegLitss,PosLitss,VarObjs,VarNames,ASNIn,ASNOut) :-
     (prob.equality(Name) -> Equality=1 ; Equality=0),
     ASNIn = as(ArrayIn,MapIn,M),
+    (size(ArrayIn) = M -> true; error("fail")),
+            (max(ArrayIn) > -2 -> true; error("failxx")),
     makesol(Indices,Values,ArrayIn,map.init,Sol),
     solutions(clausal_cut(Name,Sol),NamedCuts),
     list.map2_foldl3(clause2indices,NamedCuts,NegLitss,PosLitss,MapIn,MapOut,[],NewLits,M,N),
@@ -266,6 +273,7 @@ makesol([],_Vals,_Array,!Sol).
 %next clause should never be called since should always be called with lists of the same length
 makesol([_H|_T],[],_Array,!Sol).
 makesol([H|T],[VH|VT],Array,!Sol) :-
+        (max(Array) > -2 -> true; error("faila")),
 	array.lookup(Array,H,Atom),
 	map.det_insert(Atom,VH,!Sol),
 	makesol(T,VT,Array,!Sol).
