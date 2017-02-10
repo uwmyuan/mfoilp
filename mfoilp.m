@@ -131,39 +131,24 @@ clause2indices(named(_,lits(NegLits,PosLits)),NegLitIndices,PosLitIndices,!ASN) 
 	lits2indices(PosLits,PosLitIndices,!ASN).
 
 % take a lists of ground atoms
-% and return corresponding lists of indices using AtomStore
+% and return corresponding lists on indices using AtomStore
 % adding variables to AtomStore if they are not already there
 
 :- pred lits2indices(list(atom)::in,list(int)::out,as_next::in,as_next::out) is det.
 
 lits2indices([],[],ASNIn,ASNIn).
-lits2indices([Lit|Lits],LitIndices,ASNIn,ASNOut) :-
-    ASNIn = as(Array,MapIn,Next),
-    lits2indices([Lit|Lits],LitIndices,Next,MapIn,MapOut,[],NewLits),
-    NewSize = Next+length(NewLits),
-    array.resize(NewSize,Lit,Array,MidArray),
-    setall(NewLits,NewSize-1,MidArray,NewArray),
-    ASNOut = as(NewArray,MapOut,Next+length(NewLits)).
-
-:- pred setall(list(atom)::in,int::in,array(atom)::in,array(atom)::out) is det.
-
-setall([],_,!Array).
-setall([Lit|Lits],I,!Array) :-
-    unsafe_set(I,Lit,!Array),
-    setall(Lits,I-1,!Array).
-
-:- pred lits2indices(list(atom)::in,list(int)::out,int::in,map(atom,int)::in,map(atom,int)::out,list(atom)::in,list(atom)::out) is det.
-
-lits2indices([],[],_,MapIn,MapIn,NewLitsIn,NewLitsIn).
-lits2indices([Lit|Lits],[LitIndex|LitIndices],Next,MapIn,MapOut,NewLitsIn,NewLitsOut) :-
-    (
-	map.search(MapIn,Lit,LitIndex0) ->
-	LitIndex = LitIndex0,
-	lits2indices(Lits,LitIndices,Next,MapIn,MapOut,NewLitsIn,NewLitsOut);
-	map.det_insert(Lit,Next,MapIn,NewMap),
-	LitIndex = Next,
-	lits2indices(Lits,LitIndices,Next+1,NewMap,MapOut,[Lit|NewLitsIn],NewLitsOut)
-    ).
+lits2indices([Lit|Lits],[LitIndex|LitIndices],ASNIn,ASNOut) :-
+	ASNIn = as(Array,Map,Next),
+	(
+	  map.search(Map,Lit,LitIndex0) ->
+	  LitIndex = LitIndex0,
+	  lits2indices(Lits,LitIndices,ASNIn,ASNOut);
+	  map.det_insert(Lit,Next,Map,NewMap),
+	  array.resize(Next+1,Lit,Array,NewArray),
+	  LitIndex = Next,
+	  ASNMid = as(NewArray,NewMap,Next+1),
+	  lits2indices(Lits,LitIndices,ASNMid,ASNOut)
+	).
 
 :- func name(T) = string.
 
