@@ -83,12 +83,14 @@
 % finally create names
 
 makeclauses(AtomStoreNext,VarObjs,VarNames,ConsNames,NegLitss,PosLitss) :-
-	Call = (pred(named(Name,Lits)::out) is nondet :- prob.initial_clause(Name,lits([],[]),Lits)),
-	solutions(Call,AllNamedInitialClauses),
-	list.map2_foldl(clause2indices,AllNamedInitialClauses,NegLitss,PosLitss,as(array.make_empty_array,map.init,0),AtomStoreNext),
-	AtomStoreNext = as(Array,_Map,Next),
-	allobjs(0,Next,Array,VarObjs,VarNames),
-	name_all(AllNamedInitialClauses,ConsNames,map.init,_).
+    Call = (pred(named(Name,Lits)::out) is nondet :- prob.initial_clause(Name,lits([],[]),Lits)),
+    solutions(Call,AllNamedInitialClauses),
+    list.map2_foldl3(clause2indices,AllNamedInitialClauses,NegLitss,PosLitss,map.init,Map,[],NewLits,0,Next),
+    ( NewLits = [Lit|_] -> array.init(Next,Lit,InitArray); make_empty_array(InitArray) ),
+    setall(NewLits,Next-1,InitArray,Array),
+    AtomStoreNext = as(Array,Map,Next),
+    allobjs(0,Next,Array,VarObjs,VarNames),
+    name_all(AllNamedInitialClauses,ConsNames,map.init,_).
 
 :- pred name_all(list(named_clause_lits)::in,list(string)::out,map(string,int)::in,map(string,int)::out) is det.
 
@@ -124,30 +126,35 @@ allobjs(I,Next,Array,VarObjs,VarNames) :-
 % convert a clause (as a pair of lists of ground terms) into corresponding integers
 % updating atomstore as we go. Process negative literals before positive literals.
 
-:- pred clause2indices(named_clause_lits::in,list(int)::out,list(int)::out,as_next::in,as_next::out) is det.
+:- pred clause2indices(named_clause_lits::in,list(int)::out,list(int)::out,
+		       map(atom,int)::in,map(atom,int)::out,
+		       list(atom)::in,list(atom)::out,
+		       int::in,int::out
+		      ) is det.
 
-clause2indices(named(_,lits(NegLits,PosLits)),NegLitIndices,PosLitIndices,!ASN) :-
-	lits2indices(NegLits,NegLitIndices,!ASN),
-	lits2indices(PosLits,PosLitIndices,!ASN).
+clause2indices(named(_,lits(NegLits,PosLits)),NegLitIndices,PosLitIndices,!Map,!NewLits,!N) :-
+	lits2indices(NegLits,NegLitIndices,!Map,!NewLits,!N),
+	lits2indices(PosLits,PosLitIndices,!Map,!NewLits,!N).
 
 % take a lists of ground atoms
 % and return corresponding lists on indices using AtomStore
 % adding variables to AtomStore if they are not already there
 
-:- pred lits2indices(list(atom)::in,list(int)::out,as_next::in,as_next::out) is det.
+:- pred lits2indices(list(atom)::in,list(int)::out,
+		       map(atom,int)::in,map(atom,int)::out,
+		       list(atom)::in,list(atom)::out,
+		       int::in,int::out
+		    ) is det.
 
-lits2indices([],[],ASNIn,ASNIn).
-lits2indices([Lit|Lits],[LitIndex|LitIndices],ASNIn,ASNOut) :-
-	ASNIn = as(Array,Map,Next),
+lits2indices([],[],!Map,!NewLits,!N).
+lits2indices([Lit|Lits],[LitIndex|LitIndices],MapIn,MapOut,NewLitsIn,NewLitsOut,M,N) :-
 	(
-	  map.search(Map,Lit,LitIndex0) ->
+	  map.search(MapIn,Lit,LitIndex0) ->
 	  LitIndex = LitIndex0,
-	  lits2indices(Lits,LitIndices,ASNIn,ASNOut);
-	  map.det_insert(Lit,Next,Map,NewMap),
-	  array.resize(Next+1,Lit,Array,NewArray),
-	  LitIndex = Next,
-	  ASNMid = as(NewArray,NewMap,Next+1),
-	  lits2indices(Lits,LitIndices,ASNMid,ASNOut)
+	  lits2indices(Lits,LitIndices,MapIn,MapOut,NewLitsIn,NewLitsOut,M,N);
+	  map.det_insert(Lit,M,MapIn,NewMap),
+	  LitIndex = M,
+	  lits2indices(Lits,LitIndices,NewMap,MapOut,[Lit|NewLitsIn],NewLitsOut,M+1,N)
 	).
 
 :- func name(T) = string.
@@ -236,12 +243,22 @@ existscut(Name,Indices,Values,as(Array,_,_)) :-
 
 findcuts(Name,Equality,Indices,Values,NegLitss,PosLitss,VarObjs,VarNames,ASNIn,ASNOut) :-
     (prob.equality(Name) -> Equality=1 ; Equality=0),
-    ASNIn = as(ArrayIn,_,M),
+    ASNIn = as(ArrayIn,MapIn,M),
     makesol(Indices,Values,ArrayIn,map.init,Sol),
     solutions(clausal_cut(Name,Sol),NamedCuts),
-    list.map2_foldl(clause2indices,NamedCuts,NegLitss,PosLitss,ASNIn,ASNOut),
-    ASNOut = as(ArrayOut,_,N),
+    list.map2_foldl3(clause2indices,NamedCuts,NegLitss,PosLitss,MapIn,MapOut,[],NewLits,M,N),
+    (NewLits = [Lit|_] -> array.resize(N,Lit,ArrayIn,ArrayMid); ArrayMid=ArrayIn),
+    setall(NewLits,N-1,ArrayMid,ArrayOut),
+    ASNOut = as(ArrayOut,MapOut,N),
     allobjs(M,N,ArrayOut,VarObjs,VarNames).
+
+:- pred setall(list(atom)::in,int::in,array(atom)::in,array(atom)::out) is det.
+
+setall([],_,!Array).
+setall([Lit|Lits],I,!Array) :-
+    unsafe_set(I,Lit,!Array),
+    setall(Lits,I-1,!Array).
+
 
 :- pred makesol(list(int)::in,list(float)::in,array(atom)::in,sol::in,sol::out) is det.
 
