@@ -4,7 +4,7 @@
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
-#define SCIP_DEBUG
+/*#define SCIP_DEBUG*/
 #include <assert.h>
 #include <string.h>
 
@@ -113,7 +113,6 @@ SCIP_RETCODE FOLinearSeparate(
 
    SCIP_PROBDATA* probdata;
 
-   MR_AtomStore atomstore;
    MR_FloatList objectives;
    MR_StringList varnames;
    MR_IntListList neglitss;
@@ -144,12 +143,8 @@ SCIP_RETCODE FOLinearSeparate(
 
    /* get cuts, if any, and any new variables */
 
-   MR_findcuts((MR_String) consname, &equality, indices, values, &neglitss, &poslitss, &objectives, &varnames, probdata->atom_store, &atomstore); 
+   MR_findcuts((MR_String) consname, &equality, indices, values, &neglitss, &poslitss, &objectives, &varnames); 
    
-   /* update atom store */
-   
-   probdata->atom_store = (MR_AtomStore) atomstore;
-
    /* create any new binary variables in constraints using "objectives" list */
    /* this same code occurs in cfoilp.c ! */
 
@@ -165,7 +160,7 @@ SCIP_RETCODE FOLinearSeparate(
       
       /* lock the variable */
 
-      MR_locks( (MR_String) consname, probdata->atom_store, probdata->nvars, &mr_down, &mr_up);
+      MR_locks( (MR_String) consname, probdata->nvars, &mr_down, &mr_up);
       SCIP_CALL( SCIPlockVarCons(scip, var, cons, (SCIP_Bool) mr_down, (SCIP_Bool) mr_up) ); 
 
 #ifdef SCIP_DEBUG
@@ -589,8 +584,6 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
 
    int c;
 
-   SCIP_PROBDATA* probdata;
-
    SCIP_CONS* cons;
 
    MR_IntList indices;
@@ -601,9 +594,6 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
    assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
    assert( conss != NULL );
    assert( result != NULL );
-
-   probdata = SCIPgetProbData(scip);
-   assert( probdata != NULL );
 
    /* get solution values for all problem variables */
       
@@ -621,7 +611,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsFolinear)
          which does not satisfy the solution 
       */
 
-      if( MR_existscut((MR_String) SCIPconsGetName(cons),indices,values,probdata->atom_store) )
+      if( MR_existscut((MR_String) SCIPconsGetName(cons),indices,values) )
       {
          SCIPdebugMessage("constraint <%s> infeasible.\n", SCIPconsGetName(cons));
          *result = SCIP_INFEASIBLE;
@@ -645,8 +635,6 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
 
    SCIP_CONS* cons;
 
-   SCIP_PROBDATA* probdata;
-   
    MR_IntList indices;
    MR_FloatList values;
 
@@ -655,9 +643,6 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
    assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
    assert( conss != NULL );
    assert( result != NULL );
-
-   probdata = SCIPgetProbData(scip);
-   assert( probdata != NULL );
 
    /* get solution values for all problem variables */
       
@@ -675,7 +660,7 @@ SCIP_DECL_CONSCHECK(consCheckFolinear)
          which does not satisfy the solution 
       */
 
-      if( MR_existscut((MR_String) SCIPconsGetName(cons),indices,values,probdata->atom_store) )
+      if( MR_existscut((MR_String) SCIPconsGetName(cons),indices,values) )
       {
          SCIPdebugMessage("first order linear constraint <%s> violated by solution.\n", SCIPconsGetName(cons));
          *result = SCIP_INFEASIBLE;
@@ -764,7 +749,7 @@ SCIP_DECL_CONSLOCK(consLockFolinear)
    for( i = 0; i < probdata->nvars; ++i )
    {
       var = probdata->vars[i];
-      MR_locks((MR_String) consname, probdata->atom_store, i, &mr_down, &mr_up);
+      MR_locks((MR_String) consname, i, &mr_down, &mr_up);
 
       if( (SCIP_Bool) mr_up )
       {

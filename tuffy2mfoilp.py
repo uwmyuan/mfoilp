@@ -15,6 +15,9 @@ clause_pattern = re.compile(r'^([-\d+.]+)\s+(.*)')
 mln = open(sys.argv[1])
 evidence = open(sys.argv[2])
 
+fact_tables = False
+
+
 header = '''
 :- module prob.
 :- interface.
@@ -179,7 +182,6 @@ def process_clause(neglits,poslits,foclausenum,cblit,dummy_run=False):
         return this_clause, cblit, [guard_head]+guard_body_lits, (n_noncwas==1)
 
 current_predicate = None
-#fact_table_decl = []
 fobjs = {}
 for line in evidence:
     match = fact_pattern.match(line)
@@ -190,11 +192,8 @@ for line in evidence:
             try:
                 fobj = fobjs[this_predicate]
             except KeyError:
-                fobj = open(this_predicate,'a')
+                fobj = open(this_predicate,'w')
                 fobjs[this_predicate] = fobj
-                decl_args = ','.join(['string::out']*len(args))
-                #fact_table_decl.append(':- pred {0}({1}) is multi.'.format(this_predicate,decl_args))
-                #fact_table_decl.append(':- pragma fact_table({0}/{1},"{0}").'.format(this_predicate,len(args)))
             current_predicate = this_predicate
         print('{0}({1}).'.format(this_predicate,','.join(args)),file=fobj)
 for fobj in fobjs.values():
@@ -335,14 +334,17 @@ for pred, modes in modes.items():
     print(':- pred {0}({1}).'.format(pred,decl_args))
     for mode in modes:
         print(':- mode {0}({1}) is nondet.'.format(pred,','.join(mode)))
-    #print(':- pragma fact_table({0}/{1},"{0}").'.format(pred,l))
+
     if pred.startswith('same'):
         print('{0}(X,X).'.format(pred))
     else:
-        fobj = open(pred)
-        for line in fobj:
-            print(line,end="")
-        fobj.close()
+        if fact_tables:
+            print(':- pragma fact_table({0}/{1},"{0}").'.format(pred,l))
+        else:
+            fobj = open(pred)
+            for line in fobj:
+                print(line,end="")
+            fobj.close()
     print()
 print()
 print('% no initial clauses')

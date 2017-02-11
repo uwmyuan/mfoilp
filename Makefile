@@ -46,8 +46,11 @@ GCCWARN		=	-Wno-long-long -Wall -W -Wpointer-arith -Wcast-align -Wwrite-strings 
 # Mercury stuff
 
 MMC = mmc
-GRADEOPT =
-MMCFLAGS = 
+#GRADEOPT = --gc conservative --grade asm_fast.gc
+#GRADEOPT = --grade asm_fast.gc
+GRADEOPT = 
+MMCFLAGS = --lib-linkage static
+#MMCFLAGS = 
 #MMCFLAGS = --inhibit-warnings --no-warn-target-code
 MERCURY_LINKAGE = --mercury-linkage static
 MERCURY_LIB_LDFLAGS = libmfoilp.a

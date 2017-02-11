@@ -55,6 +55,8 @@
 :- type clause_lits ---> lits(list(atom),list(atom)).
 :- type named_clause_lits ---> named(string,clause_lits).
 
+:- mutable(atomstore, as_next, as(array.make_empty_array,map.init,0), ground, [untrailed]).
+
 
 %-----------------------------------------------------------------------------%
 %
@@ -63,13 +65,12 @@
 %-----------------------------------------------------------------------------%
 
 
-:- pragma foreign_export("C", makeclauses(out,out,out,out,out,out), "MR_initial_constraints").
+:- pragma foreign_export("C", makeclauses(out,out,out,out,out), "MR_initial_constraints").
 
 % generates SCIP-understandable versions of initial constraints
 % and also records which variables (i.e. ground atoms ) are used in them. 
 
-:- pred makeclauses(as_next::out,                % atom store with all variables in the clauses
-		    list(float)::out,            % objective value for each variable in atom store
+:- pred makeclauses(list(float)::out,            % objective value for each variable in atom store
 		                                 % list is ordered, so e.g. first two entries are objective values
 		                                 % of variables 0 and 1.
 		    list(string)::out,           % a name for each variable
@@ -82,8 +83,9 @@
 % convert to indices, (creating indices where necessary)
 % get hold of objective values
 % finally create names
+:- pragma promise_pure(makeclauses/5).
 
-makeclauses(AtomStoreNext,VarObjs,VarNames,ConsNames,NegLitss,PosLitss) :-
+makeclauses(VarObjs,VarNames,ConsNames,NegLitss,PosLitss) :-
     Call = (pred(named(Name,Lits)::out) is nondet :- prob.initial_clause(Name,lits([],[]),Lits)),
     solutions(Call,AllNamedInitialClauses),
     list.map2_foldl3(clause2indices,AllNamedInitialClauses,NegLitss,PosLitss,map.init,Map,[],NewLits,0,Next),
@@ -92,7 +94,8 @@ makeclauses(AtomStoreNext,VarObjs,VarNames,ConsNames,NegLitss,PosLitss) :-
     setall(NewLits,Next-1,InitArray,Array),
     AtomStoreNext = as(Array,Map,Next),
     allobjs(0,Next,Array,VarObjs,VarNames),
-    name_all(AllNamedInitialClauses,ConsNames,map.init,_).
+    name_all(AllNamedInitialClauses,ConsNames,map.init,_),
+    impure set_atomstore(AtomStoreNext).
 
 :- pred name_all(list(named_clause_lits)::in,list(string)::out,map(string,int)::in,map(string,int)::out) is det.
 
@@ -188,11 +191,13 @@ foclausenames(Names) :-
 %-----------------------------------------------------------------------------%
 
 
-:- pragma foreign_export("C", locks(in,in,in,out,out), "MR_locks").
+:- pragma foreign_export("C", locks(in,in,out,out), "MR_locks").
+:- pragma promise_pure(locks/4).
 
-:- pred locks(string::in,as_next::in,int::in,int::out,int::out) is det.
+:- pred locks(string::in,int::in,int::out,int::out) is det.
 
-locks(Name,as(Array,_Map,_N),I,Down,Up) :-
+locks(Name,I,Down,Up) :-
+    semipure get_atomstore(as(Array,_Map,_N)),
     (
 	prob.equality(Name) ->
 		 Down=1,Up=1;
@@ -218,11 +223,12 @@ locks(Name,as(Array,_Map,_N),I,Down,Up) :-
 %
 %-----------------------------------------------------------------------------%
 
-:- pragma foreign_export("C", existscut(in,in,in,in), "MR_existscut").
+:- pragma foreign_export("C", existscut(in,in,in), "MR_existscut").
+:- pragma promise_pure(existscut/3).
+:- pred existscut(string::in,list(int)::in,list(float)::in) is semidet.
 
-:- pred existscut(string::in,list(int)::in,list(float)::in,as_next::in) is semidet.
-
-existscut(Name,Indices,Values,as(Array,_,_)) :-
+existscut(Name,Indices,Values) :-
+    semipure get_atomstore(as(Array,_Map,_N)),
     (max(Array) > -2 -> true; error("failz")),
 	makesol(Indices,Values,Array,map.init,Sol),
 	clausal_cut(Name,Sol).
@@ -231,8 +237,8 @@ existscut(Name,Indices,Values,as(Array,_,_)) :-
 % together with the objectives and names of any new variables
 % currently don't pass back the name of the cut
 
-:- pragma foreign_export("C", findcuts(in,out,in,in,out,out,out,out,in,out), "MR_findcuts").
-
+:- pragma foreign_export("C", findcuts(in,out,in,in,out,out,out,out), "MR_findcuts").
+:- pragma promise_pure(findcuts/8).
 :- pred findcuts(
 	    string::in,             % name of the first-order clause for which cuts are sought
 	    int::out,               % = 1 if these are 'equality clauses', otherwise 0
@@ -241,14 +247,12 @@ existscut(Name,Indices,Values,as(Array,_,_)) :-
 	    list(list(int))::out,   % list of neg lit indices for each cut
 	    list(list(int))::out,   % list of pos lit indices for each cut
 	    list(float)::out,       % list of objective values for new variables
-	    list(string)::out,      % list of names for new variables
-	    as_next::in,            % input atom store
-	    as_next::out            % output atom store
+	    list(string)::out       % list of names for new variables
 	) is det.
 
-findcuts(Name,Equality,Indices,Values,NegLitss,PosLitss,VarObjs,VarNames,ASNIn,ASNOut) :-
+findcuts(Name,Equality,Indices,Values,NegLitss,PosLitss,VarObjs,VarNames) :-
+    semipure get_atomstore(as(ArrayIn,MapIn,M)),
     (prob.equality(Name) -> Equality=1 ; Equality=0),
-    ASNIn = as(ArrayIn,MapIn,M),
     (size(ArrayIn) = M -> true; error("fail")),
             (max(ArrayIn) > -2 -> true; error("failxx")),
     makesol(Indices,Values,ArrayIn,map.init,Sol),
@@ -256,7 +260,7 @@ findcuts(Name,Equality,Indices,Values,NegLitss,PosLitss,VarObjs,VarNames,ASNIn,A
     list.map2_foldl3(clause2indices,NamedCuts,NegLitss,PosLitss,MapIn,MapOut,[],NewLits,M,N),
     (NewLits = [Lit|_] -> array.resize(N,Lit,ArrayIn,ArrayMid); ArrayMid=ArrayIn),
     setall(NewLits,N-1,ArrayMid,ArrayOut),
-    ASNOut = as(ArrayOut,MapOut,N),
+    impure set_atomstore(as(ArrayOut,MapOut,N)),
     allobjs(M,N,ArrayOut,VarObjs,VarNames).
 
 :- pred setall(list(atom)::in,int::in,array(atom)::in,array(atom)::out) is det.

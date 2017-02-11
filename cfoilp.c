@@ -49,7 +49,6 @@ int main(
    SCIP* scip = NULL;
    SCIP_PROBDATA*  probdata = NULL;
 
-   MR_AtomStore atomstore;
    MR_FloatList objectives;
    MR_StringList varnames;
    MR_StringList consnames;
@@ -114,7 +113,7 @@ int main(
       SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "dummy")) );
 
 
-   MR_initial_constraints(&atomstore,&objectives,&varnames,&consnames,&neglitss,&poslitss);
+   MR_initial_constraints(&objectives,&varnames,&consnames,&neglitss,&poslitss);
 
    /* initialise probdata */
 
@@ -122,7 +121,6 @@ int main(
    probdata->vars = NULL;
    probdata->vars_len = VAR_BLOCKSIZE;
    SCIP_CALL( SCIPallocMemoryArray(scip, &(probdata->vars), probdata->vars_len) );
-   probdata->atom_store = atomstore;
 
    /* create binary variables in constraints using "objectives" list */
 
