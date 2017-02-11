@@ -169,6 +169,13 @@ name(X) = Name :-
 	State0 = string.builder.init,
 	stream.string_writer.write(string.builder.handle,X,State0,State),
 	Name = string.builder.to_string(State).
+:- pragma foreign_export("C", sol2mercury_init(out,out), "MR_sol2mercury_init").
+:- pred sol2mercury_init(list(int)::out,list(float)::out) is det.
+sol2mercury_init([],[]).
+
+:- pragma foreign_export("C", sol2mercury_cons(in,in,in,in,out,out), "MR_sol2mercury_cons").
+:- pred sol2mercury_cons(int::in,float::in,list(int)::in,list(float)::in,list(int)::out,list(float)::out) is det.
+sol2mercury_cons(I,F,Ints,Floats,[I|Ints],[F|Floats]).
 
 
 %-----------------------------------------------------------------------------%

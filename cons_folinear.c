@@ -76,8 +76,10 @@ SCIP_RETCODE sol2mercury(
 
    SCIPdebugMessage("Translating solution for Mercury\n");
 
-   *indices_ptr = MR_list_empty();
-   *values_ptr = MR_list_empty();
+   MR_sol2mercury_init(indices_ptr,values_ptr);
+   
+   /* *indices_ptr = MR_list_empty(); */
+   /* *values_ptr = MR_list_empty(); */
 
    for( i = 0; i < probdata->nvars; ++i )
    {
@@ -89,8 +91,10 @@ SCIP_RETCODE sol2mercury(
 #endif
       if( !SCIPisZero(scip, val))
       {
-            *indices_ptr = MR_list_cons( i, *indices_ptr);
-            *values_ptr = MR_list_cons( MR_float_to_word(val), *values_ptr);
+         MR_sol2mercury_cons(i,val,*indices_ptr,*values_ptr,indices_ptr,values_ptr);
+
+         /* *indices_ptr = MR_list_cons( i, *indices_ptr); */
+         /* *values_ptr = MR_list_cons( MR_float_to_word(val), *values_ptr); */
       }
    }
    return SCIP_OKAY;
