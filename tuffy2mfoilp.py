@@ -11,6 +11,7 @@ import re
 
 fact_pattern = re.compile(r'^(\w+)\((.*)\)\s*$')
 clause_pattern = re.compile(r'^([-\d+.]+)\s+(.*)')
+var_pattern = re.compile(r'[(,[|]([A-Z][\w\d]*)[),|\]]')
 
 mln = open(sys.argv[1])
 evidence = open(sys.argv[2])
@@ -29,7 +30,7 @@ header = '''
 :- type atom.
 
 :- pred clause(string::in,clause_info::in,clause_info::out) is nondet.
-:- pred initial_clause(string::out,clause_lits::in,clause_lits::out) is nondet.
+:- pred initial_clause(string::out,clause_lits::in,clause_lits::out) is failure.
 
 :- pred clause(string::out) is multi.
 :- pred equality(string::in) is semidet.
@@ -92,6 +93,55 @@ def to_lp(lit):
     return "{0}({1})".format(match.group(1),','.join(outargs))
 
 
+def remove_singletons(clause):
+    varcount = {}
+    for i in range(len(clause)):
+        match = var_pattern.match(clause[i:])
+        if match is not None:
+            v = match.group(1)
+            varcount[v] = varcount.setdefault(v,0) + 1
+    #print(clause,varcount)
+    for v, count in varcount.items():
+        if count == 1:
+            clause = re.sub(v,'_',clause)
+    return clause
+        
+# def remove_singletons(lits):
+#     # count how often each variables appears
+#     varcount = {}
+#     for lit in lits:
+#         print('foo',lit)
+#         if lit.startswith('{not '):
+#             match = fact_pattern.match(lit[5:-1])
+#         elif lit[0] == '{':
+#             match = fact_pattern.match(lit[1:-1])
+#         else:
+#             match = fact_pattern.match(lit)
+#         for a in match.group(2).split(','):
+#             if a.isupper():
+#                 try:
+#                     varcount[a] += 1
+#                 except KeyError:
+#                     varcount[a] = 1
+#     for i, lit in enumerate(lits[:]):
+#         if lit[0] == '{':
+#             match = fact_pattern.match(lit[1:-1])
+#         else:
+#             match = fact_pattern.match(lit)
+#         args = []
+#         for a in match.group(2).split(','):
+#             if a.isupper() and varcount[a] == 1:
+#                 args.append('_')
+#             else:
+#                 args.append(a)
+#         if lit.startswith('{not '):
+#             lits[i] = '{{not {0}({1})}}'.format(match.group(1),','.join(args))
+#         elif lit[0] == '{':
+#             lits[i] = '{{{0}({1})}}'.format(match.group(1),','.join(args))
+#         else:
+#             lits[i] = '{0}({1})'.format(match.group(1),','.join(args))
+
+            
 def process_clause(neglits,poslits,foclausenum,cblit,dummy_run=False):
         mc_lits = ['clause("{0}")'.format(foclausenum)]
         guard_body_lits = []
@@ -178,6 +228,7 @@ def process_clause(neglits,poslits,foclausenum,cblit,dummy_run=False):
         for lit in mc_lits[1:-1]:
               this_clause += '  {0},\n'.format(lit)
         this_clause += '  {0}.\n'.format(mc_lits[-1])
+        this_clause = remove_singletons(this_clause)
         guard_head = 'guard({0},{1},[{2}])'.format(foclausenum,','.join(cblitargs),','.join(sorted(set(grounded)-cblitvars)))
         return this_clause, cblit, [guard_head]+guard_body_lits, (n_noncwas==1)
 
@@ -258,10 +309,10 @@ for line in mln:
             if fact_pattern.match(guard[0]).group(2).split(',')[-1] != '[]':
                 guards.append(guard)
                 ho = re.sub(r',\[.*\]','',guard[0])
-                objectives.append(
-                    'objective({0},float(Count) * {1}) :-\n  solutions({2},Sols),\n  length(Sols,Count).'.format(cblit,weight,ho))
+                objclause = 'objective({0},float(Count) * {1}) :-\n  solutions({2},Sols),\n  length(Sols,Count).'.format(cblit,weight,ho)
             else:
-                objectives.append('objective({0},{1}).'.format(cblit,weight))
+                objclause = 'objective({0},{1}).'.format(cblit,weight)
+            objectives.append(remove_singletons(objclause))
             foclausenum += 1
         elif weight < 0:
             # use this to get the cblit
@@ -295,9 +346,10 @@ for line in mln:
             if fact_pattern.match(guard[0]).group(2).split(',')[-1] != '[]':
                 guards.append(guard)
                 ho = re.sub(r',\[.*\]','',guard[0])
-                objectives.append('objective({0},float(Count) * {1}) :-\n  solutions({2},Sols),\n  length(Sols,Count).'.format(cblit,-weight,ho))
+                objclause = 'objective({0},float(Count) * {1}) :-\n  solutions({2},Sols),\n  length(Sols,Count).'.format(cblit,-weight,ho)
             else:
-                objectives.append('objective({0},{1}).'.format(cblit,-weight))
+                objclause = 'objective({0},{1}).'.format(cblit,-weight)
+            objectives.append(remove_singletons(objclause))
             
 # now collect constants of various types
 
@@ -333,8 +385,20 @@ for pred, modes in modes.items():
     decl_args = ','.join(['string']*l)
     print(':- pred {0}({1}).'.format(pred,decl_args))
     for mode in modes:
-        print(':- mode {0}({1}) is nondet.'.format(pred,','.join(mode)))
-
+        allin = True
+        allout = True
+        for inout in mode:
+            if inout == 'in':
+                allout = False
+            else:
+                allin = False
+        if allin:
+            print(':- mode {0}({1}) is semidet.'.format(pred,','.join(mode)))
+        elif allout:
+            print(':- mode {0}({1}) is multi.'.format(pred,','.join(mode)))
+        else:
+            print(':- mode {0}({1}) is nondet.'.format(pred,','.join(mode)))
+            
     if pred.startswith('same'):
         print('{0}(X,X).'.format(pred))
     else:
@@ -360,11 +424,11 @@ for x in cl1:
 print()
 
 for x in pl:
-    print(x)
+    print(remove_singletons(x))
 print()
 
 for x in nl:
-    print(x)
+    print(remove_singletons(x))
 print()
 
 for x in equalities:
@@ -383,10 +447,10 @@ for typ, konstants in constants.items():
 print(':- pred guard(int::in,string::in,string::in,list(string)::out) is nondet.\n')
 for guard in guards:
     if len(guard) == 1:
-        print('{0}.'.format(guard[0]))
+        guardclause = '{0}.'.format(guard[0])
     else:
-        print('{0} :-'.format(guard[0]))
+        guardclause = '{0} :-\n'.format(guard[0])
         for lit in guard[1:-1]:
-            print('  {0},'.format(lit))
-        print('  {0}.'.format(guard[-1]))
-                  
+            guardclause += '  {0},\n'.format(lit)
+        guardclause += '  {0}.'.format(guard[-1])
+    print(remove_singletons(guardclause))
