@@ -83,6 +83,9 @@ int main(
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
+   /* include first-order linear constraint handler */
+   SCIP_CALL( SCIPincludeConshdlrFolinear(scip) );
+   
    SCIP_CALL( SCIPaddBoolParam(scip, "mfoilp/pricer", "is there a pricer?", &pricer, FALSE, TRUE, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "mfoilp/write_presolved", "whether to write out presolved problem", &write_presolved, FALSE, FALSE, NULL, NULL) );
 
@@ -185,8 +188,6 @@ int main(
       poslitss = MR_list_tail(poslitss);
    }
 
-   /* include first-order linear constraint handler */
-   SCIP_CALL( SCIPincludeConshdlrFolinear(scip) );
 
    /* get list of names of first-order clauses */
    

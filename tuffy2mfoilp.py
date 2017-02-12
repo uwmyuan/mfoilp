@@ -34,6 +34,7 @@ header = '''
 
 :- pred clause(string::out) is multi.
 :- pred equality(string::in) is semidet.
+:- pred penalty_atom(string::in) is semidet.
 
 :- pred neglit(string::in,atom::in) is semidet.
 :- pred poslit(string::in,atom::in) is semidet.
@@ -151,6 +152,7 @@ def process_clause(neglits,poslits,foclausenum,cblit,dummy_run=False):
         n_noncwas = 0
         if not dummy_run:
             cl1.append('clause("{0}").'.format(foclausenum))
+            pa.append('penalty_atom("{0}").'.format(foclausenum))
         for neglit in neglits:
             if not is_cwa(neglit):
                 if not getargs(neglit).issubset(grounded):
@@ -260,6 +262,7 @@ objectives = []
 clauses = []
 guards = []
 cl1 = []
+pa = []
 pl = []
 nl = []
 modes = {}
@@ -417,6 +420,12 @@ print('% clauses')
 for c in clauses:
     print(c)
 print()
+
+print('% all clauses are weighted, so all have a penalty atom')
+for x in pa:
+    print(x)
+print()
+
 
 print('% utility predicates to make e.g. variable locking easier')
 for x in cl1:

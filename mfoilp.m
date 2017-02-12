@@ -244,11 +244,12 @@ existscut(Name,Indices,Values) :-
 % together with the objectives and names of any new variables
 % currently don't pass back the name of the cut
 
-:- pragma foreign_export("C", findcuts(in,out,in,in,out,out,out,out), "MR_findcuts").
-:- pragma promise_pure(findcuts/8).
+:- pragma foreign_export("C", findcuts(in,out,out,in,in,out,out,out,out), "MR_findcuts").
+:- pragma promise_pure(findcuts/9).
 :- pred findcuts(
 	    string::in,             % name of the first-order clause for which cuts are sought
 	    int::out,               % = 1 if these are 'equality clauses', otherwise 0
+	    int::out,               % = 1 if the last pos lit is a penalty atom, otherwise 0
 	    list(int)::in,          % indices of variables with non-zero values in the (LP) solution
 	    list(float)::in,        % values of variables with non-zero values in the (LP) solution
 	    list(list(int))::out,   % list of neg lit indices for each cut
@@ -257,9 +258,10 @@ existscut(Name,Indices,Values) :-
 	    list(string)::out       % list of names for new variables
 	) is det.
 
-findcuts(Name,Equality,Indices,Values,NegLitss,PosLitss,VarObjs,VarNames) :-
+findcuts(Name,Equality,PenaltyAtom,Indices,Values,NegLitss,PosLitss,VarObjs,VarNames) :-
     semipure get_atomstore(as(ArrayIn,MapIn,M)),
     (prob.equality(Name) -> Equality=1 ; Equality=0),
+    (prob.penalty_atom(Name) -> PenaltyAtom=1 ; PenaltyAtom=0),
     (size(ArrayIn) = M -> true; error("fail")),
             (max(ArrayIn) > -2 -> true; error("failxx")),
     makesol(Indices,Values,ArrayIn,map.init,Sol),
