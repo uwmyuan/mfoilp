@@ -143,6 +143,8 @@ SCIP_RETCODE FOLinearSeparate(
 
    SCIP_CONS* andcons;
 
+   SCIP_Real obj;
+   
    SCIP_CONSHDLRDATA* conshdlrdata;
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
 
@@ -166,14 +168,21 @@ SCIP_RETCODE FOLinearSeparate(
 
    while ( !MR_list_is_empty(objectives) ) 
    {
+
+      obj = (SCIP_Real) MR_word_to_float(MR_list_head(objectives));
+      
       SCIP_CALL( 
          SCIPcreateVar(scip, &var, 
             (char *) MR_list_head(varnames), 
             0.0, 1.0, 
-            (SCIP_Real) MR_word_to_float(MR_list_head(objectives)), 
+            obj, 
             SCIP_VARTYPE_BINARY, FALSE, FALSE, NULL, NULL, NULL, NULL, NULL) );
       SCIP_CALL( SCIPaddVar(scip, var) );
-      
+
+      if( SCIPisZero(scip, obj))
+      {
+         SCIP_CALL( SCIPaddCoefLinear(scip, probdata->atomcount_cons, var, 1.0) );
+      }
       /* lock the variable */
 
       MR_locks( (MR_String) consname, probdata->nvars, &mr_down, &mr_up);

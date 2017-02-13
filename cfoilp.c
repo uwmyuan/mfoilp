@@ -205,6 +205,22 @@ int main(
       clausenames = MR_list_tail(clausenames);
    }
 
+   /* add in atomcount variable */
+
+   SCIP_CALL( SCIPcreateVarBasic(scip, &var, "atomcount", 0, SCIPinfinity(scip), 0.0, SCIP_VARTYPE_INTEGER) );
+   SCIP_CALL( SCIPaddVar(scip, var) );
+   SCIP_CALL( SCIPchgVarBranchPriority(scip, var, 10) );
+
+   SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, "sumcons", 0, NULL, NULL, 0.0, 0.0) );
+   SCIP_CALL( SCIPsetConsModifiable(scip, cons, TRUE) );
+   SCIP_CALL( SCIPaddCoefLinear(scip, cons, var, -1.0) );
+   SCIP_CALL( SCIPaddCons(scip, cons) );
+   probdata->atomcount_cons = cons;
+   /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
+   SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+
+
+   
    /* solve the model */
 
    if( write_presolved )
