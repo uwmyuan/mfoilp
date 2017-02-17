@@ -9,6 +9,8 @@
 #include "cons_folinear.h"
 #include "pricer_dummy.h"
 #include "cfoilp.h"
+#include "branch_alwayspriority.h"
+#include "branch_alwaysparticular.h"
 
 
 /*
@@ -85,6 +87,10 @@ int main(
 
    /* include first-order linear constraint handler */
    SCIP_CALL( SCIPincludeConshdlrFolinear(scip) );
+
+   /* include always priority branching rule */
+   SCIP_CALL( SCIPincludeBranchruleAlwayspriority(scip) );
+
    
    SCIP_CALL( SCIPaddBoolParam(scip, "mfoilp/pricer", "is there a pricer?", &pricer, FALSE, TRUE, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "mfoilp/write_presolved", "whether to write out presolved problem", &write_presolved, FALSE, FALSE, NULL, NULL) );
@@ -219,6 +225,8 @@ int main(
    /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
    SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
+   /* include always priority branching rule */
+   SCIP_CALL( SCIPincludeBranchruleAlwaysparticular(scip, var) );
 
    
    /* solve the model */
