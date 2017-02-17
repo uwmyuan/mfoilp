@@ -76,6 +76,8 @@ int main(
 
    SCIP_Bool pricer;
    SCIP_Bool write_presolved;
+
+   int max_modelsize;
    
    mercury_init(argc, argv, &stack_bottom);
 
@@ -94,6 +96,7 @@ int main(
    
    SCIP_CALL( SCIPaddBoolParam(scip, "mfoilp/pricer", "is there a pricer?", &pricer, FALSE, TRUE, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "mfoilp/write_presolved", "whether to write out presolved problem", &write_presolved, FALSE, FALSE, NULL, NULL) );
+   SCIP_CALL( SCIPaddIntParam(scip, "mfoilp/max_modelsize", "maximum number of true atoms (-1 is unlimited) ", &max_modelsize, FALSE, -1, -1, INT_MAX, NULL, NULL) );
 
    /* read in parameters */
    if( SCIPfileExists(paramfile) )
@@ -213,7 +216,7 @@ int main(
 
    /* add in atomcount variable */
 
-   SCIP_CALL( SCIPcreateVarBasic(scip, &var, "atomcount", 0, SCIPinfinity(scip), 0.0, SCIP_VARTYPE_INTEGER) );
+   SCIP_CALL( SCIPcreateVarBasic(scip, &var, "atomcount", 0, max_modelsize == -1 ? INT_MAX : max_modelsize, 0.0, SCIP_VARTYPE_INTEGER) );
    SCIP_CALL( SCIPaddVar(scip, var) );
    SCIP_CALL( SCIPchgVarBranchPriority(scip, var, 10) );
 
