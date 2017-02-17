@@ -9,8 +9,7 @@
 #include "cons_folinear.h"
 #include "pricer_dummy.h"
 #include "cfoilp.h"
-#include "branch_alwayspriority.h"
-#include "branch_alwaysparticular.h"
+#include "branch_onsum.h"
 
 
 /*
@@ -77,8 +76,6 @@ int main(
    SCIP_Bool pricer;
    SCIP_Bool write_presolved;
 
-   int max_modelsize;
-   
    mercury_init(argc, argv, &stack_bottom);
 
    /* initialize SCIP */
@@ -90,13 +87,12 @@ int main(
    /* include first-order linear constraint handler */
    SCIP_CALL( SCIPincludeConshdlrFolinear(scip) );
 
-   /* include always priority branching rule */
-   SCIP_CALL( SCIPincludeBranchruleAlwayspriority(scip) );
-
+   /* include always onsum branching rule */
+   SCIP_CALL( SCIPincludeBranchruleOnsum(scip) );
    
    SCIP_CALL( SCIPaddBoolParam(scip, "mfoilp/pricer", "is there a pricer?", &pricer, FALSE, TRUE, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "mfoilp/write_presolved", "whether to write out presolved problem", &write_presolved, FALSE, FALSE, NULL, NULL) );
-   SCIP_CALL( SCIPaddIntParam(scip, "mfoilp/max_modelsize", "maximum number of true atoms (-1 is unlimited) ", &max_modelsize, FALSE, -1, -1, INT_MAX, NULL, NULL) );
+   SCIP_CALL( SCIPaddIntParam(scip, "mfoilp/max_modelsize", "maximum number of true atoms (-1 is unlimited) ", NULL, FALSE, -1, -1, INT_MAX, NULL, NULL) );
 
    /* read in parameters */
    if( SCIPfileExists(paramfile) )
@@ -214,22 +210,7 @@ int main(
       clausenames = MR_list_tail(clausenames);
    }
 
-   /* add in atomcount variable */
 
-   SCIP_CALL( SCIPcreateVarBasic(scip, &var, "atomcount", 0, max_modelsize == -1 ? INT_MAX : max_modelsize, 0.0, SCIP_VARTYPE_INTEGER) );
-   SCIP_CALL( SCIPaddVar(scip, var) );
-   SCIP_CALL( SCIPchgVarBranchPriority(scip, var, 10) );
-
-   SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, "sumcons", 0, NULL, NULL, 0.0, 0.0) );
-   SCIP_CALL( SCIPsetConsModifiable(scip, cons, TRUE) );
-   SCIP_CALL( SCIPaddCoefLinear(scip, cons, var, -1.0) );
-   SCIP_CALL( SCIPaddCons(scip, cons) );
-   probdata->atomcount_cons = cons;
-   /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
-   SCIP_CALL( SCIPreleaseCons(scip, &cons) );
-
-   /* include always priority branching rule */
-   SCIP_CALL( SCIPincludeBranchruleAlwaysparticular(scip, var) );
 
    
    /* solve the model */

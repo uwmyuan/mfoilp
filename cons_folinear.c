@@ -179,10 +179,6 @@ SCIP_RETCODE FOLinearSeparate(
             SCIP_VARTYPE_BINARY, FALSE, FALSE, NULL, NULL, NULL, NULL, NULL) );
       SCIP_CALL( SCIPaddVar(scip, var) );
 
-      if( SCIPisZero(scip, obj))
-      {
-         SCIP_CALL( SCIPaddCoefLinear(scip, probdata->atomcount_cons, var, 1.0) );
-      }
       /* lock the variable */
 
       MR_locks( (MR_String) consname, probdata->nvars, &mr_down, &mr_up);

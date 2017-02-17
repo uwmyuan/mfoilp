@@ -23,7 +23,7 @@ OBJDIR		=	.
 BINDIR		=	.
 
 MAINNAME	=	mfoilp
-MAINOBJ		=	cfoilp.o cons_folinear.o pricer_dummy.o branch_alwayspriority.o branch_alwaysparticular.o
+MAINOBJ		=	cfoilp.o cons_folinear.o pricer_dummy.o branch_onsum.o
 MAINSRC		=	$(addprefix $(SRCDIR)/,$(MAINOBJ:.o=.c))
 MAINDEP		=	$(SRCDIR)/depend.cmain.$(OPT)
 
