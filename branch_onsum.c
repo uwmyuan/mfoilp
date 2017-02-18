@@ -4,7 +4,7 @@
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
-#define SCIP_DEBUG
+/*#define SCIP_DEBUG*/
 #include <assert.h>
 
 #include <scip/scip.h>
@@ -20,6 +20,7 @@
 
 #define DEFAULT_LBNBINVARS         0      /**< lower bound on number of binary variables (created before first branch) set to TRUE */
 #define DEFAULT_UBNBINVARS         -1     /**< upper bound on number of binary variables (created before first branch) set to TRUE */
+#define DEFAULT_ONLYZEROOBJ        TRUE     
 
 
 /*
@@ -32,6 +33,7 @@ struct SCIP_BranchruleData
    SCIP_VAR* particularvar;
    int lbnbinvars;
    int ubnbinvars;
+   SCIP_Bool onlyzeroobj;
 };
 
 
@@ -47,29 +49,46 @@ SCIP_RETCODE setparticular(
 {
    
    /* binary variables always come first in the active variables array */
-   int nvars = SCIPgetNBinVars(scip);
-   SCIP_VAR** vars = SCIPgetVars(scip);
+   int nbinvars = SCIPgetNBinVars(scip);
+   SCIP_VAR** allvars = SCIPgetVars(scip);
+   SCIP_VAR** vars;
    SCIP_Real* vals;
    SCIP_VAR* var;
    int i;
    SCIP_CONS* cons;
-
-   assert(scip != NULL);
+   int nvars;
+   SCIP_Bool onlyzeroobj = branchruledata->onlyzeroobj;
    
-   SCIP_CALL( SCIPallocMemoryArray(scip, &vals, nvars) );
-   for( i = 0; i < nvars; ++i)
-      vals[i] = 1.0;
+   assert(scip != NULL);
+
+
+   SCIP_CALL( SCIPallocMemoryArray(scip, &vals, nbinvars+1) );
+   SCIP_CALL( SCIPallocMemoryArray(scip, &vars, nbinvars+1) );
+   nvars = 0;
+   for( i = 0; i < nbinvars; ++i)
+   {
+      var = allvars[i];
+      if( !onlyzeroobj || SCIPisZero(scip, SCIPvarGetObj(var)) )
+      {
+         vars[nvars] = var;
+         vals[nvars++] = 1.0;
+      }
+   }
 
    SCIP_CALL( SCIPcreateVarBasic(scip, &var, "atomcount0",
          branchruledata->lbnbinvars, branchruledata->ubnbinvars == -1 ? nvars : branchruledata->ubnbinvars, 0.0, SCIP_VARTYPE_INTEGER) );
    SCIP_CALL( SCIPaddVar(scip, var) );
+   branchruledata->particularvar = var;
+   vars[nvars] = var;
+   vals[nvars++] = -1.0;
+
    
    SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, "sumcons", nvars, vars, vals, 0.0, 0.0) );
-   SCIP_CALL( SCIPaddCoefLinear(scip, cons, var, -1.0) );
    SCIP_CALL( SCIPaddCons(scip, cons) );
    SCIP_CALL( SCIPreleaseCons(scip, &cons) );
-   branchruledata->particularvar = var;
 
+
+   SCIPfreeMemoryArray(scip, &vars);
    SCIPfreeMemoryArray(scip, &vals);
 
    return SCIP_OKAY;
@@ -170,7 +189,7 @@ SCIP_DECL_BRANCHEXECPS(branchExecpsOnsum)
    branchruledata = SCIPbranchruleGetData(branchrule);
 
    if( SCIPgetDepth(scip) == 0 )
-      SCIP_CALL( setparticular(scip, &(branchruledata->particularvar)) );
+      SCIP_CALL( setparticular(scip, branchruledata) );
    
    var = branchruledata->particularvar;
 
@@ -237,6 +256,10 @@ SCIP_RETCODE SCIPincludeBranchruleOnsum(
          "upper bound on the number of binary variables (created before first branch) set to TRUE (-1 is no bound)",
          &branchruledata->ubnbinvars, FALSE, DEFAULT_UBNBINVARS, -1, INT_MAX, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "branching/" BRANCHRULE_NAME "/onlyzeroobj",
+         "whether to only consider binary variables with zero objective",
+         &branchruledata->onlyzeroobj, FALSE, DEFAULT_ONLYZEROOBJ,
+         NULL, NULL) );
 
    
    /* add onsum branching rule parameters */

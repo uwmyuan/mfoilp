@@ -178,6 +178,8 @@ SCIP_RETCODE FOLinearSeparate(
             obj, 
             SCIP_VARTYPE_BINARY, FALSE, FALSE, NULL, NULL, NULL, NULL, NULL) );
       SCIP_CALL( SCIPaddVar(scip, var) );
+      if( SCIPisZero(scip, obj))
+         SCIP_CALL( SCIPchgVarBranchPriority(scip, var, 10) );
 
       /* lock the variable */
 
