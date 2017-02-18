@@ -18,17 +18,20 @@
 #define BRANCHRULE_MAXDEPTH        -1
 #define BRANCHRULE_MAXBOUNDDIST    1.0
 
+#define DEFAULT_LBNBINVARS         0      /**< lower bound on number of binary variables (created before first branch) set to TRUE */
+#define DEFAULT_UBNBINVARS         -1     /**< upper bound on number of binary variables (created before first branch) set to TRUE */
+
 
 /*
  * Data structures
  */
 
-/* TODO: fill in the necessary branching rule data */
-
 /** branching rule data */
 struct SCIP_BranchruleData
 {
    SCIP_VAR* particularvar;
+   int lbnbinvars;
+   int ubnbinvars;
 };
 
 
@@ -39,7 +42,7 @@ struct SCIP_BranchruleData
 static
 SCIP_RETCODE setparticular(
    SCIP* scip,
-   SCIP_VAR** particularvar
+   SCIP_BRANCHRULEDATA* branchruledata
    )
 {
    
@@ -51,23 +54,21 @@ SCIP_RETCODE setparticular(
    int i;
    SCIP_CONS* cons;
 
-   int max_modelsize;
-   SCIP_CALL( SCIPgetIntParam(scip, "mfoilp/max_modelsize", &max_modelsize) );
-
    assert(scip != NULL);
    
    SCIP_CALL( SCIPallocMemoryArray(scip, &vals, nvars) );
    for( i = 0; i < nvars; ++i)
       vals[i] = 1.0;
 
-   SCIP_CALL( SCIPcreateVarBasic(scip, &var, "atomcount0", 0, max_modelsize == -1 ? nvars : max_modelsize, 0.0, SCIP_VARTYPE_INTEGER) );
+   SCIP_CALL( SCIPcreateVarBasic(scip, &var, "atomcount0",
+         branchruledata->lbnbinvars, branchruledata->ubnbinvars == -1 ? nvars : branchruledata->ubnbinvars, 0.0, SCIP_VARTYPE_INTEGER) );
    SCIP_CALL( SCIPaddVar(scip, var) );
    
    SCIP_CALL( SCIPcreateConsBasicLinear(scip, &cons, "sumcons", nvars, vars, vals, 0.0, 0.0) );
    SCIP_CALL( SCIPaddCoefLinear(scip, cons, var, -1.0) );
    SCIP_CALL( SCIPaddCons(scip, cons) );
    SCIP_CALL( SCIPreleaseCons(scip, &cons) );
-   *particularvar = var;
+   branchruledata->particularvar = var;
 
    SCIPfreeMemoryArray(scip, &vals);
 
@@ -129,7 +130,7 @@ SCIP_DECL_BRANCHEXECLP(branchExeclpOnsum)
    branchruledata = SCIPbranchruleGetData(branchrule);
    
    if( SCIPgetDepth(scip) == 0 )
-      SCIP_CALL( setparticular(scip, &(branchruledata->particularvar)) );
+      SCIP_CALL( setparticular(scip, branchruledata) );
 
    var = branchruledata->particularvar;
 
@@ -226,7 +227,18 @@ SCIP_RETCODE SCIPincludeBranchruleOnsum(
    SCIP_CALL( SCIPsetBranchruleExecLp(scip, branchrule, branchExeclpOnsum) );
    SCIP_CALL( SCIPsetBranchruleExecPs(scip, branchrule, branchExecpsOnsum) );
 
+   SCIP_CALL( SCIPaddIntParam(scip,
+         "branching/" BRANCHRULE_NAME "/lbnbinvars",
+         "lower bound on the number of binary variables (created before first branch) set to TRUE",
+         &branchruledata->lbnbinvars, FALSE, DEFAULT_LBNBINVARS, 0, INT_MAX, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddIntParam(scip,
+         "branching/" BRANCHRULE_NAME "/ubnbinvars",
+         "upper bound on the number of binary variables (created before first branch) set to TRUE (-1 is no bound)",
+         &branchruledata->ubnbinvars, FALSE, DEFAULT_UBNBINVARS, -1, INT_MAX, NULL, NULL) );
+
+
+   
    /* add onsum branching rule parameters */
    /* TODO: (optional) add branching rule specific parameters with SCIPaddTypeParam() here */
 
