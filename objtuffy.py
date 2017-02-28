@@ -48,16 +48,16 @@ class Clause:
         
     def make_weighted(self,weight):
         vs = self.get_vars()
-        cblit = Lit('cb'+str(self._num),sorted(vs))
-        self._num += 1
+        cblit = Lit('cb'+str(Clause._num),sorted(vs))
+        Clause._num += 1
+        clauses = []
         if weight > 0:
             self.add_lit(cblit)
-            clauses = [self]
+            clauses.append(self)
         elif weight < 0:
-            clauses = []
             for lit in self._lits:
-                clause = Clause(cblit)
-                clause.add_lit(Lit(lit.psym,lit.args,not lit.is_negated))
+                clause = Clause([cblit])
+                clause.add_lit(Lit(lit.psym(),lit.args(),not lit.is_negated()))
                 clauses.append(clause)
         return clauses
             
@@ -127,7 +127,7 @@ class NonVarTerm:
 
     def get_vars(self):
         vs = set()
-        for arg in self._args():
+        for arg in self._args:
             vs.update(arg.get_vars())
         return vs
     
@@ -179,9 +179,10 @@ def fact_from_line(line):
 
 
 if __name__ == '__main__':
-    line = '1.94203  student(a2) v !advisedBy(a1,a2)'
-    clause, w = clause_from_line(line)
-    print clause
-    wclauses = clause.make_weighted(w)
-    for wc in wclauses:
-        print wc
+    for line in open('prog.mln'):
+        if 'EXIST' not in line and clause_pattern.match(line) is not None:
+            clause, w = clause_from_line(line)
+            wclauses = clause.make_weighted(w)
+            for wc in wclauses:
+                print wc
+
