@@ -118,12 +118,43 @@ class Clause:
 
     _num = 1
     
-    def __init__(self,lits=None,weight=None):
+    def __init__(self,lits=None,weight=None,line=None):
+        '''construct from a set of lits or from a textual
+        description
+        '''
         self._weight = weight
         if lits is None:
             self._lits = []
         else:
             self._lits = lits
+
+        if line is not None:
+
+            if lits is not None:
+                raise ValueError("Do not supply both lits and textual rep when making a clause")
+            
+            clausematch = clause_pattern.match(line)
+            if clausematch is None:
+                raise ValueError("'{0}' does not describe a clause".format(line))
+
+            self._weight = float(clausematch.group(1))
+            lits = clausematch.group(2).split(' v ')
+            for lit in lits:
+                if lit[0] == '!':
+                    negated = True
+                    lit = lit[1:]
+                else:
+                    negated = False
+                match = fact_pattern.match(lit)
+                if match is None:
+                    raise ValueError("'{0}' does not describe a literal".format(lit))
+                outargs = []
+                for arg in match.group(2).split(','):
+                    if arg[0].islower():
+                        outargs.append(Variable(arg.capitalize()))
+                    else:
+                        outargs.append(NonVarTerm('"{0}"'.format(arg.strip())))
+                self._lits.append(Lit(match.group(1),outargs,negated))
 
     def lits(self):
         return self._lits
@@ -208,13 +239,15 @@ class GuardedClause(Clause):
 class Lit:
 
     def __init__(self,psym,args=None,negated=False):
-        self._psym = psym
-        self._negated = negated
+
         if args is None:
             self._args = []
         else:
             self._args=args
-
+        
+        self._psym = psym
+        self._negated = negated
+    
     def after_swapping(self,k1,k2):
         '''returns lit that we get once constants k1 and k2 
         have been swapped
@@ -357,55 +390,19 @@ class NonVarTerm(Term):
         else:
             return '{0}({1})'.format(self._fsym,','.join([str(x) for x in args]))
 
-def clause_from_line(line):
-    '''return a clause and its weight from a tuffy-style line
-    or none if that does not work
-    '''
-    clausematch = clause_pattern.match(line)
-    if clausematch is None:
-        return None
-
-    lits = clausematch.group(2).split(' v ')
-    clause = Clause(weight=float(clausematch.group(1)))
-    for lit in lits:
-        if lit[0] == '!':
-            negated = True
-            lit = lit[1:]
-        else:
-            negated = False
-        match = fact_pattern.match(lit)
-        if match is None:
-            raise IOError
-        outargs = []
-        for arg in match.group(2).split(','):
-            if arg[0].islower():
-                outargs.append(Variable(arg.capitalize()))
-            else:
-                outargs.append(NonVarTerm('"{0}"'.format(arg.strip())))
-        clause.add_lit(Lit(match.group(1),outargs,negated))
-    return clause
-
-def fact_from_line(line):
-    '''return a ground fact from a tuffy-style line
-    or none if that does not work
-    everything is converted into a string
-    '''
-    match = fact_pattern.match(line)
-    if match is None:
-        return None
-    args = [NonVarTerm('"'+x.lstrip()+'"') for x in match.group(2).replace(' ','').split(',')]
-    psym = match.group(1)
-    return Clause(Lit(psym,args))
 
 
-def ignore(line):
-    return (
-        line == '' or
-        'EXIST' in line or
-        line[:2] == '//'
-    )
 
 if __name__ == '__main__':
+
+
+    def ignore(line):
+        return (
+            line == '' or
+            'EXIST' in line or
+            line[:2] == '//'
+        )
+    
     clauses = []
     for line in open('prog.mln'):
 
@@ -417,22 +414,17 @@ if __name__ == '__main__':
             if match:
                 PSym.cwa.add(match.group(1))
                 continue
-
-        if clause_pattern.match(line) is not None:
-            clauses.append(clause_from_line(line))
-
+        try:
+            clauses.append(Clause(line=line))
+        except ValueError:
+            pass
+            
     for line in open('evidence.db'):
-        match = fact_pattern.match(line)
-        if not match:
-            continue
-        outargs = []
-        for arg in match.group(2).split(','):
-            arg = arg.strip()
-            if arg[0].islower():
-                outargs.append(Variable(arg.capitalize()))
-            else:
-                outargs.append(NonVarTerm('"{0}"'.format(arg)))
-        clauses.append(Clause([Lit(match.group(1),outargs)]))
+        try:
+            clauses.append(Clause(line=line))
+        except ValueError:
+            pass
+
 
     theory = Theory(clauses)
     theory.delete_zero_weighted()
