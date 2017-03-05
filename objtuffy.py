@@ -1,16 +1,71 @@
+#!/usr/bin/env python3
 import re
 
 fact_pattern = re.compile(r'^(\w+)\((.*)\)\s*$')
-clause_pattern = re.compile(r'^([-\d+.]+)\s+(.*)')
+clause_pattern = re.compile(r'^([-\d+.]*)\s*(.*)')
 
 
 class Theory:
 
-    def __init__(self,clauses=None):
+    def __init__(self,clauses=None,from_files=False,prog='prog.mln',evidence='evidence.db'):
         if clauses is None:
             self._clauses = []
         else:
             self._clauses = clauses
+
+        if not from_files:
+            return
+
+        def ignore(line):
+            return (
+                line == '' or
+                'EXIST' in line or
+                line[:2] == '//'
+            )
+
+        reading_predicate_definitions = False
+        for line in open(prog):
+            if line.startswith('//predicate declarations'):
+                reading_predicate_definitions = True
+                logictypes = {}
+                preds = {}
+                continue
+            if reading_predicate_definitions:
+                if line == '\n':
+                    reading_predicate_definitions = False
+                    continue
+                if line[0] == '*':
+                    cwa = True
+                    line = line[1:]
+                else:
+                    cwa = False
+                match = fact_pattern.match(line)
+                name = match.group(1)
+                lts = []
+                for ltstr in match.group(2).split(','):
+                    try:
+                        lts.append(logictypes[ltstr])
+                    except KeyError:
+                        # new type
+                        nt = LogicType(ltstr)
+                        logictypes[ltstr] = nt
+                        lts.append(nt)
+                preds[name,len(lts)] = PSym(name,len(lts),lts,cwa)
+                continue
+
+            if ignore(line):
+                continue
+            
+            try:
+                self._clauses.append(Clause(line=line,preds=preds))
+            except ValueError:
+                pass
+
+        for line in open(evidence):
+            try:
+                self._clauses.append(Clause(line=line,preds=preds))
+            except ValueError:
+                pass
 
     def __str__(self):
         out = ''
@@ -78,21 +133,21 @@ class Theory:
             theory.add_clause(self._clauses[trio[0]])
         return theory
 
-    def find_equiv(self):
-        ks = self.constants()
-        kskeys = ks.keys()
-        for i, k1 in enumerate(kskeys):
-            for k2 in kskeys[i+1:]:
-                th = self.containing_two(ks,k1,k2)
-                th2 = th.after_swapping(k1,k2)
-                if th2.equivalent(th):
-                    print th
-                    print th2
-                    print 'yes', k1, k2
-                    print
-                    print
+    # def find_equiv(self):
+    #     ks = self.constants()
+    #     kskeys = ks.keys()
+    #     for i, k1 in enumerate(kskeys):
+    #         for k2 in kskeys[i+1:]:
+    #             th = self.containing_two(ks,k1,k2)
+    #             th2 = th.after_swapping(k1,k2)
+    #             if th2.equivalent(th):
+    #                 print th
+    #                 print th2
+    #                 print 'yes', k1, k2
+    #                 print
+    #                 print
 
-class Types:
+class LogicType:
     
     def __init__(self,name):
         self._name = name
@@ -115,6 +170,19 @@ class PFSym:
             for i, typ in enumerate(types):
                 self._types[i] = typ
 
+    def __repr__(self):
+        return '{0}({1},{2},{3})'.format(
+            self.__class__,
+            self._name,
+            self._arity,
+            self._types)
+
+    def __str__(self):
+        '''NB: arity not given in this
+        informal string representation
+        '''
+        return self._name
+    
     def __eq__(self,other):
         '''have to agree on types to be considered
         the same
@@ -140,7 +208,9 @@ class PFSym:
 class PSym(PFSym):
     '''Predicate symbols
     '''
-    cwa = set()
+    def __init__(self,name,arity,types=None,cwa=False):
+        super().__init__(name,arity,types)
+        self._cwa = cwa
 
 class FSym(PFSym):
     '''Function symbols
@@ -168,7 +238,7 @@ class Clause:
 
     _num = 1
     
-    def __init__(self,lits=None,weight=None,line=None):
+    def __init__(self,lits=None,weight=None,line=None,preds=None):
         '''construct from a set of lits or from a textual
         description
         '''
@@ -187,9 +257,19 @@ class Clause:
             if clausematch is None:
                 raise ValueError("'{0}' does not describe a clause".format(line))
 
-            self._weight = float(clausematch.group(1))
+            try:
+                self._weight = float(clausematch.group(1))
+            except ValueError:
+                self._weight = None
+                
             lits = clausematch.group(2).split(' v ')
+
+            if len(lits) == 0:
+                raise ValueError("'{0}' has no literals".format(line))
+            
             for lit in lits:
+                if len(lit) == 0:
+                    raise ValueError("'{0} in {1}' does not describe a literal".format(lit,line))
                 if lit[0] == '!':
                     negated = True
                     lit = lit[1:]
@@ -204,7 +284,9 @@ class Clause:
                         outargs.append(Variable(arg.capitalize()))
                     else:
                         outargs.append(NonVarTerm('"{0}"'.format(arg.strip())))
-                self._lits.append(Lit(match.group(1),outargs,negated))
+                # use PSym object rather than just string
+                psym = preds[match.group(1),len(outargs)]
+                self._lits.append(Lit(psym,outargs,negated))
 
     def lits(self):
         return self._lits
@@ -297,7 +379,25 @@ class Lit:
         
         self._psym = psym
         self._negated = negated
-    
+
+    def __repr__(self):
+        return 'Lit({0},{1},{2})'.format(
+            repr(self._psym),
+            [repr(x) for x in self._args],
+            self._negated)
+
+    def __str__(self):
+        pred_name = str(self._psym)
+        if self._args is None:
+            ret = pred_name
+        else:
+            ret = '{0}({1})'.format(pred_name,','.join([str(x) for x in self._args]))        
+        if self._negated:
+            return 'not ' + ret
+        else:
+            return ret
+
+        
     def after_swapping(self,k1,k2):
         '''returns lit that we get once constants k1 and k2 
         have been swapped
@@ -343,15 +443,6 @@ class Lit:
             vs.update(arg.get_vars())
         return vs
             
-    def __str__(self):
-        if self._args is None:
-            ret = self._psym
-        else:
-            ret = '{0}({1})'.format(self._psym,','.join([str(x) for x in self._args]))        
-        if self._negated:
-            return 'not ' + ret
-        else:
-            return ret
 
     def psym(self):
         return self._psym
@@ -380,7 +471,10 @@ class Variable(Term):
     def get_vars(self):
         return set([self._varname])
         
-    def __str__(self):
+    def __repr__(self):
+        '''produces str representation
+        as well
+        '''
         return self._varname
 
     def constants(self):
@@ -388,33 +482,40 @@ class Variable(Term):
     
 class NonVarTerm(Term):
 
-    def __init__(self,fsym=None,args=None):
+    def __init__(self,fsym,args=None):
         self._fsym = fsym
         if args is None:
             self._args = ()
         else:
             self._args = tuple(args)
 
+    def __repr__(self):
+        return '{0}({1},{2})'.format(
+            self.__class__,
+            repr(self._fsym),
+            [repr(x) for x in self._args])
+            
+    def __str__(self):
+        functor = str(self._fsym)
+        if self.is_constant():
+            return functor
+        else:
+            return '{0}({1})'.format(functor,','.join([str(x) for x in args]))
+
+    def __eq__(self,other):
+        if self.__class__ != other.__class__:
+            return False
+        if self._fsym != other._fsym:
+            return False
+        for i, arg in enumerate(self._args):
+            if arg != other._args[i]:
+                return False
+        return True
+
+        
     def args(self):
         return self._args 
             
-    def equivalent(self,other):
-        try:
-            if self._fsym == other.fsym():
-                if self.is_constant():
-                    return True
-            else:
-                return False
-            otherargs = other.args()
-            if len(self._args) != len(otherargs):
-                return False
-        except AttributeError:
-            return False
-        for i, arg in enumerate(self._args):
-            if not arg.equivalent(otherargs[i]):
-                return False
-        return True
-        
         
     def constants(self):
         if self.is_constant():
@@ -433,53 +534,13 @@ class NonVarTerm(Term):
         for arg in self._args:
             vs.update(arg.get_vars())
         return vs
-    
-    def __str__(self):
-        if self.is_constant():
-            return self._fsym
-        else:
-            return '{0}({1})'.format(self._fsym,','.join([str(x) for x in args]))
-
-
-
 
 if __name__ == '__main__':
 
-
-    def ignore(line):
-        return (
-            line == '' or
-            'EXIST' in line or
-            line[:2] == '//'
-        )
-    
-    clauses = []
-    for line in open('prog.mln'):
-
-        if ignore(line):
-            continue
-
-        if line[0] == '*':
-            match = fact_pattern.match(line[1:])
-            if match:
-                PSym.cwa.add(match.group(1))
-                continue
-        try:
-            clauses.append(Clause(line=line))
-        except ValueError:
-            pass
-            
-    for line in open('evidence.db'):
-        try:
-            clauses.append(Clause(line=line))
-        except ValueError:
-            pass
-
-
-    theory = Theory(clauses)
-    theory.delete_zero_weighted()
-    #print theory
+    theory = Theory(from_files=True)
+    #theory.delete_zero_weighted()
+    print(theory)
 
     #print theory.constants()
 
-    theory.find_equiv()
+    #theory.find_equiv()
