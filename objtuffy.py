@@ -92,11 +92,61 @@ class Theory:
                     print
                     print
 
-        
-class PSym:
+class Types:
+    
+    def __init__(self,name):
+        self._name = name
 
+    def name(self):
+        return self._name
+
+    def __eq__(self,other):
+        return self._name == other._name
+    
+class PFSym:
+    '''Union of predicate symbols and function symbols
+    '''
+
+    def __init__(self,name,arity,types=None):
+        self._name = name
+        self._arity = arity
+        self._types = [None]*arity
+        if types is not None:
+            for i, typ in enumerate(types):
+                self._types[i] = typ
+
+    def __eq__(self,other):
+        '''have to agree on types to be considered
+        the same
+        '''
+        if self.__class__ != other.__class__:
+            return False
+        if self._name != other._name:
+            return False
+        elif self._arity != other._arity:
+            return False
+        else:
+            for i, typ in enumerate(self._types):
+                if typ != other._types[i]:
+                    return False
+        return True
+            
+    def arity(self):
+        return self._arity
+
+    def type(self,i):
+        return self._types[i]
+
+class PSym(PFSym):
+    '''Predicate symbols
+    '''
     cwa = set()
-        
+
+class FSym(PFSym):
+    '''Function symbols
+    '''
+    pass
+
 class MercuryClause:
 
     def __init__(self,head,body=None):
