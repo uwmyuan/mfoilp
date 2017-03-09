@@ -14,6 +14,11 @@ class Theory:
             self._clauses = clauses
 
         if not from_files:
+            # don't record these at present if not reading a file
+            # could extract them from clauses
+            self._psyms = None
+            self._logictypes = None
+            self._constants = None
             return
 
         def ignore(line):
@@ -27,8 +32,18 @@ class Theory:
         for line in open(prog):
             if line.startswith('//predicate declarations'):
                 reading_predicate_definitions = True
-                logictypes = {}
-                preds = {}
+
+                # records all types appearing in formulae in the theory
+                # and maps name/arity to pysm object
+                self._logictypes = {}
+                
+                # records predicate symbols appearing in the theory
+                # and maps name/arity to pysm object
+                self._psyms = {}
+
+                # records constants appearing in the theory
+                self._constants = {}
+                
                 continue
             if reading_predicate_definitions:
                 if line == '\n':
@@ -44,35 +59,37 @@ class Theory:
                 lts = []
                 for ltstr in match.group(2).split(','):
                     try:
-                        lts.append(logictypes[ltstr])
+                        lts.append(self._logictypes[ltstr])
                     except KeyError:
                         # new type
                         nt = LogicType(ltstr)
-                        logictypes[ltstr] = nt
+                        self._logictypes[ltstr] = nt
                         lts.append(nt)
-                preds[name,len(lts)] = PSym(name,len(lts),lts,cwa)
+                self._psyms[name,len(lts)] = PSym(name,len(lts),lts,cwa)
                 continue
 
             if ignore(line):
                 continue
             
             try:
-                self._clauses.append(Clause(line=line,preds=preds))
+                self._clauses.append(Clause(line=line,preds=self._psyms,constants=self._constants))
             except ValueError:
                 pass
 
         for line in open(evidence):
             try:
-                self._clauses.append(Clause(line=line,preds=preds))
+                self._clauses.append(Clause(line=line,preds=self._psyms,constants=self._constants))
             except ValueError:
                 pass
 
     def __str__(self):
-        out = ''
-        for clause in self._clauses:
-            out += '{0}\n'.format(clause)
-        return out
+        theory  = '\n'.join([str(clause) for clause in self._clauses])
+        preds = '\n'.join([repr(psym) for psym in self._psyms.values()])
+        types = '\n'.join([str(lt) for lt in self._logictypes.values()])
+        constants = '\n'.join([repr(c) for c in self._constants.values()])
+        return '\n\n'.join((theory,preds,types,constants))
 
+        
     def clauses(self):
         return self._clauses
     
@@ -152,30 +169,38 @@ class LogicType:
     def __init__(self,name):
         self._name = name
 
+    def __eq__(self,other):
+        return self._name == other._name
+
+    def __repr__(self):
+        return self._name
+    
     def name(self):
         return self._name
 
-    def __eq__(self,other):
-        return self._name == other._name
     
 class PFSym:
     '''Union of predicate symbols and function symbols
     '''
 
-    def __init__(self,name,arity,types=None):
+    def __init__(self,name,arity,logictypes=None):
         self._name = name
         self._arity = arity
-        self._types = [None]*arity
-        if types is not None:
-            for i, typ in enumerate(types):
-                self._types[i] = typ
+        self._logictypes = [None]*arity
+        if logictypes is not None:
+            for i, typ in enumerate(logictypes):
+                self._logictypes[i] = typ
 
     def __repr__(self):
-        return '{0}({1},{2},{3})'.format(
-            self.__class__,
+        if isinstance(self,PSym):
+            klass_name = 'PSym'
+        else:
+            klass_name = 'FSym'
+        return '{0}({1},{2},logictypes=[{3}])'.format(
+            klass_name,
             self._name,
             self._arity,
-            self._types)
+            ','.join((repr(x) for x in self._logictypes)))
 
     def __str__(self):
         '''NB: arity not given in this
@@ -194,16 +219,16 @@ class PFSym:
         elif self._arity != other._arity:
             return False
         else:
-            for i, typ in enumerate(self._types):
-                if typ != other._types[i]:
+            for i, typ in enumerate(self._logictypes):
+                if typ != other._logictypes[i]:
                     return False
         return True
             
     def arity(self):
         return self._arity
 
-    def type(self,i):
-        return self._types[i]
+    def logictypes(self,i):
+        return self._logictypes[i]
 
 class PSym(PFSym):
     '''Predicate symbols
@@ -238,7 +263,7 @@ class Clause:
 
     _num = 1
     
-    def __init__(self,lits=None,weight=None,line=None,preds=None):
+    def __init__(self,lits=None,weight=None,line=None,preds=None,constants=None):
         '''construct from a set of lits or from a textual
         description
         '''
@@ -279,13 +304,23 @@ class Clause:
                 if match is None:
                     raise ValueError("'{0}' does not describe a literal".format(lit))
                 outargs = []
-                for arg in match.group(2).split(','):
+                inargs = match.group(2).split(',')
+                # use PSym object rather than just string
+                # will generate Key Error if missing
+                psym = preds[match.group(1),len(inargs)]
+
+                for i, arg in enumerate(inargs):
                     if arg[0].islower():
                         outargs.append(Variable(arg.capitalize()))
                     else:
-                        outargs.append(NonVarTerm('"{0}"'.format(arg.strip())))
-                # use PSym object rather than just string
-                psym = preds[match.group(1),len(outargs)]
+                        cons_str = arg.strip()
+                        try:
+                            cons = constants[cons_str]
+                        except KeyError:
+                            cons = NonVarTerm('"{0}"'.format(cons_str),logictype=psym.logictypes(i))
+                            #update constants
+                            constants[cons_str] = cons
+                        outargs.append(cons)
                 self._lits.append(Lit(psym,outargs,negated))
 
     def lits(self):
@@ -453,8 +488,10 @@ class Term:
     
 class Variable(Term):
 
-    def __init__(self,varname):
+    def __init__(self,varname,logictype=None):
         self._varname = varname
+        self._logictype = logictype
+        
 
     def varname(self):
         '''return variable as a string
@@ -482,18 +519,19 @@ class Variable(Term):
     
 class NonVarTerm(Term):
 
-    def __init__(self,fsym,args=None):
+    def __init__(self,fsym,args=None,logictype=None):
         self._fsym = fsym
+        self._logictype = logictype
         if args is None:
             self._args = ()
         else:
             self._args = tuple(args)
 
     def __repr__(self):
-        return '{0}({1},{2})'.format(
-            self.__class__,
+        return 'NonVarTerm({0},{1},logictype={2})'.format(
             repr(self._fsym),
-            [repr(x) for x in self._args])
+            [repr(x) for x in self._args],
+            repr(self._logictype))
             
     def __str__(self):
         functor = str(self._fsym)

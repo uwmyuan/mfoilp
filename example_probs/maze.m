@@ -11,6 +11,8 @@
 :- pred initial_clause(string::out,clause_lits::in,clause_lits::out) is multi.
 
 :- pred clause(string::out) is multi.
+:- pred equality(string::in) is semidet.
+:- pred penalty_atom(string::in) is semidet.
 
 :- pred neglit(string::in,atom::in) is semidet.
 :- pred poslit(string::in,atom::in) is semidet.
@@ -47,7 +49,7 @@ objective(move(_,_),1.0).
 %	).
 
 %objective(position(_,2,3),-2.0).
-objective(position(_,X,X),2.0).
+%objective(position(_,X,X),2.0).
 
 :- pred makemove(direction,int,int,int,int).
 :- mode makemove(in,in,in,out,out) is det.
@@ -124,3 +126,8 @@ initial_clause("start") -->
 initial_clause("end") -->
 	initial_poslit(position(6,4,2)).
 
+% extras
+equality(_) :- fail.
+
+% only used if generating and constraints
+penalty_atom(_) :- fail.
