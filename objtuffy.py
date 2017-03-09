@@ -83,10 +83,19 @@ class Theory:
                 pass
 
     def __str__(self):
-        theory  = '\n'.join([str(clause) for clause in self._clauses])
-        preds = '\n'.join([repr(psym) for psym in self._psyms.values()])
-        types = '\n'.join([str(lt) for lt in self._logictypes.values()])
-        constants = '\n'.join([repr(c) for c in self._constants.values()])
+        theory  = '\n'.join([repr(clause) for clause in self._clauses])
+        if self._psyms is not None:
+            preds = '\n'.join([repr(psym) for psym in self._psyms.values()])
+        else:
+            preds = ''
+        if self._logictypes is not None:
+            types = '\n'.join([str(lt) for lt in self._logictypes.values()])
+        else:
+            types = ''
+        if self._psyms is not None:
+            constants = '\n'.join([repr(c) for c in self._constants.values()])
+        else:
+            constants = ''
         return '\n\n'.join((theory,preds,types,constants))
 
         
@@ -108,6 +117,31 @@ class Theory:
                 return False
         return True
 
+    def weights_on_atoms(self):
+        '''create an equivalent theory
+        where only atoms can have weights
+        '''
+        newtheory = Theory()
+        newtheory._pysms = self._psyms
+        newtheory._logictypes = self._logictypes
+        newtheory._constants = self._constants
+        cbn = 1
+        for clause in self._clauses:
+            weight = clause.weight()
+            if weight is None:
+                newtheory._clauses.append(clause)
+            else:
+                vs = clause.get_vars()
+                cp = PSym('cb{0}'.format(cbn),len(vs),[v.logictype() for v in vs])
+                cbn += 1
+                if weight > 0:
+                    lit = Lit(cp,vs)
+                    cbclause = Clause(lits=[lit],weight=weight)
+                    extclause = Clause(lits=clause.lits()+[lit])
+                    newtheory._clauses.append(cbclause)
+                    newtheory._clauses.append(extclause)
+        return newtheory
+    
     def add_clause(self,clause):
         self._clauses.append(clause)
     
@@ -291,7 +325,8 @@ class Clause:
 
             if len(lits) == 0:
                 raise ValueError("'{0}' has no literals".format(line))
-            
+
+            clausevars = []
             for lit in lits:
                 if len(lit) == 0:
                     raise ValueError("'{0} in {1}' does not describe a literal".format(lit,line))
@@ -311,7 +346,14 @@ class Clause:
 
                 for i, arg in enumerate(inargs):
                     if arg[0].islower():
-                        outargs.append(Variable(arg.capitalize()))
+                        newvar = Variable(arg.capitalize(),logictype=psym.logictypes(i))
+                        for v in clausevars:
+                            if v.eq(newvar):
+                                newvar = v
+                                break
+                        else:
+                            clausevars.append(newvar)
+                        outargs.append(newvar)
                     else:
                         cons_str = arg.strip()
                         try:
@@ -387,7 +429,10 @@ class Clause:
                 clause.add_lit(Lit(lit.psym(),lit.args(),not lit.is_negated()))
                 clauses.append(clause)
         return clauses
-            
+
+    def __repr__(self):
+        return 'Clause([{0}],{1})'.format(','.join([repr(lit) for lit in self._lits]),self._weight)
+    
     def __str__(self):
         if self._weight is not None:
             ret = '{0} : '.format(self._weight)
@@ -416,9 +461,9 @@ class Lit:
         self._negated = negated
 
     def __repr__(self):
-        return 'Lit({0},{1},{2})'.format(
+        return 'Lit({0},[{1}],{2})'.format(
             repr(self._psym),
-            [repr(x) for x in self._args],
+            ','.join([repr(x) for x in self._args]),
             self._negated)
 
     def __str__(self):
@@ -478,13 +523,14 @@ class Lit:
             vs.update(arg.get_vars())
         return vs
             
-
     def psym(self):
         return self._psym
 
 
 class Term:
-    pass
+
+    def logictype(self):
+        return self._logictype
     
 class Variable(Term):
 
@@ -492,7 +538,11 @@ class Variable(Term):
         self._varname = varname
         self._logictype = logictype
         
-
+    def eq(self,other):
+        return (
+            self._varname == other._varname and
+            self._logictype == other._logictype)
+        
     def varname(self):
         '''return variable as a string
         '''
@@ -506,13 +556,13 @@ class Variable(Term):
             return False
         
     def get_vars(self):
-        return set([self._varname])
+        return set([self])
         
     def __repr__(self):
         '''produces str representation
         as well
         '''
-        return self._varname
+        return 'Variable({0},{1})'.format(self._varname,repr(self._logictype))
 
     def constants(self):
         return set()
@@ -578,6 +628,10 @@ if __name__ == '__main__':
     theory = Theory(from_files=True)
     #theory.delete_zero_weighted()
     print(theory)
+
+    print('************')
+    
+    print(theory.weights_on_atoms())
 
     #print theory.constants()
 
