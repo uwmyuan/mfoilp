@@ -198,6 +198,9 @@ class Theory:
     #                 print
     #                 print
 
+    def mercury(self):
+        return '\n\n'.join(c.mercury_clause() for c in self._clauses)
+    
 class LogicType:
     
     def __init__(self,name):
@@ -271,6 +274,9 @@ class PSym(PFSym):
         super().__init__(name,arity,types)
         self._cwa = cwa
 
+    def is_cwa(self):
+        return self._cwa
+        
 class FSym(PFSym):
     '''Function symbols
     '''
@@ -440,6 +446,30 @@ class Clause:
             ret = ''
         return ret + ';'.join([str(x) for x in self._lits])
 
+    def mercury_clause(self):
+        ret = []
+        neglits = []
+        poslits = []
+        cwalits = []
+        for lit in self._lits:
+            if lit.psym().is_cwa():
+                 cwalits.append(lit)
+            else:
+                if lit.is_negated():
+                    neglits.append(lit)
+                else:
+                    poslits.append(lit)
+        for lit in neglits:
+            lit.posify()
+            ret.append('insol({0})'.format(lit))
+            ret.append('neglit({0})'.format(lit))
+        for lit in cwalits:
+            ret.append('{{{0}}}'.format(lit))
+        for lit in poslits:
+            ret.append('poslit({0})'.format(lit))
+        return ',\n'.join(ret)
+
+    
 class GuardedClause(Clause):
 
     def add_guard(self,guard):
@@ -477,6 +507,9 @@ class Lit:
         else:
             return ret
 
+    def posify(self):
+        self._negated = False
+        
         
     def after_swapping(self,k1,k2):
         '''returns lit that we get once constants k1 and k2 
@@ -564,6 +597,9 @@ class Variable(Term):
         '''
         return 'Variable({0},{1})'.format(self._varname,repr(self._logictype))
 
+    def __str__(self):
+        return self._varname
+        
     def constants(self):
         return set()
     
@@ -630,8 +666,10 @@ if __name__ == '__main__':
     print(theory)
 
     print('************')
+
+    print(theory.mercury())
     
-    print(theory.weights_on_atoms())
+    #print(theory.weights_on_atoms())
 
     #print theory.constants()
 
