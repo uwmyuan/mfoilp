@@ -1,0 +1,5 @@
+usage:
+
+Write (or copy) the problem instance to a file prob.m (in the
+directory where the Makefile and the rest are) and type:
+make

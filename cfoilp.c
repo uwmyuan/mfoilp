@@ -53,6 +53,7 @@ int main(
    MR_FloatList objectives;
    MR_StringList varnames;
    MR_StringList consnames;
+   MR_IntList consequalities;
    MR_IntListList neglitss;
    MR_IntListList poslitss;
 
@@ -66,7 +67,8 @@ int main(
    SCIP_CONS* cons;
 
    int i;
-
+   int equality;
+   
    MR_StringList clausenames;
 
    SCIP_VAR* clausevars[100];
@@ -121,7 +123,7 @@ int main(
       SCIP_CALL( SCIPactivatePricer(scip, SCIPfindPricer(scip, "dummy")) );
 
 
-   MR_initial_constraints(&objectives,&varnames,&consnames,&neglitss,&poslitss);
+   MR_initial_constraints(&objectives,&varnames,&consnames,&consequalities,&neglitss,&poslitss);
 
    /* initialise probdata */
 
@@ -163,7 +165,8 @@ int main(
    {
       neglits =  MR_list_head(neglitss);
       poslits =  MR_list_head(poslitss);
-
+      equality = MR_list_head(consequalities);
+      
       i = 0;
 
       while ( !MR_list_is_empty(neglits) )
@@ -181,9 +184,19 @@ int main(
          poslits =  MR_list_tail(poslits);
       }
 
-      SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, 
-            (char *)  MR_list_head(consnames), 
-            i, clausevars) );
+
+      if( equality )
+      {
+         SCIP_CALL( SCIPcreateConsBasicSetpart(scip, &cons, 
+               (char *)  MR_list_head(consnames), 
+               i, clausevars) );
+      }
+      else
+      {
+         SCIP_CALL( SCIPcreateConsBasicLogicor(scip, &cons, 
+               (char *)  MR_list_head(consnames), 
+               i, clausevars) );
+      }
       SCIP_CALL( SCIPaddCons(scip, cons) );
       /*SCIP_CALL( SCIPprintCons(scip, cons, NULL)  );*/
       SCIP_CALL( SCIPreleaseCons(scip, &cons) );

@@ -1,0 +1,716 @@
+Thu  2 Feb 20:05:06 GMT 2017
+
+rockit guys keen to have few IP variables and constraints.
+rockit constraint aggregation uses additional variables to basically
+count how many of some set of clauses are satisfied.
+
+examples come from the tuffy website. and have been downloaded
+
+need to write Python script to convert, say, tuffy examples into
+mfoilp input
+
+Fri  3 Feb 06:27:36 GMT 2017
+
+tuffy paper puts stuff in terms of cost, so this bit can be deleted
+from my paper.
+The * represents that the CWA applies to the predicate. All facts not
+listed (as true) in the evidence are false.
+
+Fri  3 Feb 15:35:22 GMT 2017
+
+With not-quite-there translater, get this for the lp solution:
+
+SCIP Status        : problem is solved [optimal solution found]
+Solving Time (sec) : 688.93
+Solving Nodes      : 110
+Primal Bound       : +1.60784795000000e+02 (5 solutions)
+Dual Bound         : +1.60784795000000e+02
+Gap                : 0.00 %
+objective value:                           160.784795
+advisedBy("Person240", "Person13")                    1 	(obj:0)
+cb(14, "Person14", "Person150", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person14", "Person208", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person14", "Person211", "Title71")                    1 	(obj:0.749123)
+cb(14, "Person14", "Person318", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person14", "Person353", "Title118")                    1 	(obj:0.749123)
+advisedBy("Person407", "Person14")                    1 	(obj:0)
+cb(14, "Person14", "Person408", "Title118")                    1 	(obj:0.749123)
+advisedBy("Person171", "Person148")                    1 	(obj:0)
+cb(14, "Person150", "Person14", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person150", "Person208", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person150", "Person318", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person150", "Person353", "Title118")                    1 	(obj:0.749123)
+advisedBy("Person150", "Person408")                    1 	(obj:0)
+cb(14, "Person161", "Person240", "Title217")                    1 	(obj:0.749123)
+cb(14, "Person161", "Person240", "Title268")                    1 	(obj:0.749123)
+cb(14, "Person161", "Person240", "Title331")                    1 	(obj:0.749123)
+advisedBy("Person407", "Person161")                    1 	(obj:0)
+cb(14, "Person171", "Person314", "Title170")                    1 	(obj:0.749123)
+advisedBy("Person171", "Person415")                    1 	(obj:0)
+advisedBy("Person171", "Person63")                    1 	(obj:0)
+cb(14, "Person171", "Person73", "Title269")                    1 	(obj:0.749123)
+cb(14, "Person171", "Person73", "Title63")                    1 	(obj:0.749123)
+advisedBy("Person185", "Person193")                    1 	(obj:0)
+cb(14, "Person208", "Person14", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person208", "Person150", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person208", "Person318", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person208", "Person353", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person208", "Person408", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person21", "Person211", "Title25")                    1 	(obj:0.749123)
+cb(14, "Person21", "Person284", "Title25")                    1 	(obj:0.749123)
+cb(14, "Person21", "Person407", "Title25")                    1 	(obj:0.749123)
+cb(14, "Person211", "Person14", "Title71")                    1 	(obj:0.749123)
+cb(14, "Person211", "Person21", "Title25")                    1 	(obj:0.749123)
+cb(14, "Person211", "Person284", "Title25")                    1 	(obj:0.749123)
+cb(14, "Person211", "Person352", "Title79")                    1 	(obj:0.749123)
+advisedBy("Person211", "Person407")                    1 	(obj:0)
+advisedBy("Person211", "Person415")                    1 	(obj:0)
+advisedBy("Person211", "Person45")                    1 	(obj:0)
+cb(14, "Person211", "Person83", "Title325")                    1 	(obj:0.749123)
+advisedBy("Person293", "Person239")                    1 	(obj:0)
+cb(14, "Person240", "Person161", "Title217")                    1 	(obj:0.749123)
+cb(14, "Person240", "Person161", "Title268")                    1 	(obj:0.749123)
+cb(14, "Person240", "Person161", "Title331")                    1 	(obj:0.749123)
+advisedBy("Person240", "Person257")                    1 	(obj:0)
+cb(14, "Person240", "Person292", "Title103")                    1 	(obj:0.749123)
+cb(14, "Person240", "Person292", "Title47")                    1 	(obj:0.749123)
+advisedBy("Person240", "Person352")                    1 	(obj:0)
+advisedBy("Person407", "Person240")                    1 	(obj:0)
+advisedBy("Person240", "Person415")                    1 	(obj:0)
+cb(14, "Person262", "Person292", "Title41")                    1 	(obj:0.749123)
+cb(14, "Person262", "Person292", "Title72")                    1 	(obj:0.749123)
+cb(14, "Person262", "Person347", "Title86")                    1 	(obj:0.749123)
+advisedBy("Person352", "Person262")                    1 	(obj:0)
+advisedBy("Person406", "Person262")                    1 	(obj:0)
+advisedBy("Person415", "Person262")                    1 	(obj:0)
+advisedBy("Person262", "Person63")                    1 	(obj:0)
+cb(14, "Person284", "Person21", "Title25")                    1 	(obj:0.749123)
+cb(14, "Person284", "Person211", "Title25")                    1 	(obj:0.749123)
+cb(14, "Person284", "Person407", "Title25")                    1 	(obj:0.749123)
+cb(14, "Person292", "Person240", "Title103")                    1 	(obj:0.749123)
+cb(14, "Person292", "Person240", "Title47")                    1 	(obj:0.749123)
+cb(14, "Person292", "Person262", "Title41")                    1 	(obj:0.749123)
+cb(14, "Person292", "Person262", "Title72")                    1 	(obj:0.749123)
+advisedBy("Person292", "Person352")                    1 	(obj:0)
+advisedBy("Person292", "Person415")                    1 	(obj:0)
+cb(14, "Person314", "Person171", "Title170")                    1 	(obj:0.749123)
+advisedBy("Person415", "Person314")                    1 	(obj:0)
+cb(14, "Person314", "Person63", "Title222")                    1 	(obj:0.749123)
+cb(14, "Person314", "Person63", "Title301")                    1 	(obj:0.749123)
+cb(14, "Person318", "Person14", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person318", "Person150", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person318", "Person208", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person318", "Person353", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person318", "Person408", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person347", "Person262", "Title86")                    1 	(obj:0.749123)
+cb(14, "Person347", "Person352", "Title86")                    1 	(obj:0.749123)
+cb(14, "Person347", "Person406", "Title86")                    1 	(obj:0.749123)
+advisedBy("Person347", "Person407")                    1 	(obj:0)
+cb(14, "Person347", "Person63", "Title86")                    1 	(obj:0.749123)
+cb(14, "Person347", "Person63", "Title97")                    1 	(obj:0.749123)
+cb(14, "Person352", "Person211", "Title79")                    1 	(obj:0.749123)
+cb(14, "Person352", "Person347", "Title86")                    1 	(obj:0.749123)
+advisedBy("Person406", "Person352")                    1 	(obj:0)
+advisedBy("Person415", "Person352")                    1 	(obj:0)
+cb(14, "Person352", "Person45", "Title79")                    1 	(obj:0.749123)
+advisedBy("Person352", "Person63")                    1 	(obj:0)
+cb(14, "Person353", "Person14", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person353", "Person150", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person353", "Person208", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person353", "Person318", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person353", "Person408", "Title118")                    1 	(obj:0.749123)
+advisedBy("Person79", "Person380")                    1 	(obj:0)
+cb(14, "Person406", "Person347", "Title86")                    1 	(obj:0.749123)
+advisedBy("Person63", "Person406")                    1 	(obj:0)
+cb(14, "Person407", "Person21", "Title25")                    1 	(obj:0.749123)
+cb(14, "Person407", "Person284", "Title25")                    1 	(obj:0.749123)
+advisedBy("Person407", "Person415")                    1 	(obj:0)
+cb(14, "Person407", "Person63", "Title182")                    1 	(obj:0.749123)
+cb(14, "Person407", "Person63", "Title5")                    1 	(obj:0.749123)
+cb(14, "Person408", "Person14", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person408", "Person208", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person408", "Person318", "Title118")                    1 	(obj:0.749123)
+cb(14, "Person408", "Person353", "Title118")                    1 	(obj:0.749123)
+advisedBy("Person415", "Person45")                    1 	(obj:0)
+advisedBy("Person415", "Person63")                    1 	(obj:0)
+cb(14, "Person415", "Person73", "Title269")                    1 	(obj:0.749123)
+cb(14, "Person415", "Person73", "Title63")                    1 	(obj:0.749123)
+cb(14, "Person415", "Person83", "Title325")                    1 	(obj:0.749123)
+cb(14, "Person45", "Person352", "Title79")                    1 	(obj:0.749123)
+cb(14, "Person45", "Person83", "Title325")                    1 	(obj:0.749123)
+cb(14, "Person63", "Person314", "Title222")                    1 	(obj:0.749123)
+cb(14, "Person63", "Person314", "Title301")                    1 	(obj:0.749123)
+cb(14, "Person63", "Person347", "Title86")                    1 	(obj:0.749123)
+cb(14, "Person63", "Person347", "Title97")                    1 	(obj:0.749123)
+cb(14, "Person63", "Person407", "Title182")                    1 	(obj:0.749123)
+cb(14, "Person63", "Person407", "Title5")                    1 	(obj:0.749123)
+cb(14, "Person73", "Person171", "Title269")                    1 	(obj:0.749123)
+cb(14, "Person73", "Person171", "Title63")                    1 	(obj:0.749123)
+cb(14, "Person73", "Person415", "Title269")                    1 	(obj:0.749123)
+cb(14, "Person73", "Person415", "Title63")                    1 	(obj:0.749123)
+cb(14, "Person83", "Person211", "Title325")                    1 	(obj:0.749123)
+cb(14, "Person83", "Person415", "Title325")                    1 	(obj:0.749123)
+cb(14, "Person83", "Person45", "Title325")                    1 	(obj:0.749123)
+cb(15, "Person171", "Person148")                    1 	(obj:0.515549)
+cb(15, "Person240", "Person13")                     1 	(obj:0.515549)
+cb(15, "Person293", "Person239")                    1 	(obj:0.515549)
+cb(15, "Person407", "Person14")                     1 	(obj:0.515549)
+cb(15, "Person407", "Person161")                    1 	(obj:0.515549)
+cb(15, "Person415", "Person262")                    1 	(obj:0.515549)
+cb(15, "Person415", "Person314")                    1 	(obj:0.515549)
+cb(15, "Person415", "Person352")                    1 	(obj:0.515549)
+cb(15, "Person79", "Person380")                     1 	(obj:0.515549)
+cb(16, "Person171", "Person148")                    1 	(obj:0.954782)
+cb(16, "Person240", "Person13")                     1 	(obj:0.954782)
+cb(16, "Person293", "Person239")                    1 	(obj:0.954782)
+cb(16, "Person352", "Person262")                    1 	(obj:0.954782)
+cb(16, "Person406", "Person262")                    1 	(obj:0.954782)
+cb(16, "Person406", "Person352")                    1 	(obj:0.954782)
+cb(16, "Person407", "Person14")                     1 	(obj:0.954782)
+cb(16, "Person407", "Person161")                    1 	(obj:0.954782)
+cb(16, "Person415", "Person262")                    1 	(obj:0.954782)
+cb(16, "Person415", "Person314")                    1 	(obj:0.954782)
+cb(16, "Person415", "Person352")                    1 	(obj:0.954782)
+cb(16, "Person63", "Person406")                     1 	(obj:0.954782)
+cb(16, "Person79", "Person380")                     1 	(obj:0.954782)
+cb(2, "Person352", "Person262")                     1 	(obj:2.38127)
+cb(2, "Person406", "Person262")                     1 	(obj:2.38127)
+cb(2, "Person406", "Person352")                     1 	(obj:2.38127)
+cb(2, "Person63", "Person406")                      1 	(obj:2.38127)
+cb(7, "Person406", "Person262", "Person352")                    1 	(obj:0.384788)
+cb(7, "Person406", "Person352", "Person262")                    1 	(obj:0.384788)
+cb(7, "Person407", "Person14", "Person161")                    1 	(obj:0.384788)
+cb(7, "Person407", "Person161", "Person14")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person262", "Person314")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person262", "Person352")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person314", "Person262")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person314", "Person352")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person352", "Person262")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person352", "Person314")                    1 	(obj:0.384788)
+cb(1, "Person171", "Person415")                     1 	(obj:1.94203)
+cb(1, "Person211", "Person407")                     1 	(obj:1.94203)
+cb(1, "Person211", "Person415")                     1 	(obj:1.94203)
+cb(1, "Person240", "Person415")                     1 	(obj:1.94203)
+cb(1, "Person292", "Person415")                     1 	(obj:1.94203)
+cb(1, "Person347", "Person407")                     1 	(obj:1.94203)
+cb(1, "Person407", "Person240")                     1 	(obj:1.94203)
+cb(1, "Person407", "Person415")                     1 	(obj:1.94203)
+cb(15, "Person150", "Person408")                    1 	(obj:0.515549)
+cb(15, "Person171", "Person415")                    1 	(obj:0.515549)
+cb(15, "Person171", "Person63")                     1 	(obj:0.515549)
+cb(15, "Person185", "Person193")                    1 	(obj:0.515549)
+cb(15, "Person211", "Person407")                    1 	(obj:0.515549)
+cb(15, "Person211", "Person415")                    1 	(obj:0.515549)
+cb(15, "Person211", "Person45")                     1 	(obj:0.515549)
+cb(15, "Person240", "Person257")                    1 	(obj:0.515549)
+cb(15, "Person240", "Person352")                    1 	(obj:0.515549)
+cb(15, "Person240", "Person415")                    1 	(obj:0.515549)
+cb(15, "Person292", "Person352")                    1 	(obj:0.515549)
+cb(15, "Person292", "Person415")                    1 	(obj:0.515549)
+cb(15, "Person407", "Person240")                    1 	(obj:0.515549)
+cb(15, "Person407", "Person415")                    1 	(obj:0.515549)
+cb(15, "Person415", "Person45")                     1 	(obj:0.515549)
+cb(15, "Person415", "Person63")                     1 	(obj:0.515549)
+cb(16, "Person150", "Person408")                    1 	(obj:0.954782)
+cb(16, "Person171", "Person63")                     1 	(obj:0.954782)
+cb(16, "Person185", "Person193")                    1 	(obj:0.954782)
+cb(16, "Person211", "Person45")                     1 	(obj:0.954782)
+cb(16, "Person240", "Person257")                    1 	(obj:0.954782)
+cb(16, "Person240", "Person352")                    1 	(obj:0.954782)
+cb(16, "Person262", "Person63")                     1 	(obj:0.954782)
+cb(16, "Person292", "Person352")                    1 	(obj:0.954782)
+cb(16, "Person352", "Person63")                     1 	(obj:0.954782)
+cb(16, "Person415", "Person45")                     1 	(obj:0.954782)
+cb(16, "Person415", "Person63")                     1 	(obj:0.954782)
+cb(2, "Person262", "Person63")                      1 	(obj:2.38127)
+cb(2, "Person347", "Person407")                     1 	(obj:2.38127)
+cb(2, "Person352", "Person63")                      1 	(obj:2.38127)
+cb(7, "Person171", "Person415", "Person63")                    1 	(obj:0.384788)
+cb(7, "Person171", "Person63", "Person415")                    1 	(obj:0.384788)
+cb(7, "Person211", "Person407", "Person415")                    1 	(obj:0.384788)
+cb(7, "Person211", "Person407", "Person45")                    1 	(obj:0.384788)
+cb(7, "Person211", "Person415", "Person407")                    1 	(obj:0.384788)
+cb(7, "Person211", "Person415", "Person45")                    1 	(obj:0.384788)
+cb(7, "Person211", "Person45", "Person407")                    1 	(obj:0.384788)
+cb(7, "Person211", "Person45", "Person415")                    1 	(obj:0.384788)
+cb(7, "Person240", "Person257", "Person352")                    1 	(obj:0.384788)
+cb(7, "Person240", "Person257", "Person415")                    1 	(obj:0.384788)
+cb(7, "Person240", "Person352", "Person257")                    1 	(obj:0.384788)
+cb(7, "Person240", "Person352", "Person415")                    1 	(obj:0.384788)
+cb(7, "Person240", "Person415", "Person257")                    1 	(obj:0.384788)
+cb(7, "Person240", "Person415", "Person352")                    1 	(obj:0.384788)
+cb(7, "Person292", "Person352", "Person415")                    1 	(obj:0.384788)
+cb(7, "Person292", "Person415", "Person352")                    1 	(obj:0.384788)
+cb(7, "Person407", "Person240", "Person415")                    1 	(obj:0.384788)
+cb(7, "Person407", "Person415", "Person240")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person45", "Person63")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person63", "Person45")                    1 	(obj:0.384788)
+cb(7, "Person171", "Person148", "Person415")                    1 	(obj:0.384788)
+cb(7, "Person171", "Person148", "Person63")                    1 	(obj:0.384788)
+cb(7, "Person171", "Person415", "Person148")                    1 	(obj:0.384788)
+cb(7, "Person171", "Person63", "Person148")                    1 	(obj:0.384788)
+cb(7, "Person240", "Person13", "Person257")                    1 	(obj:0.384788)
+cb(7, "Person240", "Person13", "Person352")                    1 	(obj:0.384788)
+cb(7, "Person240", "Person257", "Person13")                    1 	(obj:0.384788)
+cb(7, "Person240", "Person352", "Person13")                    1 	(obj:0.384788)
+cb(7, "Person352", "Person262", "Person63")                    1 	(obj:0.384788)
+cb(7, "Person352", "Person63", "Person262")                    1 	(obj:0.384788)
+cb(7, "Person407", "Person14", "Person240")                    1 	(obj:0.384788)
+cb(7, "Person407", "Person14", "Person415")                    1 	(obj:0.384788)
+cb(7, "Person407", "Person161", "Person240")                    1 	(obj:0.384788)
+cb(7, "Person407", "Person161", "Person415")                    1 	(obj:0.384788)
+cb(7, "Person407", "Person240", "Person14")                    1 	(obj:0.384788)
+cb(7, "Person407", "Person240", "Person161")                    1 	(obj:0.384788)
+cb(7, "Person407", "Person415", "Person14")                    1 	(obj:0.384788)
+cb(7, "Person407", "Person415", "Person161")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person262", "Person45")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person262", "Person63")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person314", "Person45")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person314", "Person63")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person45", "Person262")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person45", "Person314")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person63", "Person262")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person63", "Person314")                    1 	(obj:0.384788)
+cb(7, "Person240", "Person13", "Person415")                    1 	(obj:0.384788)
+cb(7, "Person240", "Person415", "Person13")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person352", "Person45")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person352", "Person63")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person45", "Person352")                    1 	(obj:0.384788)
+cb(7, "Person415", "Person63", "Person352")                    1 	(obj:0.384788)
+
+Fri  3 Feb 17:04:16 GMT 2017
+
+once more modes are added, I am getting runtime, (not compile-time)
+errors
+
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+Reading parameter file <mfoilp.set>.
+
+Program received signal SIGSEGV, Segmentation fault.
+0x000000000043705c in mercury.prob.publication_2_0_xx ()
+(gdb) bt
+#0  0x000000000043705c in mercury.prob.publication_2_0_xx ()
+#1  0x000000000073e706 in call_engine_inner (entry_point=0x432610 <mercury.mfoilp.existscut_4_0>) at mercury_engine.c:708
+#2  MR_call_engine (entry_point=0x432610 <mercury.mfoilp.existscut_4_0>, catch_exceptions=0) at mercury_engine.c:403
+#3  0x0000000000433dfe in MR_existscut ()
+#4  0x0000000000431aa5 in consCheckFolinear ()
+#5  0x000000000078bdd9 in SCIPconsCheck ()
+#6  0x000000000080732c in checkSolOrig ()
+#7  0x0000000000836dba in SCIPtrySol ()
+#8  0x0000000000a79a74 in heurExecTrivial ()
+#9  0x0000000000b534b6 in SCIPheurExec ()
+#10 0x0000000000863ff0 in SCIPprimalHeuristics.part.13 ()
+#11 0x000000000083e47d in SCIPpresolve ()
+#12 0x000000000083f190 in SCIPsolve ()
+#13 0x0000000000430cfa in main ()
+
+This is with commit made at this time.
+
+Fri  3 Feb 19:30:06 GMT 2017
+
+switching away from fact tables (doing it manually), the runtime error
+disappears and we get:
+
+SCIP Status        : problem is solved [optimal solution found]
+Solving Time (sec) : 243.13
+Solving Nodes      : 91
+Primal Bound       : +1.60784794999999e+02 (10 solutions)
+Dual Bound         : +1.60784794999999e+02
+Gap                : 0.00 %
+objective value:                     160.784794999999
+
+so switching to the correct modes has made a very big difference.
+
+Still need to change tuffy2mfoilp.py to do this automatically
+
+Sat  4 Feb 12:34:24 GMT 2017
+
+tuffy2mfoilp script now basically working, but need to work on
+efficiency:
+
+For example, this:
+clause("5") -->
+  {student(A1)},
+  {publication(A3,A2)},
+  {publication(A3,A1)},
+  {not student(A2)},
+  {not tempAdvisedBy(A1,A2)},
+  poslit(advisedBy(A1,A2)),
+  poslit(cb(5,A1,A2,A3)).
+
+would be better as:
+
+clause("5") -->
+  {student(A1)},
+  {publication(A3,A1)},		     
+  {publication(A3,A2)},
+  {not student(A2)},
+  {not tempAdvisedBy(A1,A2)},
+  poslit(advisedBy(A1,A2)),
+  poslit(cb(5,A1,A2,A3)).
+
+Sat  4 Feb 20:29:44 GMT 2017
+
+For e.g. clause 13 we have to find each grounding corresponding
+to a cut, and create lots of cb atoms, e.g. get set of cuts like:
+
+advisedBy(1,2) v cb(13,1,2,44,32)
+advisedBy(1,2) v cb(13,1,2,4,32)
+advisedBy(1,2) v cb(13,1,2,12,27)
+advisedBy(1,2) v cb(13,1,2,10,3)
+
+Rewrite:
+
+clause("13") -->
+  {inPhase(A1,"Post_Quals")},
+  {ta(A3,A1,A4)},
+  {taughtBy(A3,A2,A4)},
+  {not courseLevel(A3,"Level_100")},
+  poslit(advisedBy(A1,A2)),
+  poslit(cb(13,A1,A2,A3,A4)).
+
+to:
+
+clause("13") -->
+  {guard("13",A1,A2)},
+  poslit(advisedBy(A1,A2)),
+  poslit(cb(13,A1,A2,A3,A4)).
+
+guard("13",A1,A2) :-
+  inPhase(A1,"Post_Quals"),
+  ta(A3,A1,A4),
+  taughtBy(A3,A2,A4),
+  not courseLevel(A3,"Level_100").
+
+and then change to:
+
+clause("13") -->
+  {guard("13",A1,A2,_)},
+  poslit(advisedBy(A1,A2)),
+  poslit(cb(13,A1,A2)).
+
+guard("13",A1,A2,[A3,A4]) :-
+  inPhase(A1,"Post_Quals"),
+  ta(A3,A1,A4),
+  taughtBy(A3,A2,A4),
+  not courseLevel(A3,"Level_100").
+
+for a particular A1,A2 how many A3,A4 can we find that fit
+guard("13,A1,A2,[A3,A4])?
+
+Do this:
+
+objective(cb(13,A1,A2),float(Count)*0.000635066) :-
+   solutions(guard("13",A1,A2,X),Sols),
+   length(Sols,Count).
+
+Note that solutions/2 removes duplicates
+
+Sun  5 Feb 06:33:00 GMT 2017
+
+Need to replace this:
+
+objective(cb(1,A1,A2,A3,A4),0.0732856).
+
+with:
+
+objective(cb(1,A1,A2),Count*0.0732856) :-
+   solutions(guard(1,A1,A2,_),Sols),
+   length(Sols,Count).
+
+where
+guard(1,A1,A2,[A3,A4]) :-
+  taughtBy(A3,A2,A4),
+  ta(A3,A1,A4),
+  courseLevel(A3,"Level_500"),
+  not tempAdvisedBy(A1,A2).
+
+replace:
+
+clause("1") -->
+  {courseLevel(A3,"Level_500")},
+  {taughtBy(A3,A2,A4)},
+  {ta(A3,A1,A4)},
+  {not tempAdvisedBy(A1,A2)},
+  poslit(advisedBy(A1,A2)),
+  poslit(cb(1,A1,A2,A3,A4)).
+
+with:
+
+clause("1") -->
+  {courseLevel(A3,"Level_500")},
+  {taughtBy(A3,A2,A4)},
+  {ta(A3,A1,A4)},
+  {not tempAdvisedBy(A1,A2)},
+  poslit(advisedBy(A1,A2)),
+  poslit(cb(1,A1,A2)).
+
+Tue  7 Feb 16:23:25 GMT 2017
+
+-- Installation complete.
+
+-- Don't forget to add /usr/userfs/j/jc33/local/bin to your PATH,
+-- /usr/userfs/j/jc33/local/man to your MANPATH,
+-- and /usr/userfs/j/jc33/local/info to your INFOPATH,
+-- to copy deep_profiler/mdprof_cgi to /usr/lib/cgi-bin,
+-- and to add the following lines to the `.emacs' file
+-- in your home directory:
+	(add-to-list 'load-path 
+		"/usr/userfs/j/jc33/local/lib/mercury/elisp")
+	(autoload 'mdb "gud" "Invoke the Mercury debugger" t)
+
+
+Wed  8 Feb 10:18:39 GMT 2017
+
+Getting this:
+-2.89681  advisedBy(a1,a2)
+translated to this:
+clause("24") -->
+  {person(A1)},
+  {person(A2)},
+  poslit(advisedBy(A1,A2)),
+  poslit(cb(24,A1,A2)).
+
+which is wrong!
+
+Wed  8 Feb 10:27:55 GMT 2017
+
+above error fixed, but still getting this:
+clause("1") -->
+  insol(advisedBy(A1,A2)),
+  neglit(advisedBy(A1,A2)),
+  {courseLevel(A3,"Level_500")},
+  {taughtBy(A3,A2,A4)},
+  {ta(A3,A1,A4)},
+  {not tempAdvisedBy(A1,A2)},
+  poslit(cb(1,A1,A2)).
+
+should have:
+clause("1") -->
+  insol(advisedBy(A1,A2)),
+  neglit(advisedBy(A1,A2)),
+  {not tempAdvisedBy(A1,A2)},
+  {taughtBy(A3,A2,A4)},
+  {courseLevel(A3,"Level_500")},
+  {ta(A3,A1,A4)},
+  poslit(cb(1,A1,A2)).
+
+so more work on literal ordering is needed, similarly in guard
+predicates
+
+otherwise looks OK
+
+at present the order in clause/3 is always:
+
+(1) non-evidence, neg
+(2) evidence, pos (ie neg in tuffy clause)
+(3) evidence, neg (ie pos in tuffy clause)
+(4) non-evidence, pos
+
+instead should indeed, do all non-evidence neg first and then
+each neg as soon as it is grounded,
+otherwise the most grounded positive.
+
+Wed  8 Feb 16:27:07 GMT 2017
+
+maybe we should automatically choose which to ground and which not to.
+
+For example, seems a good idea NOT to ground these:
+
+clause("9") -->
+  insol(advisedBy(A1,A2)),
+  neglit(advisedBy(A1,A2)),
+  neglit(advisedBy(A2,A1)),
+  poslit(cb(9,A1,A2)).
+
+clause("10") -->
+    insol(advisedBy(A1,A2)),
+    insol(advisedBy(A1,A3)),
+    neglit(advisedBy(A1,A2)),
+      {not samePerson(A2,A3)},
+  neglit(advisedBy(A1,A3)),
+  neglit(advisedBy(A1,A2)),
+  poslit(cb(10,A1,A2,A3)).
+
+Fri 17 Feb 12:28:24 GMT 2017
+
+Putting a lower bound on atomcount is a problem because to begin with
+ther are no atoms, and the dummy pricer cannot recover from the infeasibility
+=======
+Thu  9 Feb 08:15:43 GMT 2017
+
+need to change a clause such as
+
+(1-advisedBy(a1,a2)) + cblit(1,a1,a2) >= 1
+to
+(1-advisedBy(a1,a2)) + cblit(1,a1,a2) == 1
+
+which makes them equal!
+
+Thu  9 Feb 10:59:48 GMT 2017
+
+Need to use something better than solutions/2 for counting insts. It
+does this:
+
+solutions(Pred, List) :-
+    builtin_solutions(Pred, UnsortedList),
+    list.sort_and_remove_dups(UnsortedList, List).
+
+So a big list is created, and only afterwards are the dups removed.
+
+need to use: unsorted_aggregate/4 instead
+
+Fri 10 Feb 15:43:29 GMT 2017
+
+ Don't forget to add /usr/local/mercury-rotd-2017-01-29/bin to your PATH,
+-- /usr/local/mercury-rotd-2017-01-29/man to your MANPATH,
+-- and /usr/local/mercury-rotd-2017-01-29/info to your INFOPATH,
+-- to copy deep_profiler/mdprof_cgi to /usr/lib/cgi-bin,
+-- and to add the following lines to the `.emacs' file
+-- in your home directory:
+	(add-to-list 'load-path 
+		"/usr/local/mercury-rotd-2017-01-29/lib/mercury/elisp")
+	(autoload 'mdb "gud" "Invoke the Mercury debugger" t)
+
+Fri 10 Feb 16:01:36 GMT 2017
+
+Profiler says this:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls   s/call   s/call  name    
+  7.24     36.63    36.63                             mercury__builtin__compare_3_3
+  4.79     60.84    24.22                             mercury__builtin__compare_3_1
+  4.43     83.22    22.38                             mercury__builtin__compare_3_0
+  3.71    101.98    18.76                             mercury__tree234__search_3_0_i40
+  3.60    120.15    18.18                             mercury__private_builtin__builtin_compare_string_3_0
+  3.45    137.59    17.44                             MR_call_engine
+  3.20    153.77    16.18                             mercury____Compare___prob__atom_0_0
+  2.93    168.58    14.81                             mercury____Compare___prob__atom_0_0_i5
+  2.76    182.52    13.95                             mercury____Compare___prob__atom_0_0_i37
+  2.53    195.32    12.80                             mercury__tree234__search_3_0_i24
+  2.53    208.11    12.79                             mercury__builtin__compare_3_2
+  2.30    219.71    11.61                             mercury____Compare___prob__atom_0_0_i41
+  2.14    230.54    10.83                             mercury__private_builtin__builtin_compare_string_3_0_i2
+  2.14    241.34    10.80                             MR_generic_compare
+  2.07    251.83    10.49 295622272     0.00     0.00  SCIProwGetScalarProduct
+....
+
+after 600 seconds, so virtually all the time spent in Mercury
+
+Getting this
+
+Making Mercury/os/ta.o
+Making Mercury/os/inPhase.o
+Making libmfoilp.a
+mmc --gc conservative --ml  mfoilp \
+	--generate-standalone-interface mfoilp_int
+mkinit: error opening file `/usr/local/mercury-14.01.1/lib/mercury/modules/reg/mer_rt.init': No such file or directory
+mkinit: error opening file `/usr/local/mercury-14.01.1/lib/mercury/modules/reg/mer_std.init': No such file or directory
+mercury_compile: error while creating standalone interface in `mfoilp_int.c'
+Makefile:183: recipe for target 'mfoilp_int.o' failed
+make: *** [mfoilp_int.o] Error 1
+
+Fri 10 Feb 17:14:58 GMT 2017
+
+Above problem disappeared by choosing
+GRADEOPT = --grade asm_fast.gc
+in the Makefile. This seems to give much faster execution, but we end
+up with:
+94.6s|     1 |     0 | 29645 |     - | 267M|   0 |2263 | 164k|  24 |  12k|  11k|  29k|   0 |   0 | 6.119316e+03 |      --      |    Inf 
+ 94.8s|     1 |     0 | 29709 |     - | 267M|   0 |2263 | 164k|  24 |  12k|  11k|  29k|   0 |   0 | 6.121642e+03 |      --      |    Inf 
+Uncaught Mercury exception:
+index_out_of_bounds("array.lookup: index 164027 not in range [0, -7391814363398537217]")
+Stack dump not available in this grade.
+Makefile:153: recipe for target 'solution' failed
+make: *** [solution] Error 1
+
+so it appears that the array is getting corrupted.
+
+
+[binary] <cb(10, "Person406", "Person352", "Person262")>: obj=0.384788, global bounds=[-0,1], local bounds=[-0,1]
+[cons_folinear.c:88] debug: has index 164108 and solution value <0>
+[cons_folinear.c:450] debug: separating LP solution for first order linear constraint <1>.
+Uncaught Mercury exception:
+Software Error: fail
+Stack dump not available in this grade.
+Makefile:152: recipe for target 'solution' failed
+
+"fail" occurs when the alleged size is not the correct size.
+somehow the array is getting corrupted
+
+Sat 11 Feb 18:44:28 GMT 2017
+
+with 'cleaner' code no longer getting warnings or runtime errors when
+not using fact tables.
+
+After correcting determinism statements are getting a run with fact
+tables but with different results!
+
+Sun 12 Feb 07:32:08 GMT 2017
+
+replacing SCIPgetSolVal with SCIPgetSolVals is a bad ideasince the
+latter calls the former!
+
+Sun 12 Feb 08:09:22 GMT 2017
+
+bizarre behaviour with fact tables.
+
+changing:
+:- pred hasPosition(string,string).
+:- mode hasPosition(in,in) is nondet.
+:- pragma fact_table(hasPosition/2,"hasPosition").
+
+
+to
+:- pred hasPosition(string,string).
+:- mode hasPosition(in,in) is semidet.
+:- pragma fact_table(hasPosition/2,"hasPosition").
+
+causes errors
+
+Tue 28 Feb 02:34:02 GMT 2017
+
+Each weighted clause has a penalty atom. These penalty atoms have
+varying arities and types. Each ground instance of each penalty atom
+has a cost.
+
+A guard is different. Only ground instances that satisfy the guard
+should be considered. Currently works like this: given ground values
+of the variables in the penalty atom, generate ground instances of
+other variables in the clause. This is to enable counting.
+
+Fri 11 Aug 11:44:58 BST 2017
+
+With SCIP4.0.0 getting the following problem:
+
+-> linking mfoilp.linux.x86_64.gnu.opt.cpx
+/home/james/local/src/scipoptsuite-4.0.0/scip-4.0.0/lib/static/libscip.linux.x86_64.gnu.opt.a(syncstore.o): In function `SCIPsyncstoreInit':
+syncstore.c:(.text+0x429): undefined reference to `SCIPtpiInit'
+/home/james/local/src/scipoptsuite-4.0.0/scip-4.0.0/lib/static/libscip.linux.x86_64.gnu.opt.a(syncstore.o): In function `SCIPsyncstoreExit':
+syncstore.c:(.text+0x4f2): undefined reference to `SCIPtpiExit'
+/home/james/local/src/scipoptsuite-4.0.0/scip-4.0.0/lib/static/libscip.linux.x86_64.gnu.opt.a(concurrent.o): In function `SCIPsolveConcurrent':
+concurrent.c:(.text+0xa50): undefined reference to `SCIPtpiCreateJob'
+concurrent.c:(.text+0xa83): undefined reference to `SCIPtpiSumbitJob'
+concurrent.c:(.text+0xab6): undefined reference to `SCIPtpiCollectJobs'
+collect2: error: ld returned 1 exit status
+Makefile:159: recipe for target 'mfoilp.linux.x86_64.gnu.opt.cpx' failed
+make: *** [mfoilp.linux.x86_64.gnu.opt.cpx] Error 1
+
+This problem does not occur with 3.2.1.
+Will stick with 3.2.1 for the time being, and fix this issue later
+
+Just need to work on getting rockit example (see prob.m in email to
+self on this day) to get solved more quickly!
+
+Fri 11 Aug 14:45:54 BST 2017
+
+Returning to look at this (after some time) ....
+
+Looks like the linear relaxation is quite weak!
+And generating all those cuts takes a long time.
+Things are a lot quicker if zerohalf cuts are not used.
+
+Experimenting with making weighted facts (of advisedBy example)
+initial which allows them and their penalty atoms to be removed.

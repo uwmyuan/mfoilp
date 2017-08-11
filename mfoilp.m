@@ -65,7 +65,7 @@
 %-----------------------------------------------------------------------------%
 
 
-:- pragma foreign_export("C", makeclauses(out,out,out,out,out), "MR_initial_constraints").
+:- pragma foreign_export("C", makeclauses(out,out,out,out,out,out), "MR_initial_constraints").
 
 % generates SCIP-understandable versions of initial constraints
 % and also records which variables (i.e. ground atoms ) are used in them. 
@@ -75,6 +75,7 @@
 		                                 % of variables 0 and 1.
 		    list(string)::out,           % a name for each variable
 		    list(string)::out,           % a name for each constraint
+		    list(int)::out,              % for each constraint whether the clause should be an equation
 		    list(list(int))::out,        % list of neg lit indices for each clause
 		    list(list(int))::out         % list of pos lit indices for each clause
 		   ) is det.
@@ -83,9 +84,9 @@
 % convert to indices, (creating indices where necessary)
 % get hold of objective values
 % finally create names
-:- pragma promise_pure(makeclauses/5).
+:- pragma promise_pure(makeclauses/6).
 
-makeclauses(VarObjs,VarNames,ConsNames,NegLitss,PosLitss) :-
+makeclauses(VarObjs,VarNames,ConsNames,ConsEqualities,NegLitss,PosLitss) :-
     Call = (pred(named(Name,Lits)::out) is nondet :- prob.initial_clause(Name,lits([],[]),Lits)),
     solutions(Call,AllNamedInitialClauses),
     list.map2_foldl3(clause2indices,AllNamedInitialClauses,NegLitss,PosLitss,map.init,Map,[],NewLits,0,Next),
@@ -94,21 +95,22 @@ makeclauses(VarObjs,VarNames,ConsNames,NegLitss,PosLitss) :-
     setall(NewLits,Next-1,InitArray,Array),
     AtomStoreNext = as(Array,Map,Next),
     allobjs(0,Next,Array,VarObjs,VarNames),
-    name_all(AllNamedInitialClauses,ConsNames,map.init,_),
+    name_all(AllNamedInitialClauses,ConsNames,ConsEqualities,map.init,_),
     impure set_atomstore(AtomStoreNext).
 
-:- pred name_all(list(named_clause_lits)::in,list(string)::out,map(string,int)::in,map(string,int)::out) is det.
+:- pred name_all(list(named_clause_lits)::in,list(string)::out,list(int)::out,map(string,int)::in,map(string,int)::out) is det.
 
-name_all([],[],!Map).
-name_all([named(Name,_)|T],[NameNum|NT],In,Out) :-
-	(
-	  map.search(In,Name,I) ->
-	  NameNum = Name ++ "_" ++ int_to_string(I),
-	  map.det_update(Name,I+1,In,Mid);
-	  NameNum = Name ++ "_1",
-	  map.det_insert(Name,2,In,Mid)
-	),
-	name_all(T,NT,Mid,Out).
+name_all([],[],[],!Map).
+name_all([named(Name,_)|T],[NameNum|NT],[E|ET],In,Out) :-
+    (prob.equality(Name) -> E=1 ; E=0),
+    (
+	map.search(In,Name,I) ->
+	NameNum = Name ++ "_" ++ int_to_string(I),
+	map.det_update(Name,I+1,In,Mid);
+	NameNum = Name ++ "_1",
+	map.det_insert(Name,2,In,Mid)
+    ),
+    name_all(T,NT,ET,Mid,Out).
 
 :- pred allobjs(int::in,int::in,array(atom)::in,list(float)::out,list(string)::out) is det.
 
