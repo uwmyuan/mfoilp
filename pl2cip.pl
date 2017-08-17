@@ -1,7 +1,7 @@
 % example input START
 
 
-and_clause(lit(p,cb(9,A1,A2)),[lit(p,advisedBy(A1,A2)),lit(p,advisedBy(A2,A1))]) :-
+eq_clause(lit(p,cb(9,A1,A2)),and,[lit(p,advisedBy(A1,A2)),lit(p,advisedBy(A2,A1))]) :-
     person(A1),
     person(A2).
 
@@ -754,13 +754,23 @@ person("Person94").
 :- dynamic nvars/1.
 :- dynamic ncons/1.
 
-write_cip :-
-    and_clause(ResLit,Lits),
-    write_propcons2(and,ResLit,Lits),
+write_conss :-
+    eq_clause(Type,ResLit,Lits),
+    write_propcons2(Type,ResLit,Lits),
     fail.
-write_cip :-
+write_conss.
+
+write_cip(_OutFile) :-
+    open(tmp,write,S),
+    set_stream(S,alias(user_output)),
+    write_conss,
+    close(S),
+    fail.
+write_cip(OutFile) :-
+    open(OutFile,write,S),
+    set_stream(S,alias(user_output)),
     format('STATISTICS~n'),
-    format('Problem name     : dummy~n'),
+    format('Problem name     : ~w~n',[OutFile]),
     nvars(N),
     format('Variables        : ~w (~w binary, 0 integer, 0 implicit integer, 0 continuous)~n',[N,N]),
     ncons(M),
@@ -768,7 +778,8 @@ write_cip :-
     format('OBJECTIVE~n'),
     format('Sense            : minimize~n'),
     format('VARIABLES~n'),
-    write_vars.
+    write_vars,
+    close(S).
 
 write_vars :-
     problem_var(_Term,IPVar,Obj),
