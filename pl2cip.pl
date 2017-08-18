@@ -753,37 +753,45 @@ person("Person94").
 :- dynamic problem_var/3.
 :- dynamic nvars/1.
 :- dynamic ncons/1.
+:- dynamic cons_num/2.
 
 write_conss :-
-    eq_clause(Type,ResLit,Lits),
+    eq_clause(ResLit,Type,Lits),
     write_propcons2(Type,ResLit,Lits),
     fail.
 write_conss.
 
 write_cip(_OutFile) :-
-    open(tmp,write,S),
-    set_stream(S,alias(user_output)),
+    %open(tmp,write,S),
+    %set_stream(S,alias(user_output)),
+    tell(tmp),
+    format('CONSTRAINTS~n'),
     write_conss,
-    close(S),
+    format('END~n'),
+    %close(S),
+    told,
     fail.
 write_cip(OutFile) :-
-    open(OutFile,write,S),
-    set_stream(S,alias(user_output)),
+    %open(OutFile,write,S),
+    %set_stream(S,alias(user_output)),
+    tell(tmp2),
     format('STATISTICS~n'),
-    format('Problem name     : ~w~n',[OutFile]),
+    format('  Problem name     : ~w~n',[OutFile]),
     nvars(N),
-    format('Variables        : ~w (~w binary, 0 integer, 0 implicit integer, 0 continuous)~n',[N,N]),
+    format('  Variables        : ~w (~w binary, 0 integer, 0 implicit integer, 0 continuous)~n',[N,N]),
     ncons(M),
-    format('Constraints      : 0 initial, ~w maximal~n',[M]),
+    format('  Constraints      : 0 initial, ~w maximal~n',[M]),
     format('OBJECTIVE~n'),
-    format('Sense            : minimize~n'),
+    format('  Sense            : minimize~n'),
     format('VARIABLES~n'),
     write_vars,
-    close(S).
+    %close(S).
+    told,
+    shell('cat tmp2 tmp > foo.cip').
 
 write_vars :-
     problem_var(_Term,IPVar,Obj),
-    format('[binary] <~w>: obj=~w, original bounds=[0,1]~n',[IPVar,Obj]),
+    format('  [binary] <~w>: obj=~w, original bounds=[0,1]~n',[IPVar,Obj]),
     fail.
 write_vars.
 
@@ -791,21 +799,21 @@ write_vars.
 % for, e.g. logicor constraints
 write_propcons(Type,Lits) :-
     constraint_num(Type,Num),
-    format('[~w] <~w_cons_~w>: ~w(',[Type,Type,Num,Type]),
+    format('  [~w] <~w_cons_~w>: ~w(',[Type,Type,Num,Type]),
     write_lits(Lits),
-    format(')'),
+    format(');~n'),
     inc_ncons,!.
 
 % for writing constraints where one lit is the 'result' of the others
 % for, e.g. and constraints
 write_propcons2(Type,ResLit,Lits) :-
     constraint_num(Type,Num),
-    format('[~w] <~w_cons_~w>: ',[Type,Type,Num]),
+    format('  [~w] <~w_cons_~w>: ',[Type,Type,Num]),
     (neglit(ResLit) -> format('~~'); true),
     lit2ipvar(ResLit,IPVar),
     format('<~w> == ~w(',[IPVar,Type]),
     write_lits(Lits),
-    format(')~n'),
+    format(');~n'),
     inc_ncons,!.
 
 inc_ncons :-
