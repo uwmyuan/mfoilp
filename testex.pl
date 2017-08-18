@@ -49,23 +49,128 @@ eq_clause(lit(p,cb(9,A1,A2)),and,[lit(p,advisedBy(A1,A2)),lit(p,advisedBy(A2,A1)
     % need to sort out objective and account for A1=A2
     \+ A1 @< A2.
 
+eq_clause(lit(p,cb(10,A1,A2,A3)),and,[lit(p,advisedBy(A1,A3)),lit(p,advisedBy(A1,A2))]) :-
+    person(A2),
+    person(A3),
+    \+ samePerson(A2,A3),
+    person(A1).
+
+eq_clause(lit(p,cb(11,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
+    tempAdvisedBy(A1,_),
+    person(A2).
+
+eq_clause(lit(p,cb(12,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
+    inPhase(A1,"Pre_Quals"),
+    person(A2).
+
+eq_clause(lit(p,cb(13,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
+  inPhase(A1,"Post_Quals"),
+  ta(A3,A1,A4),
+  taughtBy(A3,A2,A4),
+  \+ courseLevel(A3,"Level_100").
+
+eq_clause(lit(p,cb(14,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
+  inPhase(A1,"Post_Quals"),
+  taughtBy(A3,A2,A4),
+  \+ courseLevel(A3,"Level_100"),
+  \+ ta(A3,A1,A4).
+
+eq_clause(lit(p,cb(15,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
+  inPhase(A1,"Post_Quals"),
+  ta(A3,A1,A4),
+  \+ courseLevel(A3,"Level_100"),
+  person(A2),
+  \+ taughtBy(A3,A2,A4).
+
+eq_clause(lit(p,cb(16,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
+  inPhase(A1,"Post_Generals"),
+  ta(A3,A1,A4),
+  \+ courseLevel(A3,"Level_100"),
+  taughtBy(A3,A2,A4).
+
+eq_clause(lit(p,cb(17,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
+  inPhase(A1,"Post_Generals")},
+  taughtBy(A3,A2,A4),
+  \+ courseLevel(A3,"Level_100"),
+  \+ ta(A3,A1,A4).
+
+eq_clause(lit(p,cb(18,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
+  inPhase(A1,"Post_Generals"),
+  ta(A3,A1,A4),
+  \+ courseLevel(A3,"Level_100"),
+  person(A2),
+  \+ taughtBy(A3,A2,A4).
+
+% should add symmetry breaking
+eq_clause(lit(p,cb(19,A1,A2)),and,[lit(n,advisedBy(A1,A2)),lit(n,advisedBy(A2,A1))]) :-
+  publication(A3,A1),
+  publication(A3,A2),
+  \+ samePerson(A1,A2).
+
+eq_clause(lit(p,cb(20,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
+  student(A1),
+  professor(A2),
+  publication(A3,A1),
+  publication(A3,A2),
+  \+ samePerson(A2,A1).
+
+eq_clause(lit(p,cb(21,A1,A2)),and,[lit(n,advisedBy(A1,A2))]) :-
+  publication(A3,A1),
+  person(A2),
+  \+ publication(A3,A2).
+
+eq_clause(lit(p,cb(22,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
+    person(A1),
+    \+ student(A1),
+    person(A2).
+
+eq_clause(lit(p,cb(23,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
+    person(A2),
+    \+ professor(A2),
+    person(A1).
+
+eq_clause(lit(p,cb(24,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
+    person(A2),
+    person(A1).
+
+%-2.46982  EXIST y !student(x) v advisedBy(x,y) v tempAdvisedBy(x,y)
+eq_clause(lit(n,cb(25,X)),and,Lits) :-
+    student(X),
+    \+ tempAdvisedBy(X,_Y),
+    findall(lit(n,advisedBy(X,Y)),person(Y),Lits).
+
+%-1.23183  EXIST y !professor(x) v hasPosition(x,Faculty_visiting) v advisedBy(y,x)
+eq_clause(lit(n,cb(26,X)),and,Lits) :-
+    professor(X),
+    \+ hasPosition(X,"Faculty_visiting"),
+    findall(lit(n,advisedBy(Y,X)),person(Y),Lits).
+
 % objective vals
 
 % provide non-zero objective values for each atom-variable
-objective(cb(1,A1,A2),float(Count) * 0.0732856) :-
-  solutions(guard(1,A1,A2),Sols),
-  length(Sols,Count).
+%objective(cb(1,A1,A2),float(Count) * 0.0732856) :-
+%  solutions(guard(1,A1,A2),Sols),
+%  length(Sols,Count).
+objective(cb(1,A1,A2),Cost) :-
+    findall(a(A1,A2),guard(1,A1,A2),Sols),
+    length(Sols,Count),
+    Cost is Count * 0.0732856.
 objective(cb(2,_,_),1.94203).
 objective(cb(3,_,_),2.38127).
 objective(cb(4,_,_),0.118837).
-objective(cb(5,A1,A2),float(Count) * 0.0302834) :-
-  solutions(guard(5,A1,A2),Sols),
-  length(Sols,Count).
+%objective(cb(5,A1,A2),float(Count) * 0.0302834) :-
+%  solutions(guard(5,A1,A2),Sols),
+%  length(Sols,Count).
+objective(cb(5,A1,A2),Cost) :-
+    findall(a(A1,A2),guard(5,A1,A2),Sols),
+    length(Sols,Count),
+    Cost is Count * 0.0302834.
 objective(cb(6,_,_),2.38127).
 objective(cb(7,_,_),1.27773).
 objective(cb(8,_),0.671981).
 %objective(cb(9,_,_),0.709057).
-objective(cb(9,_,_),2.0*0.709057).
+%objective(cb(9,_,_),2.0*0.709057).
+objective(cb(9,_,_),Cost) :- Cost is 2*0.709057.
 objective(cb(10,_,_,_),0.384788).
 objective(cb(11,A1,A2),float(Count) * 2.01213) :-
   solutions(guard(11,A1,A2),Sols),
@@ -101,6 +206,8 @@ objective(cb(21,A1,A2),float(Count) * 0.337329) :-
 objective(cb(22,_,_),0.515549).
 objective(cb(23,_,_),0.954782).
 objective(cb(24,_,_),2.89681).
+objective(cb(25,_),2.46982).
+objective(cb(26,_),1.23183).
 
 guard(1,A1,A2,[A3,A4]) :-
   courseLevel(A3,"Level_500"),
