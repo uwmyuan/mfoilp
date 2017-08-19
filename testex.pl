@@ -52,7 +52,8 @@ eq_clause(lit(p,cb(9,A1,A2)),and,[lit(p,advisedBy(A1,A2)),lit(p,advisedBy(A2,A1)
 eq_clause(lit(p,cb(10,A1,A2,A3)),and,[lit(p,advisedBy(A1,A3)),lit(p,advisedBy(A1,A2))]) :-
     person(A2),
     person(A3),
-    \+ samePerson(A2,A3),
+    A2 @< A3,
+    %\+ samePerson(A2,A3),
     person(A1).
 
 eq_clause(lit(p,cb(11,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
@@ -89,7 +90,7 @@ eq_clause(lit(p,cb(16,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
   taughtBy(A3,A2,A4).
 
 eq_clause(lit(p,cb(17,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
-  inPhase(A1,"Post_Generals")},
+  inPhase(A1,"Post_Generals"),
   taughtBy(A3,A2,A4),
   \+ courseLevel(A3,"Level_100"),
   \+ ta(A3,A1,A4).
@@ -147,62 +148,45 @@ eq_clause(lit(n,cb(26,X)),and,Lits) :-
 
 % objective vals
 
-% provide non-zero objective values for each atom-variable
-%objective(cb(1,A1,A2),float(Count) * 0.0732856) :-
-%  solutions(guard(1,A1,A2),Sols),
-%  length(Sols,Count).
-objective(cb(1,A1,A2),Cost) :-
-    findall(a(A1,A2),guard(1,A1,A2),Sols),
+
+meta_objective(cb(Id,A1,A2),OrigCost,Cost) :-
+    findall(a,guard(Id,A1,A2,_),Sols),
     length(Sols,Count),
-    Cost is Count * 0.0732856.
+    Cost is Count * OrigCost.
+
+objective(cb(1,A1,A2),Cost) :-
+    meta_objective(cb(1,A1,A2),0.0732856,Cost).
 objective(cb(2,_,_),1.94203).
 objective(cb(3,_,_),2.38127).
 objective(cb(4,_,_),0.118837).
-%objective(cb(5,A1,A2),float(Count) * 0.0302834) :-
-%  solutions(guard(5,A1,A2),Sols),
-%  length(Sols,Count).
 objective(cb(5,A1,A2),Cost) :-
-    findall(a(A1,A2),guard(5,A1,A2),Sols),
-    length(Sols,Count),
-    Cost is Count * 0.0302834.
+    meta_objective(cb(5,A1,A2),0.0302834,Cost).
 objective(cb(6,_,_),2.38127).
 objective(cb(7,_,_),1.27773).
 objective(cb(8,_),0.671981).
-%objective(cb(9,_,_),0.709057).
-%objective(cb(9,_,_),2.0*0.709057).
 objective(cb(9,_,_),Cost) :- Cost is 2*0.709057.
-objective(cb(10,_,_,_),0.384788).
-objective(cb(11,A1,A2),float(Count) * 2.01213) :-
-  solutions(guard(11,A1,A2),Sols),
-  length(Sols,Count).
+objective(cb(10,_,_,_),Cost) :- Cost is 2*0.384788.
+objective(cb(11,A1,A2),Cost) :-
+    meta_objective(cb(11,A1,A2),2.01213,Cost).
 objective(cb(12,_,_),0.326654).
-objective(cb(13,A1,A2),float(Count) * 0.000635066) :-
-  solutions(guard(13,A1,A2),Sols),
-  length(Sols,Count).
-objective(cb(14,A1,A2),float(Count) * 0.112133) :-
-  solutions(guard(14,A1,A2),Sols),
-  length(Sols,Count).
-objective(cb(15,A1,A2),float(Count) * 0.0518195) :-
-  solutions(guard(15,A1,A2),Sols),
-  length(Sols,Count).
-objective(cb(16,A1,A2),float(Count) * 0.000634612) :-
-  solutions(guard(16,A1,A2),Sols),
-  length(Sols,Count).
-objective(cb(17,A1,A2),float(Count) * 0.145903) :-
-  solutions(guard(17,A1,A2),Sols),
-  length(Sols,Count).
-objective(cb(18,A1,A2),float(Count) * 0.095052) :-
-  solutions(guard(18,A1,A2),Sols),
-  length(Sols,Count).
-objective(cb(19,A1,A2),float(Count) * 0.749123) :-
-  solutions(guard(19,A1,A2),Sols),
-  length(Sols,Count).
-objective(cb(20,A1,A2),float(Count) * 0.0302834) :-
-  solutions(guard(20,A1,A2),Sols),
-  length(Sols,Count).
-objective(cb(21,A1,A2),float(Count) * 0.337329) :-
-  solutions(guard(21,A1,A2),Sols),
-  length(Sols,Count).
+objective(cb(13,A1,A2),Cost) :-
+    meta_objective(cb(13,A1,A2),0.000635066,Cost).
+objective(cb(14,A1,A2),Cost) :-
+    meta_objective(cb(14,A1,A2),0.112133,Cost).
+objective(cb(15,A1,A2),Cost) :-
+    meta_objective(cb(15,A1,A2),0.0518195,Cost).
+objective(cb(16,A1,A2),Cost) :-
+    meta_objective(cb(16,A1,A2),0.000634612,Cost).
+objective(cb(17,A1,A2),Cost) :-
+    meta_objective(cb(17,A1,A2),0.145903,Cost).
+objective(cb(18,A1,A2),Cost) :-
+    meta_objective(cb(18,A1,A2),0.095052,Cost).
+objective(cb(19,A1,A2),Cost) :-
+    meta_objective(cb(19,A1,A2),0.749123,Cost).
+objective(cb(20,A1,A2),Cost) :-
+    meta_objective(cb(20,A1,A2),0.0302834,Cost).
+objective(cb(21,A1,A2),Cost) :-
+    meta_objective(cb(21,A1,A2),0.337329,Cost).
 objective(cb(22,_,_),0.515549).
 objective(cb(23,_,_),0.954782).
 objective(cb(24,_,_),2.89681).
@@ -213,59 +197,59 @@ guard(1,A1,A2,[A3,A4]) :-
   courseLevel(A3,"Level_500"),
   taughtBy(A3,A2,A4),
   ta(A3,A1,A4),
-  not tempAdvisedBy(A1,A2).
+  \+ tempAdvisedBy(A1,A2).
 guard(5,A1,A2,[A3]) :-
   student(A1),
   publication(A3,A2),
   publication(A3,A1),
-  not student(A2),
-  not tempAdvisedBy(A1,A2).
+  \+ student(A2),
+  \+ tempAdvisedBy(A1,A2).
 guard(11,A1,_,[A3]) :-
   tempAdvisedBy(A1,A3).
 guard(13,A1,A2,[A3,A4]) :-
   inPhase(A1,"Post_Quals"),
   ta(A3,A1,A4),
   taughtBy(A3,A2,A4),
-  not courseLevel(A3,"Level_100").
+  \+ courseLevel(A3,"Level_100").
 guard(14,A1,A2,[A3,A4]) :-
   inPhase(A1,"Post_Quals"),
   taughtBy(A3,A2,A4),
-  not courseLevel(A3,"Level_100"),
-  not ta(A3,A1,A4).
+  \+ courseLevel(A3,"Level_100"),
+  \+ ta(A3,A1,A4).
 guard(15,A1,A2,[A3,A4]) :-
   inPhase(A1,"Post_Quals"),
   ta(A3,A1,A4),
-  not courseLevel(A3,"Level_100"),
-  not taughtBy(A3,A2,A4).
+  \+ courseLevel(A3,"Level_100"),
+  \+ taughtBy(A3,A2,A4).
 guard(16,A1,A2,[A3,A4]) :-
   inPhase(A1,"Post_Generals"),
   ta(A3,A1,A4),
   taughtBy(A3,A2,A4),
-  not courseLevel(A3,"Level_100").
+  \+ courseLevel(A3,"Level_100").
 guard(17,A1,A2,[A3,A4]) :-
   inPhase(A1,"Post_Generals"),
   taughtBy(A3,A2,A4),
-  not courseLevel(A3,"Level_100"),
-  not ta(A3,A1,A4).
+  \+ courseLevel(A3,"Level_100"),
+  \+ ta(A3,A1,A4).
 guard(18,A1,A2,[A3,A4]) :-
   inPhase(A1,"Post_Generals"),
   ta(A3,A1,A4),
-  not courseLevel(A3,"Level_100"),
-  not taughtBy(A3,A2,A4).
+  \+ courseLevel(A3,"Level_100"),
+  \+ taughtBy(A3,A2,A4).
 guard(19,A1,A2,[A3]) :-
   publication(A3,A1),
   publication(A3,A2),
-  not samePerson(A1,A2).
+  \+ samePerson(A1,A2).
 guard(20,A1,A2,[A3]) :-
   student(A1),
   professor(A2),
   publication(A3,A1),
   publication(A3,A2),
-  not samePerson(A2,A1).
+  \+ samePerson(A2,A1).
 guard(21,A1,A2,[A3]) :-
   publication(A3,A1),
   person(A2),
-  not publication(A3,A2).
+  \+ publication(A3,A2).
 
 
 % context vars

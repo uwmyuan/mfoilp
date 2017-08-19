@@ -714,3 +714,16 @@ Things are a lot quicker if zerohalf cuts are not used.
 
 Experimenting with making weighted facts (of advisedBy example)
 initial which allows them and their penalty atoms to be removed.
+
+Sat 19 Aug 21:45:53 BST 2017
+
+This clause:
+eq_clause(lit(p,cb(10,A1,A2,A3)),and,[lit(p,advisedBy(A1,A3)),lit(p,advisedBy(A1,A2))]) :-
+    person(A2),
+    person(A3),
+    A2 @< A3,
+    %\+ samePerson(A2,A3),
+    person(A1).
+
+just counts, for each a1, how many distinct people are advised by a1,
+and penalises n Choose 2.
