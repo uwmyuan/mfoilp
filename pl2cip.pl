@@ -1,8 +1,17 @@
 :- dynamic problem_var/3.
 :- dynamic problem_var/6.
 :- dynamic nvars/1.
+:- dynamic nvars/2.
 :- dynamic ncons/1.
 :- dynamic cons_num/2.
+
+:- dynamic objective/2.
+:- dynamic lb/2.
+:- dynamic ub/2.
+:- dynamic vartype/2.
+
+
+    
 
 write_conss :-
     eq_clause(ResLit,Type,Lits),
@@ -34,8 +43,8 @@ write_cip(OutFile) :-
     tell(tmp2),
     format('STATISTICS~n'),
     format('  Problem name     : ~w~n',[OutFile]),
-    nvars(N),
-    format('  Variables        : ~w (~w binary, 0 integer, 0 implicit integer, 0 continuous)~n',[N,N]),
+    nvars(N),    nvars(binary,NB),    nvars(integer,NI),
+    format('  Variables        : ~w (~w binary, ~w integer, 0 implicit integer, 0 continuous)~n',[N,NB,NI]),
     ncons(M),
     format('  Constraints      : 0 initial, ~w maximal~n',[M]),
     format('OBJECTIVE~n'),
@@ -59,18 +68,17 @@ write_vars :-
     fail.
 write_vars.
 
+
 write_linterms([],[]).
 write_linterms([0.0|CT],[_Term|TT]) :-
     !,
     write_linterms(CT,TT).
 write_linterms([Coeff|CT],[Term|TT]) :-
     (Coeff > 0 -> format('+'); true),
-    % only works for positive literals!!!
-    % TO FIX
-    (Term=lit(p,Atom), problem_var(Atom,IPVar,_)
-     -> Type = 'B';
-     problem_var(Term,IPVar,_,_,_,_),
-     Type = 'I'),
+    lit2ipvar(Term,IPVar),
+    (problem_var(Term,IPVar,_,_,_,_)
+     -> Type = 'I';
+     Type = 'B'),
     format('~w<~w>[~w] ',[Coeff,IPVar,Type]),
     write_linterms(CT,TT).
 
@@ -80,15 +88,16 @@ write_linear(LHS,Coeffs,Vars,LHS) :-
     format('  [linear] <linear_cons_~w>: ',[Num]),
     write_linterms(Coeffs,Vars),
     format(' == ~w;~n',[LHS]),
-    inc_cons.
+    inc_ncons.
     
 % constraint that integer variable XX is the square of X
 write_eq_quad(X,XX) :-
     constraint_num(quad,Num),
-    problem_var(X,XIPVar,_,_,_,_),
-    problem_var(XX,XXIPVar,_,_,_,_),
-    format('  [quadratic] <quad_cons_~w>: -~w +~w^2 == 0;~n',[Num,XXIPVar,XIPVar]),
-    inc_cons.
+    lit2ipvar(X,XIPVar),
+    lit2ipvar(XX,XXIPVar),
+    % assume both are integer types
+    format('  [quadratic] <quad_cons_~w>: -<~w>[I] +<~w>[I]^2 == 0;~n',[Num,XXIPVar,XIPVar]),
+    inc_ncons.
     
 % for writing constraints where lits are all the same type of argument
 % for, e.g. logicor constraints
@@ -127,6 +136,15 @@ inc_nvars :-
 inc_nvars :-
     assert(nvars(1)).
 
+inc_nvars(Type) :-
+    retract(nvars(Type,N)),
+    !,
+    NN is N+1,
+    assert(nvars(Type,NN)).
+inc_nvars(Type) :-
+    assert(nvars(Type,1)).
+
+
 write_lits([Lit]) :-
     !,
     write_lit(Lit).
@@ -155,7 +173,7 @@ lit2ipvar(lit(_,Term),IPVar) :-
     atomic_concat('x#',Atom,IPVar),
     (objective(Term,Val) -> Obj = Val; Obj = 0.0),
     assert(problem_var(Term,IPVar,Obj)),
-    inc_nvars.
+    inc_nvars(binary), inc_nvars.
 % for terms which do not represent binary variables
 lit2ipvar(Term,IPVar) :-
     problem_var(Term,IPVar,_Obj,_Type,_Lb,_Gb),
@@ -168,7 +186,7 @@ lit2ipvar(Term,IPVar) :-
     (ub(Term,Val) -> Ub = Val; Ub = '+inf'),
     (vartype(Term,Val) -> Type = Val; Type = integer),
     assert(problem_var(Term,IPVar,Obj,Type,Lb,Ub)),
-    inc_vars.
+    inc_nvars(integer), inc_nvars.
 
 constraint_num(Type,Num) :-
     retract(cons_num(Type,N)),

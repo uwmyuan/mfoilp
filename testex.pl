@@ -146,6 +146,13 @@ eq_clause(lit(n,cb(26,X)),and,Lits) :-
     \+ hasPosition(X,"Faculty_visiting"),
     findall(lit(n,advisedBy(Y,X)),person(Y),Lits).
 
+linear(0.0,[-1.0|Ones],[dcount(A1)|Others],0.0) :-
+    person(A1),
+    findall(lit(p,advisedBy(A1,Person)),person(Person),Others),
+    findall(1.0,person(Person),Ones).
+
+eq_quad(dcount(A1),dc_sq(A1)) :-
+    person(A1).
 
 
 % objective vals
