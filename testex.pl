@@ -1,54 +1,58 @@
 % example input START
 
+%-0.0732856  !courseLevel(a3,Level_500) v !taughtBy(a3,a2,a4) v !ta(a3,a1,a4) v tempAdvisedBy(a1,a2) v advisedBy(a1,a2)
 eq_clause(lit(p,cb(1,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
-  courseLevel(A3,"Level_500"),
-  taughtBy(A3,A2,A4),
-  ta(A3,A1,A4),
-  \+ tempAdvisedBy(A1,A2),
-  \+ samePerson(A1,A2).
+    guard(1,A1,A2,[_A3,_A4]).
 
-
+%1.94203  student(a2) v !advisedBy(a1,a2)
 eq_clause(lit(p,cb(2,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
     person(A1),
     person(A2),
     \+ student(A2).
 
+%2.38127  professor(a1) v !advisedBy(a1,a2)
 eq_clause(lit(p,cb(3,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
     person(A1),
     \+ professor(A1),
     person(A2).
 
+%0.118837  !yearsInProgram(a1,Year_1) v !advisedBy(a1,a2)
 eq_clause(lit(p,cb(4,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
     yearsInProgram(A1,"Year_1"),
     person(A2).
 
+%-0.0302834  !student(a1) v !publication(a3,a2) v !publication(a3,a1) v student(a2) v tempAdvisedBy(a1,a2) v advisedBy(a1,a2)
 eq_clause(lit(p,cb(5,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
-    student(A1),
-    publication(A3,A1),
-    publication(A3,A2),
-    \+ student(A2),
-    \+ tempAdvisedBy(A1,A2).
+    guard(5,A1,A2,[_A3]).
 
+%-2.38127  !student(a1) v tempAdvisedBy(a1,a2) v advisedBy(a1,a2)
 eq_clause(lit(p,cb(6,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
     student(A1),
     person(A2),
     \+ tempAdvisedBy(A1,A2).
 
+%1.27773  !professor(a1) v !hasPosition(a1,Faculty) v tempAdvisedBy(a2,a1) v advisedBy(a2,a1)
 eq_clause(lit(p,cb(7,A1,A2)),and,[lit(n,advisedBy(A1,A2))]) :-
   professor(A1),
   hasPosition(A1,"Faculty"),
   person(A2),
   \+ tempAdvisedBy(A2,A1).
 
+%0.671981  !advisedBy(a1,a1)
 eq_clause(lit(p,cb(8,A1)),and,[lit(p,advisedBy(A1,A1))]) :-
     person(A1).
 
+%0.709057  !advisedBy(a1,a2) v !advisedBy(a2,a1)
 eq_clause(lit(p,cb(9,A1,A2)),and,[lit(p,advisedBy(A1,A2)),lit(p,advisedBy(A2,A1))]) :-
     person(A1),
     person(A2),
-    % need to sort out objective and account for A1=A2
-    \+ A1 @< A2.
+    A1 @< A2.
 
+eq_clause(lit(p,cb(9,A1)),and,[lit(p,advisedBy(A1,A1))]) :-
+    person(A1).
+    
+%0.384788  samePerson(a2,a3) v !advisedBy(a1,a3) v !advisedBy(a1,a2)
+%Following constraint replaced by a 'counting' constraint, see below.
 %eq_clause(lit(p,cb(10,A1,A2,A3)),and,[lit(p,advisedBy(A1,A3)),lit(p,advisedBy(A1,A2))]) :-
 %    person(A2),
 %    person(A3),
@@ -56,80 +60,66 @@ eq_clause(lit(p,cb(9,A1,A2)),and,[lit(p,advisedBy(A1,A2)),lit(p,advisedBy(A2,A1)
 %    %\+ samePerson(A2,A3),
 %    person(A1).
 
+%2.01213  !tempAdvisedBy(a1,a3) v !advisedBy(a1,a2)
 eq_clause(lit(p,cb(11,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
-    tempAdvisedBy(A1,_),
+    guard(11,A1,A2,[_A3]),
     person(A2).
 
+%0.326654  !inPhase(a1,Pre_Quals) v !advisedBy(a1,a2)
 eq_clause(lit(p,cb(12,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
     inPhase(A1,"Pre_Quals"),
     person(A2).
 
+%-0.000635066  !inPhase(a1,Post_Quals) v !ta(a3,a1,a4) v !taughtBy(a3,a2,a4) v courseLevel(a3,Level_100) v advisedBy(a1,a2)
 eq_clause(lit(p,cb(13,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
-  inPhase(A1,"Post_Quals"),
-  ta(A3,A1,A4),
-  taughtBy(A3,A2,A4),
-  \+ courseLevel(A3,"Level_100").
+  guard(13,A1,A2,[_A3,_A4]).
 
+%0.112133  !inPhase(a1,Post_Quals) v !taughtBy(a3,a2,a4) v courseLevel(a3,Level_100) v ta(a3,a1,a4) v !advisedBy(a1,a2)
 eq_clause(lit(p,cb(14,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
-  inPhase(A1,"Post_Quals"),
-  taughtBy(A3,A2,A4),
-  \+ courseLevel(A3,"Level_100"),
-  \+ ta(A3,A1,A4).
+    guard(14,A1,A2,[_A3,_A4]).
 
+%0.0518195  !inPhase(a1,Post_Quals) v !ta(a3,a1,a4) v courseLevel(a3,Level_100) v taughtBy(a3,a2,a4) v !advisedBy(a1,a2)
 eq_clause(lit(p,cb(15,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
-  inPhase(A1,"Post_Quals"),
-  ta(A3,A1,A4),
-  \+ courseLevel(A3,"Level_100"),
-  person(A2),
-  \+ taughtBy(A3,A2,A4).
+    guard(15,A1,A2,[_A3,_A4]).
 
+%-0.000634612  !inPhase(a1,Post_Generals) v !ta(a3,a1,a4) v !taughtBy(a3,a2,a4) v courseLevel(a3,Level_100) v advisedBy(a1,a2)
 eq_clause(lit(p,cb(16,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
-  inPhase(A1,"Post_Generals"),
-  ta(A3,A1,A4),
-  \+ courseLevel(A3,"Level_100"),
-  taughtBy(A3,A2,A4).
+    guard(16,A1,A2,[_A3,_A4]).
 
+%0.145903  !inPhase(a1,Post_Generals) v !taughtBy(a3,a2,a4) v courseLevel(a3,Level_100) v ta(a3,a1,a4) v !advisedBy(a1,a2)
 eq_clause(lit(p,cb(17,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
-  inPhase(A1,"Post_Generals"),
-  taughtBy(A3,A2,A4),
-  \+ courseLevel(A3,"Level_100"),
-  \+ ta(A3,A1,A4).
+    guard(17,A1,A2,[_A3,_A4]).
 
+%0.095052  !inPhase(a1,Post_Generals) v !ta(a3,a1,a4) v courseLevel(a3,Level_100) v taughtBy(a3,a2,a4) v !advisedBy(a1,a2)
 eq_clause(lit(p,cb(18,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
-  inPhase(A1,"Post_Generals"),
-  ta(A3,A1,A4),
-  \+ courseLevel(A3,"Level_100"),
-  person(A2),
-  \+ taughtBy(A3,A2,A4).
+    guard(18,A1,A2,[_A3,_A4]).
 
+%0.749123  !publication(a3,a1) v !publication(a3,a2) v samePerson(a1,a2) v advisedBy(a1,a2) v advisedBy(a2,a1)
 % should add symmetry breaking
 eq_clause(lit(p,cb(19,A1,A2)),and,[lit(n,advisedBy(A1,A2)),lit(n,advisedBy(A2,A1))]) :-
-  publication(A3,A1),
-  publication(A3,A2),
-  \+ samePerson(A1,A2).
+    guard(19,A1,A2,[_A3]).
 
+%-0.0302834  !student(a1) v !professor(a2) v !publication(a3,a1) v !publication(a3,a2) v samePerson(a2,a1) v advisedBy(a1,a2)
 eq_clause(lit(p,cb(20,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
-  student(A1),
-  professor(A2),
-  publication(A3,A1),
-  publication(A3,A2),
-  \+ samePerson(A2,A1).
+    guard(20,A1,A2,[_A3]).
 
+%-0.337329  !publication(a3,a1) v publication(a3,a2) v !advisedBy(a1,a2)
 eq_clause(lit(p,cb(21,A1,A2)),and,[lit(n,advisedBy(A1,A2))]) :-
-  publication(A3,A1),
-  person(A2),
-  \+ publication(A3,A2).
+    guard(21,A1,A2,[_A3]).
 
+%0.515549  student(a1) v !advisedBy(a1,a2)
 eq_clause(lit(p,cb(22,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
     person(A1),
     \+ student(A1),
     person(A2).
 
+%0.954782  professor(a2) v !advisedBy(a1,a2)
 eq_clause(lit(p,cb(23,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
     person(A2),
     \+ professor(A2),
     person(A1).
 
+%-2.89681  advisedBy(a1,a2)
 eq_clause(lit(p,cb(24,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
     person(A2),
     person(A1).
@@ -151,9 +141,8 @@ linear(0.0,[-1.0|Ones],[dcount(A1)|Others],0.0) :-
     findall(lit(p,advisedBy(A1,Person)),person(Person),Others),
     findall(1.0,person(Person),Ones).
 
-eq_quad(dcount(A1),dc_sq(A1)) :-
+eq_quad([1.0,-2.0],[dcount(A1),cb(10,A1)],[1.0],[dcount(A1)],0.0) :-
     person(A1).
-
 
 % objective vals
 
@@ -174,7 +163,8 @@ objective(cb(6,_,_),2.38127).
 objective(cb(7,_,_),1.27773).
 objective(cb(8,_),0.671981).
 objective(cb(9,_,_),Cost) :- Cost is 2*0.709057.
-objective(cb(10,_,_,_),Cost) :- Cost is 2*0.384788.
+objective(cb(9,_),Cost) :- Cost is 2*0.709057.
+objective(cb(10,_),0.384788).
 objective(cb(11,A1,A2),Cost) :-
     meta_objective(cb(11,A1,A2),2.01213,Cost).
 objective(cb(12,_,_),0.326654).

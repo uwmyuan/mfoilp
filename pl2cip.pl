@@ -22,8 +22,8 @@ write_conss :-
     write_linear(LHS,Coeffs,Vars,RHS),
     fail.
 write_conss :-
-    eq_quad(X,XX),
-    write_eq_quad(X,XX),
+    eq_quad(LinCoeffs,LinVars,SqCoeffs,SqVars,LHSRHS),
+    write_eq_quad(LinCoeffs,LinVars,SqCoeffs,SqVars,LHSRHS),
     fail.
 write_conss.
 
@@ -82,6 +82,20 @@ write_linterms([Coeff|CT],[Term|TT]) :-
     format('~w<~w>[~w] ',[Coeff,IPVar,Type]),
     write_linterms(CT,TT).
 
+write_sqterms([],[]).
+write_sqterms([0.0|CT],[_Term|TT]) :-
+    !,
+    write_sqterms(CT,TT).
+write_sqterms([Coeff|CT],[Term|TT]) :-
+    (Coeff > 0 -> format('+'); true),
+    lit2ipvar(Term,IPVar),
+    (problem_var(Term,IPVar,_,_,_,_)
+     -> Type = 'I';
+     Type = 'B'),
+    format('~w<~w>[~w]^2 ',[Coeff,IPVar,Type]),
+    write_sqterms(CT,TT).
+
+
 % equality linear constraint
 write_linear(LHS,Coeffs,Vars,LHS) :-
     constraint_num(linear,Num),
@@ -90,13 +104,13 @@ write_linear(LHS,Coeffs,Vars,LHS) :-
     format(' == ~w;~n',[LHS]),
     inc_ncons.
     
-% constraint that integer variable XX is the square of X
-write_eq_quad(X,XX) :-
+% equality constraint with squared coefficients
+write_eq_quad(LinCoeffs,LinVars,SqCoeffs,SqVars,LHSRHS) :-
     constraint_num(quad,Num),
-    lit2ipvar(X,XIPVar),
-    lit2ipvar(XX,XXIPVar),
-    % assume both are integer types
-    format('  [quadratic] <quad_cons_~w>: -<~w>[I] +<~w>[I]^2 == 0;~n',[Num,XXIPVar,XIPVar]),
+    format('  [quadratic] <quad_cons_~w>: ',[Num]),
+    write_linterms(LinCoeffs,LinVars),
+    write_sqterms(SqCoeffs,SqVars),
+    format('  == ~w;~n',[LHSRHS]),
     inc_ncons.
     
 % for writing constraints where lits are all the same type of argument
