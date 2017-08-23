@@ -1,4 +1,5 @@
 :- dynamic problem_var/3.
+:- dynamic problem_var/6.
 :- dynamic nvars/1.
 :- dynamic ncons/1.
 :- dynamic cons_num/2.
@@ -6,6 +7,14 @@
 write_conss :-
     eq_clause(ResLit,Type,Lits),
     write_propcons2(Type,ResLit,Lits),
+    fail.
+write_conss :-
+    linear(LHS,Coeffs,Vars,RHS),
+    write_linear(LHS,Coeffs,Vars,RHS),
+    fail.
+write_conss :-
+    eq_quad(X,XX),
+    write_eq_quad(X,XX),
     fail.
 write_conss.
 
@@ -44,8 +53,43 @@ write_vars :-
     problem_var(_Term,IPVar,Obj),
     format('  [binary] <~w>: obj=~w, original bounds=[0,1]~n',[IPVar,Obj]),
     fail.
+write_vars :-
+    problem_var(_Term,IPVar,Obj,Type,Lb,Gb),
+    format('  [~w] <~w>: obj=~w, original bounds=[~w,~w]~n',[Type,IPVar,Obj,Lb,Gb]),
+    fail.
 write_vars.
 
+write_linterms([],[]).
+write_linterms([0.0|CT],[_Term|TT]) :-
+    !,
+    write_linterms(CT,TT).
+write_linterms([Coeff|CT],[Term|TT]) :-
+    (Coeff > 0 -> format('+'); true),
+    % only works for positive literals!!!
+    % TO FIX
+    (Term=lit(p,Atom), problem_var(Atom,IPVar,_)
+     -> Type = 'B';
+     problem_var(Term,IPVar,_,_,_,_),
+     Type = 'I'),
+    format('~w<~w>[~w] ',[Coeff,IPVar,Type]),
+    write_linterms(CT,TT).
+
+% equality linear constraint
+write_linear(LHS,Coeffs,Vars,LHS) :-
+    constraint_num(linear,Num),
+    format('  [linear] <linear_cons_~w>: ',[Num]),
+    write_linterms(Coeffs,Vars),
+    format(' == ~w;~n',[LHS]),
+    inc_cons.
+    
+% constraint that integer variable XX is the square of X
+write_eq_quad(X,XX) :-
+    constraint_num(quad,Num),
+    problem_var(X,XIPVar,_,_,_,_),
+    problem_var(XX,XXIPVar,_,_,_,_),
+    format('  [quadratic] <quad_cons_~w>: -~w +~w^2 == 0;~n',[Num,XXIPVar,XIPVar]),
+    inc_cons.
+    
 % for writing constraints where lits are all the same type of argument
 % for, e.g. logicor constraints
 write_propcons(Type,Lits) :-
@@ -99,15 +143,32 @@ write_lit(Lit) :-
 
 neglit(lit(n,_)).
 
+%Given a term of the form lit(_,Term),
+%generate a string representation for the corresponding IP variable
+%and store this mapping using asssert
 lit2ipvar(lit(_,Term),IPVar) :-
     problem_var(Term,IPVar,_),
     !.
 lit2ipvar(lit(_,Term),IPVar) :-
+    !,
     term_to_atom(Term,Atom),
     atomic_concat('x#',Atom,IPVar),
     (objective(Term,Val) -> Obj = Val; Obj = 0.0),
     assert(problem_var(Term,IPVar,Obj)),
     inc_nvars.
+% for terms which do not represent binary variables
+lit2ipvar(Term,IPVar) :-
+    problem_var(Term,IPVar,_Obj,_Type,_Lb,_Gb),
+    !.
+lit2ipvar(Term,IPVar) :-
+    term_to_atom(Term,Atom),
+    atomic_concat('x#',Atom,IPVar),
+    (objective(Term,Val) -> Obj = Val; Obj = 0.0),
+    (lb(Term,Val) -> Lb = Val; Lb = 0.0),
+    (ub(Term,Val) -> Ub = Val; Ub = '+inf'),
+    (vartype(Term,Val) -> Type = Val; Type = integer),
+    assert(problem_var(Term,IPVar,Obj,Type,Lb,Ub)),
+    inc_vars.
 
 constraint_num(Type,Num) :-
     retract(cons_num(Type,N)),
@@ -116,3 +177,4 @@ constraint_num(Type,Num) :-
     assert(cons_num(Type,Num)).
 constraint_num(Type,1) :-
     assert(cons_num(Type,1)).
+

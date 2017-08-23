@@ -49,12 +49,12 @@ eq_clause(lit(p,cb(9,A1,A2)),and,[lit(p,advisedBy(A1,A2)),lit(p,advisedBy(A2,A1)
     % need to sort out objective and account for A1=A2
     \+ A1 @< A2.
 
-eq_clause(lit(p,cb(10,A1,A2,A3)),and,[lit(p,advisedBy(A1,A3)),lit(p,advisedBy(A1,A2))]) :-
-    person(A2),
-    person(A3),
-    A2 @< A3,
-    %\+ samePerson(A2,A3),
-    person(A1).
+%eq_clause(lit(p,cb(10,A1,A2,A3)),and,[lit(p,advisedBy(A1,A3)),lit(p,advisedBy(A1,A2))]) :-
+%    person(A2),
+%    person(A3),
+%    A2 @< A3,
+%    %\+ samePerson(A2,A3),
+%    person(A1).
 
 eq_clause(lit(p,cb(11,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
     tempAdvisedBy(A1,_),
@@ -145,6 +145,8 @@ eq_clause(lit(n,cb(26,X)),and,Lits) :-
     professor(X),
     \+ hasPosition(X,"Faculty_visiting"),
     findall(lit(n,advisedBy(Y,X)),person(Y),Lits).
+
+
 
 % objective vals
 
