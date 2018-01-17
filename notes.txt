@@ -727,3 +727,16 @@ eq_clause(lit(p,cb(10,A1,A2,A3)),and,[lit(p,advisedBy(A1,A3)),lit(p,advisedBy(A1
 
 just counts, for each a1, how many distinct people are advised by a1,
 and penalises n Choose 2.
+
+Wed 23 Aug 16:15:55 BST 2017
+
+By using
+1) sensible computation of costs for penalty atoms
+2) and constraints (most of which get removed)
+3) counts plus quadratic constraints
+
+we solve the 'advisedBy' problem and get an objective value of:
+
+objective value:                     13050.4807889999
+
+need to compare this to the rockit value
