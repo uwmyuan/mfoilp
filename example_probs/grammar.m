@@ -52,7 +52,7 @@
 
 :- type intrans_verb_parse ---> iv(string).
 
-:- type atom ---> bad_parse(sentence_parse).
+:- type atom ---> parse(words,sentence_parse).
 
 initial_clause(_,_,_) :- fail.
 
@@ -65,18 +65,29 @@ objective(_Parse,1.0).
 %clause("test").
 initial_clause("test") -->
     {
-	sentence(Parse,["all","men","like","men"],[])
+	sentence_db(S),
+	sentence(Parse,S,[]),
+	sentence(Parse2,S,[]),
+	not Parse = Parse2
     },
-    initial_poslit(bad_parse(Parse)).
+    initial_poslit(parse(S,Parse)),
+    initial_poslit(parse(S,Parse2)).
 %poslit("test",dummy(_)).
 
 clause("test2").
 clause("test2") -->
-    {sentence(Parse,["all","men","like","mary"],[])},
-    poslit(bad_parse(Parse)).
-poslit("test2",bad_parse(_)).
+    
+    {
+	S = ["all","men","like","mary"],
+	sentence(Parse,S,[])
+    },
+    poslit(parse(S,Parse)).
+poslit("test2",parse(_,_)).
 
 
+:- pred sentence_db(words::out) is multi.
+sentence_db(["all","men","like","boats"]).
+sentence_db(["all","boats","like","boats"]).
 
 
 :- pred sentence(sentence_parse::out,words::in,words::out) is nondet.
