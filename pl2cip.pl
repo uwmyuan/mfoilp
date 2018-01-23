@@ -142,21 +142,25 @@ inc_ncons :-
 inc_ncons :-
     assert(ncons(1)).
 
+nvars(0).
+nvars(binary,0).
+nvars(integer,0).
+
 inc_nvars :-
     retract(nvars(N)),
     !,
     NN is N+1,
     assert(nvars(NN)).
-inc_nvars :-
-    assert(nvars(1)).
+%inc_nvars :-
+%    assert(nvars(1)).
 
 inc_nvars(Type) :-
     retract(nvars(Type,N)),
     !,
     NN is N+1,
     assert(nvars(Type,NN)).
-inc_nvars(Type) :-
-    assert(nvars(Type,1)).
+%inc_nvars(Type) :-
+%    assert(nvars(Type,1)).
 
 
 write_lits([Lit]) :-
