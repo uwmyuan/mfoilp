@@ -32,7 +32,7 @@ eq_clause(lit(p,cb(6,A1,A2)),and,[lit(p,advisedBy(A1,A2))]) :-
     \+ tempAdvisedBy(A1,A2).
 
 %1.27773  !professor(a1) v !hasPosition(a1,Faculty) v tempAdvisedBy(a2,a1) v advisedBy(a2,a1)
-eq_clause(lit(p,cb(7,A1,A2)),and,[lit(n,advisedBy(A1,A2))]) :-
+eq_clause(lit(p,cb(7,A1,A2)),and,[lit(n,advisedBy(A2,A1))]) :-
   professor(A1),
   hasPosition(A1,"Faculty"),
   person(A2),
