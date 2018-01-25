@@ -141,14 +141,14 @@ linear(0.0,[-1.0|Ones],[dcount(A1)|Others],0.0) :-
     findall(lit(p,advisedBy(A1,Person)),person(Person),Others),
     findall(1.0,person(Person),Ones).
 
-eq_quad([1.0,-2.0],[dcount(A1),cb(10,A1)],[1.0],[dcount(A1)],0.0) :-
+eq_quad([-1.0,-1.0],[dcount(A1),cb(10,A1)],[1.0],[dcount(A1)],0.0) :-
     person(A1).
 
 % objective vals
 
 
 meta_objective(cb(Id,A1,A2),OrigCost,Cost) :-
-    findall(a,guard(Id,A1,A2,_),Sols),
+    setof(X,guard(Id,A1,A2,X),Sols),
     length(Sols,Count),
     Cost is Count * OrigCost.
 
@@ -163,7 +163,7 @@ objective(cb(6,_,_),2.38127).
 objective(cb(7,_,_),1.27773).
 objective(cb(8,_),0.671981).
 objective(cb(9,_,_),Cost) :- Cost is 2*0.709057.
-objective(cb(9,_),Cost) :- Cost is 2*0.709057.
+objective(cb(9,_),0.709057).
 objective(cb(10,_),0.384788).
 objective(cb(11,A1,A2),Cost) :-
     meta_objective(cb(11,A1,A2),2.01213,Cost).
