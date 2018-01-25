@@ -148,7 +148,7 @@ eq_quad([1.0,-2.0],[dcount(A1),cb(10,A1)],[1.0],[dcount(A1)],0.0) :-
 
 
 meta_objective(cb(Id,A1,A2),OrigCost,Cost) :-
-    findall(a,guard(Id,A1,A2,_),Sols),
+    setof(X,guard(Id,A1,A2,X),Sols),
     length(Sols,Count),
     Cost is Count * OrigCost.
 
