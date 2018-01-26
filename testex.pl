@@ -141,7 +141,7 @@ linear(0.0,[-1.0|Ones],[dcount(A1)|Others],0.0) :-
     findall(lit(p,advisedBy(A1,Person)),person(Person),Others),
     findall(1.0,person(Person),Ones).
 
-eq_quad([1.0,-2.0],[dcount(A1),cb(10,A1)],[1.0],[dcount(A1)],0.0) :-
+eq_quad([-1.0,-1.0],[dcount(A1),cb(10,A1)],[1.0],[dcount(A1)],0.0) :-
     person(A1).
 
 % objective vals
@@ -163,7 +163,7 @@ objective(cb(6,_,_),2.38127).
 objective(cb(7,_,_),1.27773).
 objective(cb(8,_),0.671981).
 objective(cb(9,_,_),Cost) :- Cost is 2*0.709057.
-objective(cb(9,_),Cost) :- Cost is 2*0.709057.
+objective(cb(9,_),0.709057).
 objective(cb(10,_),0.384788).
 objective(cb(11,A1,A2),Cost) :-
     meta_objective(cb(11,A1,A2),2.01213,Cost).
@@ -920,72 +920,3 @@ person("Person79").
 person("Person83").
 person("Person86").
 person("Person94").
-person("Person13").
-person("Person139").
-person("Person14").
-person("Person148").
-person("Person150").
-person("Person161").
-person("Person168").
-person("Person171").
-person("Person176").
-person("Person185").
-person("Person193").
-person("Person20").
-person("Person208").
-person("Person21").
-person("Person211").
-person("Person233").
-person("Person239").
-person("Person240").
-person("Person257").
-person("Person259").
-person("Person262").
-person("Person265").
-person("Person266").
-person("Person271").
-person("Person272").
-person("Person275").
-person("Person276").
-person("Person284").
-person("Person286").
-person("Person292").
-person("Person293").
-person("Person311").
-person("Person312").
-person("Person314").
-person("Person318").
-person("Person319").
-person("Person320").
-person("Person333").
-person("Person347").
-person("Person349").
-person("Person352").
-person("Person353").
-person("Person37").
-person("Person377").
-person("Person380").
-person("Person381").
-person("Person382").
-person("Person384").
-person("Person392").
-person("Person400").
-person("Person406").
-person("Person407").
-person("Person408").
-person("Person412").
-person("Person415").
-person("Person418").
-person("Person42").
-person("Person420").
-person("Person432").
-person("Person45").
-person("Person63").
-person("Person7").
-person("Person70").
-person("Person73").
-person("Person79").
-person("Person83").
-person("Person86").
-person("Person94").
-
