@@ -11,6 +11,8 @@
 :- pred initial_clause(string::out,clause_lits::in,clause_lits::out) is multi.
 
 :- pred clause(string::out) is multi.
+:- pred equality(string::in) is failure.
+:- pred penalty_atom(string::in) is failure.
 
 :- pred neglit(string::in,atom::in) is semidet.
 :- pred poslit(string::in,atom::in) is semidet.
@@ -47,3 +49,9 @@ clause("fo1") -->
 neglit("fo1",f(_)).
 poslit("fo1",f(_)).
 poslit("fo1",cb(_)).
+
+% extras
+equality(_) :- fail.
+
+% only used if generating and constraints
+penalty_atom(_) :- fail.

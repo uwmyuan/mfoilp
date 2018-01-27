@@ -68,6 +68,10 @@ makemove(s,X,Y,X,Y).
 wall_between(3,0,4,0).
 wall_between(1,0,2,0).
 
+:- pred goal(int::in,int::in) is semidet.
+
+goal(X,Y) :- X > 3, Y > 3.
+
 % at most one move at any time point
 
 clause("onedirection").
@@ -113,6 +117,20 @@ clause("oneway") -->
 neglit("oneway",position(_,_,_)).
 poslit("oneway",move(_,_)).
 
+%got to keep moving
+
+clause("goal").
+clause("goal") -->
+    insol(position(I,X,Y)),
+    {not goal(X,Y)},
+    neglit(position(I,X,Y)),
+    poslit(move(I,l)),
+    poslit(move(I,r)),
+    poslit(move(I,u)),
+    poslit(move(I,d)).
+neglit("goal",position(_,X,Y)) :- not goal(X,Y).
+poslit("goal",move(_,_)).
+      
 clause("moveinv").
 clause("moveinv") -->
 	insol(position(I,NewX,NewY)),
@@ -145,8 +163,8 @@ neglit("move",position(_,_,_)).
 poslit("move",position(_,_,_)).
 neglit("move",move(_,_)).
 
-initial_clause("start") -->
-	initial_poslit(position(0,0,0)).
+%initial_clause("start") -->
+%	initial_poslit(position(0,0,0)).
 
 initial_clause("end") -->
 	initial_poslit(position(6,4,2)).
