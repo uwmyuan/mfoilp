@@ -11,8 +11,8 @@
 :- pred initial_clause(string::out,clause_lits::in,clause_lits::out) is multi.
 
 :- pred clause(string::out) is multi.
-:- pred equality(string::in) is semidet.
-:- pred penalty_atom(string::in) is semidet.
+:- pred equality(string::in) is failure.
+:- pred penalty_atom(string::in) is failure.
 
 :- pred neglit(string::in,atom::in) is semidet.
 :- pred poslit(string::in,atom::in) is semidet.
@@ -38,6 +38,8 @@
 % each move has a cost
 
 objective(move(_,_),1.0).
+%objective(position(_,X,X),0.02) :- not X=0.
+objective(position(I,X,X),0.02) :- X < 3, I<5, I>2.
 
 % good and bad places
 
@@ -61,6 +63,11 @@ makemove(u,X,Y,X,Y+1).
 makemove(d,X,Y,X,Y-1).
 makemove(s,X,Y,X,Y).
 
+:- pred wall_between(int::in,int::in,int::in,int::in) is semidet.
+
+wall_between(3,0,4,0).
+wall_between(1,0,2,0).
+
 % at most one move at any time point
 
 clause("onedirection").
@@ -71,6 +78,15 @@ clause("onedirection") -->
 	neglit(move(I,D1)),
 	neglit(move(I,D2)).
 neglit("onedirection",move(_,_)).
+
+clause("walls").
+clause("walls") -->
+    insol(position(I1,X1,Y1)),
+    insol(position(I1+1,X2,Y2)),
+    {wall_between(X1,Y1,X2,Y2)},
+    neglit(position(I1,X1,Y1)),
+    neglit(position(I1+1,X2,Y2)).
+neglit("walls",position(_,_,_)).
 
 clause("oneposition").
 clause("oneposition") -->
@@ -110,15 +126,21 @@ neglit("moveinv",position(I,_,_)) :- not I = 0.
 neglit("moveinv",move(_,_)).
 poslit("moveinv",position(_,_,_)).
 
+%% clause("limitpositions").
+%% clause("limitpositions") -->
+%% 	insol(position(I,X,Y)),
+%%  	{X > 5 ; Y > 5},
+%%  	neglit(position(I,X,Y)).
+%% neglit("limitpositions",position(_,X,Y)) :- X > 5 ; Y > 5.
 
 clause("move").
 clause("move") -->
-	insol(position(I,X,Y)),
-	insol(move(I,D)),
-	neglit(position(I,X,Y)),
-	neglit(move(I,D)),
-	{makemove(D,X,Y,NewX,NewY)},
-	poslit(position(I+1,NewX,NewY)).
+    insol(position(I,X,Y)),
+    insol(move(I,D)),
+    neglit(position(I,X,Y)),
+    neglit(move(I,D)),
+    {makemove(D,X,Y,NewX,NewY)},
+    poslit(position(I+1,NewX,NewY)).
 neglit("move",position(_,_,_)).
 poslit("move",position(_,_,_)).
 neglit("move",move(_,_)).
