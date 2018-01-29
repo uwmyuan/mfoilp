@@ -39,7 +39,7 @@
 
 objective(move(_,_),1.0).
 %objective(position(_,X,X),0.02) :- not X=0.
-objective(position(I,X,X),0.02) :- X < 3, I<5, I>2.
+%objective(position(I,X,X),0.02) :- X < 3, I<5, I>2.
 
 % good and bad places
 
@@ -63,14 +63,16 @@ makemove(u,X,Y,X,Y+1).
 makemove(d,X,Y,X,Y-1).
 makemove(s,X,Y,X,Y).
 
-:- pred wall_between(int::in,int::in,int::in,int::in) is semidet.
+:- pred wall_between(int::in,int::in,int::in,int::in,int::in) is semidet.
 
-wall_between(3,0,4,0).
-wall_between(1,0,2,0).
+%wall_between(_,3,0,4,0).
+%wall_between(_,1,0,2,0).
+wall_between(I,X,Y,X+1,Y) :- I mod 3 = 0.
+%wall_between(I,X,Y,X,Y+1) :- I mod 2 = 0.
 
 :- pred goal(int::in,int::in) is semidet.
 
-goal(X,Y) :- X > 3, Y > 3.
+goal(X,Y) :- X > 1, Y > 4.
 
 % at most one move at any time point
 
@@ -87,7 +89,7 @@ clause("walls").
 clause("walls") -->
     insol(position(I1,X1,Y1)),
     insol(position(I1+1,X2,Y2)),
-    {wall_between(X1,Y1,X2,Y2)},
+    {wall_between(I1,X1,Y1,X2,Y2)},
     neglit(position(I1,X1,Y1)),
     neglit(position(I1+1,X2,Y2)).
 neglit("walls",position(_,_,_)).
@@ -163,11 +165,11 @@ neglit("move",position(_,_,_)).
 poslit("move",position(_,_,_)).
 neglit("move",move(_,_)).
 
-%initial_clause("start") -->
-%	initial_poslit(position(0,0,0)).
+initial_clause("start") -->
+	initial_poslit(position(0,0,0)).
 
-initial_clause("end") -->
-	initial_poslit(position(6,4,2)).
+%initial_clause("end") -->
+%	initial_poslit(position(6,4,2)).
 
 % extras
 equality(_) :- fail.
