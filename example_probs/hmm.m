@@ -32,7 +32,7 @@
 :- type obs ---> a ; b.
 :- type state ---> init ; s0 ; s1.
 
-:- type atom ---> at_state(int,state) ; trans(int,state,state) ; emit(int,state,obs).
+:- type atom ---> trans(int,state,state) ; emit(int,state,obs).
 
 objective(Atom,-ln(Prob)) :- probs(Atom,Prob). 
 
@@ -67,36 +67,26 @@ obs(10,b).
 
 clause("emit").
 clause("emit") -->
-    insol(at_state(I,State)),
-    neglit(at_state(I,State)),
+    insol(trans(I-1,OldState,State)),
+    neglit(trans(I-1,OldState,State)),
     {obs(I,Obs)},
     poslit(emit(I,State,Obs)).
-neglit("emit",at_state(_,_)).
+neglit("emit",trans(_,_,_)).
 poslit("emit",emit(_,_,_)).
-
-clause("dyn").
-clause("dyn") -->
-    insol(at_state(I,State)),
-    neglit(at_state(I,State)),
-    {obs(I+1,_Obs)},
-    poslit(trans(I,State,s0)),
-    poslit(trans(I,State,s1)).
-neglit("dyn",at_state(_,_)).
-poslit("dyn",trans(_,_,_)).
 
 clause("trans").
 clause("trans") -->
-    insol(at_state(I,State)),
-    neglit(at_state(I,State)),
-    insol(trans(I,State,State2)),
-    neglit(trans(I,State,State2)),
-    poslit(at_state(I+1,State2)).
-neglit("trans",at_state(_,_)).
+    insol(trans(I-1,OldState,State)),
+    neglit(trans(I-1,OldState,State)),
+    {obs(I+1,_Obs)},
+    poslit(trans(I,State,s0)),
+    poslit(trans(I,State,s1)).
 neglit("trans",trans(_,_,_)).
-poslit("trans",at_state(_,_)).
+poslit("trans",trans(_,_,_)).
 
 initial_clause("start") -->
-	initial_poslit(at_state(0,init)).
+    initial_poslit(trans(0,init,s0)),
+    initial_poslit(trans(0,init,s1)).
 
     
 
